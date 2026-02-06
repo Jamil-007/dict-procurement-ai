@@ -5,7 +5,6 @@ import { ChatLayout } from '@/components/procurement/chat-layout';
 import { ZeroState } from '@/components/procurement/zero-state';
 import { MessageList } from '@/components/procurement/message-list';
 import { ThinkingWidget } from '@/components/procurement/thinking-widget';
-import { VerdictCard } from '@/components/procurement/verdict-card';
 import { InputArea } from '@/components/procurement/input-area';
 import { ReportPreview } from '@/components/procurement/report-preview';
 import { toast } from 'sonner';
@@ -29,7 +28,7 @@ export default function ProcurementPage() {
     generateReport,
     declineReport,
     sendChatMessage,
-    closeSplitView,
+    reset,
   } = useProcurementAnalysis();
 
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -162,17 +161,7 @@ export default function ProcurementPage() {
                   timestamp: cm.timestamp
                 }))}
                 isChatLoading={isChatLoading}
-              >
-                {(state === 'verdict' || state === 'generating' || state === 'complete') && verdictData && (
-                  <VerdictCard
-                    verdict={verdictData}
-                    onGenerateReport={handleGenerateReport}
-                    onDeclineReport={handleDeclineReport}
-                    isGenerating={state === 'generating'}
-                    showCTA={showReportCTA}
-                  />
-                )}
-              </MessageList>
+              />
             )}
 
             <InputArea
@@ -182,6 +171,7 @@ export default function ProcurementPage() {
               selectedFiles={pendingFiles}
               disabled={state === 'thinking' || state === 'uploading'}
               isSplitView={true}
+              fileOnly={state === 'idle'}
               placeholder={
                 state === 'idle'
                   ? 'Upload a PDF to start analysis...'
@@ -204,7 +194,11 @@ export default function ProcurementPage() {
             isLoading={state === 'generating'}
             verdictData={verdictData}
             gammaLink={gammaLink}
-            onClose={closeSplitView}
+            onGenerateReport={handleGenerateReport}
+            onDeclineReport={handleDeclineReport}
+            isGenerating={state === 'generating'}
+            showCTA={showReportCTA}
+            onReset={reset}
           />
         </motion.div>
       </div>
@@ -239,16 +233,6 @@ export default function ProcurementPage() {
                 isComplete={state !== 'thinking'}
               />
             )}
-
-            {(state === 'verdict' || state === 'generating' || state === 'complete') && verdictData && (
-              <VerdictCard
-                verdict={verdictData}
-                onGenerateReport={handleGenerateReport}
-                onDeclineReport={handleDeclineReport}
-                isGenerating={state === 'generating'}
-                showCTA={showReportCTA}
-              />
-            )}
           </MessageList>
         )}
 
@@ -259,6 +243,7 @@ export default function ProcurementPage() {
           selectedFiles={pendingFiles}
           disabled={state === 'thinking' || state === 'uploading'}
           isSplitView={false}
+          fileOnly={state === 'idle'}
           placeholder={
             state === 'idle'
               ? 'Upload a PDF to start analysis...'

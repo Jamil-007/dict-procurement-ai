@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Download, FileText, Sparkles } from 'lucide-react';
+import { FileText, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -15,11 +15,16 @@ interface ReportPreviewProps {
   isLoading: boolean;
   verdictData: VerdictData | null;
   gammaLink: string | null;
-  onClose: () => void;
+  onGenerateReport?: () => void;
+  onDeclineReport?: () => void;
+  isGenerating?: boolean;
+  showCTA?: boolean;
+  onReset?: () => void;
 }
 
-export function ReportPreview({ isLoading, verdictData, gammaLink, onClose }: ReportPreviewProps) {
-  const [showComingSoon, setShowComingSoon] = useState(false);
+export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateReport, onDeclineReport, isGenerating, showCTA, onReset }: ReportPreviewProps) {
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
   if (isLoading) {
     return (
       <div className="h-full flex flex-col bg-white">
@@ -32,9 +37,6 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onClose }: Re
               <p className="text-sm text-gray-500">Please wait...</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-gray-100">
-            <X className="h-5 w-5" />
-          </Button>
         </div>
 
         {/* Loading Content */}
@@ -56,9 +58,6 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onClose }: Re
               <p className="text-sm text-gray-500">Interactive Presentation</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-gray-100">
-            <X className="h-5 w-5" />
-          </Button>
         </div>
 
         {/* Gamma Iframe */}
@@ -83,31 +82,18 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onClose }: Re
       className="h-full flex flex-col bg-white"
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <FileText className="h-5 w-5 text-black" />
-          <div>
-            <h2 className="font-semibold text-lg text-black">Compliance Report</h2>
-            <p className="text-sm text-gray-500">
-              Generated {new Date().toLocaleDateString()}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
+      {onReset && (
+        <div className="flex items-center justify-end p-4 bg-white border-b border-gray-200 sticky top-0 z-10">
           <Button
-            variant="default"
+            variant="outline"
             size="sm"
-            className="bg-black hover:bg-gray-800 rounded-full"
-            onClick={() => setShowComingSoon(true)}
+            className="rounded-full border-gray-300 hover:bg-gray-100 text-black"
+            onClick={() => setShowResetConfirm(true)}
           >
-            <Download className="h-4 w-4 mr-2" />
-            Download PDF
-          </Button>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-gray-100">
-            <X className="h-5 w-5" />
+            Analyze Another Document
           </Button>
         </div>
-      </div>
+      )}
 
       {/* Report Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -229,6 +215,55 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onClose }: Re
           </CardContent>
         </Card>
 
+        {/* Generate Report CTA */}
+        {showCTA && onGenerateReport && onDeclineReport && (
+          <Card className="border-2 border-gray-200 rounded-2xl">
+            <CardContent className="pt-6 space-y-4">
+              <div className="space-y-2">
+                <h3 className="text-base font-semibold text-black">
+                  Generate Formal PDF Report?
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Create a comprehensive PDF report.
+                </p>
+              </div>
+
+              <div className="flex gap-3 w-full">
+                <Button
+                  onClick={onGenerateReport}
+                  disabled={isGenerating}
+                  className="flex-1 bg-black hover:bg-gray-800 rounded-full"
+                  size="lg"
+                >
+                  {isGenerating ? (
+                    <>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                        className="mr-2"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </motion.div>
+                      Generating...
+                    </>
+                  ) : (
+                    'Yes, Generate Report'
+                  )}
+                </Button>
+                <Button
+                  onClick={onDeclineReport}
+                  disabled={isGenerating}
+                  variant="secondary"
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-black rounded-full"
+                  size="lg"
+                >
+                  No, Save Tokens
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Footer */}
         <div className="text-center text-xs text-gray-500 pt-6">
           <p>This report was generated by Procurement AI Analyst</p>
@@ -236,31 +271,44 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onClose }: Re
         </div>
       </div>
 
-      {/* Coming Soon Modal */}
-      {showComingSoon && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowComingSoon(false)}>
+      {/* Reset Confirmation Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowResetConfirm(false)}>
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.2 }}
             onClick={(e) => e.stopPropagation()}
             className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl"
           >
             <div className="flex flex-col items-center text-center space-y-4">
-              <div className="w-16 h-16 bg-black rounded-full flex items-center justify-center">
-                <Sparkles className="h-8 w-8 text-white" />
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="h-8 w-8 text-black" />
               </div>
-              <h3 className="text-2xl font-bold text-black">Coming Soon</h3>
+              <h3 className="text-2xl font-bold text-black">Are you sure?</h3>
               <p className="text-gray-600">
-                PDF download functionality is currently under development and will be available in the next release.
+                The current analysis results will not be stored. This action cannot be undone.
               </p>
-              <Button
-                onClick={() => setShowComingSoon(false)}
-                className="bg-black hover:bg-gray-800 text-white rounded-full px-8"
-              >
-                Got it
-              </Button>
+              <div className="flex gap-3 w-full pt-2">
+                <Button
+                  onClick={() => {
+                    setShowResetConfirm(false);
+                    onReset?.();
+                  }}
+                  className="flex-1 bg-black hover:bg-gray-800 text-white rounded-full"
+                  size="lg"
+                >
+                  Yes, Start Over
+                </Button>
+                <Button
+                  onClick={() => setShowResetConfirm(false)}
+                  variant="secondary"
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-black rounded-full"
+                  size="lg"
+                >
+                  Cancel
+                </Button>
+              </div>
             </div>
           </motion.div>
         </div>

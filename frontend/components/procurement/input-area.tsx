@@ -13,6 +13,7 @@ interface InputAreaProps {
   disabled?: boolean;
   isSplitView?: boolean;
   placeholder?: string;
+  fileOnly?: boolean;
 }
 
 export function InputArea({
@@ -22,7 +23,8 @@ export function InputArea({
   selectedFiles,
   disabled,
   isSplitView,
-  placeholder = 'Ask about procurement documents...'
+  placeholder = 'Ask about procurement documents...',
+  fileOnly = false,
 }: InputAreaProps) {
   const [message, setMessage] = useState('');
 
@@ -50,64 +52,71 @@ export function InputArea({
       isSplitView ? 'absolute bottom-0 left-0 right-0' : 'fixed bottom-0 left-0 right-0'
     )}>
       <div className="max-w-3xl mx-auto">
-        <form onSubmit={handleSubmit} className="relative space-y-3">
-          {/* Selected Files Display */}
-          {selectedFiles.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {selectedFiles.map((file, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-2 text-sm"
-                >
-                  <FileText className="h-4 w-4 text-gray-600" />
-                  <span className="text-gray-800 max-w-[200px] truncate">{file.name}</span>
-                  <button
-                    type="button"
-                    onClick={() => onRemoveFile(index)}
-                    className="hover:bg-gray-200 rounded-full p-1 transition-colors"
-                  >
-                    <X className="h-3 w-3 text-gray-600" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
+        <form onSubmit={handleSubmit} className="relative">
           {/* Input Area */}
           <div className="flex items-center gap-2 bg-white rounded-full border-2 border-gray-300 hover:border-gray-400 focus-within:border-black smooth-transition p-3 px-4">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="shrink-0 hover:bg-gray-100 rounded-full"
-              onClick={() => !disabled && document.getElementById('input-file-upload')?.click()}
-              disabled={disabled}
-            >
-              <Paperclip className="h-5 w-5 text-gray-600" />
-            </Button>
+            {fileOnly && (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 hover:bg-gray-100 rounded-full"
+                  onClick={() => !disabled && document.getElementById('input-file-upload')?.click()}
+                  disabled={disabled}
+                >
+                  <Paperclip className="h-5 w-5 text-gray-600" />
+                </Button>
 
-            <input
-              id="input-file-upload"
-              type="file"
-              accept=".pdf"
-              onChange={handleFileInput}
-              disabled={disabled}
-              className="hidden"
-              multiple
-            />
+                <input
+                  id="input-file-upload"
+                  type="file"
+                  accept=".pdf"
+                  onChange={handleFileInput}
+                  disabled={disabled}
+                  className="hidden"
+                  multiple
+                />
+              </>
+            )}
 
-            <input
-              type="text"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              disabled={disabled}
-              placeholder={placeholder}
-              className={cn(
-                'flex-1 bg-transparent border-none outline-none text-sm',
-                'placeholder:text-gray-400',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
-              )}
-            />
+            {/* Show file chips inline OR text input, not both */}
+            {selectedFiles.length > 0 ? (
+              <div className="flex-1 flex items-center gap-2 min-w-0">
+                {selectedFiles.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1.5 text-sm"
+                  >
+                    <FileText className="h-4 w-4 text-gray-600 shrink-0" />
+                    <span className="text-gray-800 max-w-[200px] truncate">{file.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveFile(index)}
+                      className="hover:bg-gray-200 rounded-full p-0.5 transition-colors"
+                    >
+                      <X className="h-3 w-3 text-gray-600" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => !fileOnly && setMessage(e.target.value)}
+                disabled={disabled}
+                readOnly={fileOnly}
+                placeholder={placeholder}
+                className={cn(
+                  'flex-1 bg-transparent border-none outline-none text-sm',
+                  'placeholder:text-gray-400',
+                  'disabled:opacity-50 disabled:cursor-not-allowed',
+                  fileOnly && 'cursor-default'
+                )}
+                onClick={fileOnly ? () => document.getElementById('input-file-upload')?.click() : undefined}
+              />
+            )}
 
             <Button
               type="submit"

@@ -123,6 +123,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
         onVerdict: (verdict) => {
           setVerdictData(verdict);
           setState('verdict');
+          setShowSplitView(true);
         },
         onComplete: () => {
           closeEventSource();

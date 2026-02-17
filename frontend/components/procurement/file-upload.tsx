@@ -5,11 +5,11 @@ import { FileText, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FileUploadProps {
-  onFileSelect: (file: File) => void;
+  onFilesSelect: (files: File[]) => void;
   disabled?: boolean;
 }
 
-export function FileUpload({ onFileSelect, disabled }: FileUploadProps) {
+export function FileUpload({ onFilesSelect, disabled }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -30,20 +30,24 @@ export function FileUpload({ onFileSelect, disabled }: FileUploadProps) {
 
     if (disabled) return;
 
-    const files = Array.from(e.dataTransfer.files);
-    const pdfFile = files.find(file => file.type === 'application/pdf');
-
-    if (pdfFile) {
-      onFileSelect(pdfFile);
+    const pdfFiles = Array.from(e.dataTransfer.files).filter(
+      (file) => file.type === 'application/pdf'
+    );
+    if (pdfFiles.length > 0) {
+      onFilesSelect(pdfFiles);
     }
-  }, [disabled, onFileSelect]);
+  }, [disabled, onFilesSelect]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files && files[0]) {
-      onFileSelect(files[0]);
+    if (files && files.length > 0) {
+      const pdfFiles = Array.from(files).filter((file) => file.type === 'application/pdf');
+      if (pdfFiles.length > 0) {
+        onFilesSelect(pdfFiles);
+      }
+      e.target.value = '';
     }
-  }, [onFileSelect]);
+  }, [onFilesSelect]);
 
   return (
     <div
@@ -67,6 +71,7 @@ export function FileUpload({ onFileSelect, disabled }: FileUploadProps) {
         onChange={handleFileInput}
         disabled={disabled}
         className="hidden"
+        multiple
       />
 
       <div className={cn(

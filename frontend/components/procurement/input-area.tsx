@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface InputAreaProps {
-  onFileSelect: (file: File) => void;
+  onFilesSelect: (files: File[]) => void;
   onRemoveFile: (index: number) => void;
   onSend: (message: string) => void;
   selectedFiles: File[];
@@ -17,7 +17,7 @@ interface InputAreaProps {
 }
 
 export function InputArea({
-  onFileSelect,
+  onFilesSelect,
   onRemoveFile,
   onSend,
   selectedFiles,
@@ -31,8 +31,7 @@ export function InputArea({
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      // Add new files to the existing selection
-      Array.from(files).forEach(file => onFileSelect(file));
+      onFilesSelect(Array.from(files));
       // Reset the input so the same file can be selected again if needed
       e.target.value = '';
     }

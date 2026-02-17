@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     VERTEX_MODEL_NAME: str = "gemini-2.0-flash-exp"  # Options: gemini-2.0-flash-exp, gemini-1.5-pro-002, gemini-1.5-flash-002
     ANTHROPIC_MODEL_NAME: str = "claude-3-5-sonnet-20241022"
     TEMPERATURE: float = 0.7
+    CHAT_PARSED_TEXT_LIMIT: int = 150000
 
     model_config = SettingsConfigDict(
         env_file=".env",

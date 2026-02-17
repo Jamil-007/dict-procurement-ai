@@ -81,19 +81,19 @@ checkpointer = MemorySaver()
 graph = workflow.compile(checkpointer=checkpointer, interrupt_after=["report_compiler"])
 
 
-def create_initial_state(thread_id: str, pdf_path: str) -> AgentState:
+def create_initial_state(thread_id: str, pdf_paths: List[str]) -> AgentState:
     """
     Create initial state for a new analysis session.
 
     Args:
         thread_id: Unique identifier for this session
-        pdf_path: Path to the uploaded PDF file
+        pdf_paths: Paths to uploaded PDF files
 
     Returns:
         Initial AgentState with empty/default values
     """
     return {
-        "original_pdf_path": pdf_path,
+        "original_pdf_paths": pdf_paths,
         "parsed_text": "",
         "analysis_results": {
             "spec_check": {},

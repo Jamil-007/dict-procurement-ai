@@ -6,11 +6,11 @@ import { FileUpload } from './file-upload';
 import { VerdictData } from '@/types/procurement';
 
 interface ZeroStateProps {
-  onFileSelect: (file: File) => void;
+  onFilesSelect: (files: File[]) => void;
   onScenarioSelect: (verdict: VerdictData, scenarioName: string) => void;
 }
 
-export function ZeroState({ onFileSelect, onScenarioSelect }: ZeroStateProps) {
+export function ZeroState({ onFilesSelect, onScenarioSelect }: ZeroStateProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -25,7 +25,7 @@ export function ZeroState({ onFileSelect, onScenarioSelect }: ZeroStateProps) {
       </div>
 
       <div className="w-full max-w-lg">
-        <FileUpload onFileSelect={onFileSelect} />
+        <FileUpload onFilesSelect={onFilesSelect} />
       </div>
     </motion.div>
   );

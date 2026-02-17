@@ -19,7 +19,7 @@ export interface UseProcurementAnalysisReturn {
   error: string | null;
   isConnected: boolean;
   isChatLoading: boolean;
-  uploadFile: (file: File) => void;
+  uploadFiles: (files: File[]) => void;
   generateReport: () => void;
   declineReport: () => void;
   sendChatMessage: (message: string) => Promise<void>;
@@ -66,16 +66,26 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
   }, [closeEventSource]);
 
   // Upload file handler
-  const uploadFile = useCallback(async (file: File) => {
+  const uploadFiles = useCallback(async (files: File[]) => {
     try {
       setError(null);
+
+      if (!files.length) {
+        setError('No PDF files selected');
+        return;
+      }
+
+      const firstFile = files[0];
+      const hasMore = files.length > 1;
 
       // Add user message
       const userMessage: Message = {
         id: `msg-${Date.now()}-user`,
         type: 'user',
-        content: 'Please analyze this procurement document',
-        fileName: file.name,
+        content: hasMore
+          ? `Please analyze these procurement documents (${files.length} files)`
+          : 'Please analyze this procurement document',
+        fileName: hasMore ? `${firstFile.name} +${files.length - 1} more` : firstFile.name,
         timestamp: Date.now(),
       };
       setMessages([userMessage]);
@@ -83,8 +93,8 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
       // Transition to uploading
       setState('uploading');
 
-      // Upload the file
-      const response = await apiClient.uploadDocument(file);
+      // Upload the files
+      const response = await apiClient.uploadDocuments(files);
       threadIdRef.current = response.thread_id;
 
       // Transition to thinking
@@ -259,7 +269,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
     error,
     isConnected,
     isChatLoading,
-    uploadFile,
+    uploadFiles,
     generateReport,
     declineReport,
     sendChatMessage,

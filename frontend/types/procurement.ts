@@ -55,7 +55,7 @@ export interface UseProcurementSimulationReturn {
   verdictData: VerdictData | null;
   messages: Message[];
   showSplitView: boolean;
-  uploadFile: (file: File, verdict?: VerdictData) => void;
+  uploadFiles: (files: File[], verdict?: VerdictData) => void;
   startScenario: (verdict: VerdictData, scenarioName: string) => void;
   generateReport: () => void;
   declineReport: () => void;

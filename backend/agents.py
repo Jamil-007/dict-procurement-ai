@@ -8,6 +8,7 @@ import time
 import uuid
 import operator
 from typing import TypedDict, List, Dict, Any, Annotated
+from pathlib import Path
 from utils.llm_factory import get_llm
 from utils.pdf_parser import extract_text_from_pdf
 from utils.gamma_client import gamma_client
@@ -49,7 +50,7 @@ def append_thinking_logs(left: list, right: list) -> list:
 
 class AgentState(TypedDict, total=False):
     """State structure for the LangGraph workflow."""
-    original_pdf_path: str
+    original_pdf_paths: List[str]
     parsed_text: str
     analysis_results: Annotated[dict, merge_analysis_results]
     compiled_report: str
@@ -106,7 +107,19 @@ def pdf_parser_node(state: AgentState) -> Dict[str, Any]:
     logs = []
 
     try:
-        parsed_text = extract_text_from_pdf(state["original_pdf_path"])
+        parsed_documents = []
+        pdf_paths = state.get("original_pdf_paths", [])
+        if not pdf_paths:
+            raise ValueError("No PDF files found for parsing")
+
+        for index, pdf_path in enumerate(pdf_paths, start=1):
+            document_text = extract_text_from_pdf(pdf_path)
+            file_name = Path(pdf_path).name
+            parsed_documents.append(
+                f"===== Document {index}: {file_name} =====\n{document_text}"
+            )
+
+        parsed_text = "\n\n".join(parsed_documents)
         logs.append(create_thinking_log("PDF Parser", "PDF text extraction complete", "complete"))
 
         return {

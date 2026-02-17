@@ -67,9 +67,9 @@ class APIClient {
     return response.json();
   }
 
-  async uploadDocument(file: File): Promise<AnalyzeResponse> {
+  async uploadDocuments(files: File[]): Promise<AnalyzeResponse> {
     const formData = new FormData();
-    formData.append('file', file);
+    files.forEach((file) => formData.append('files', file));
 
     const response = await fetch(`${this.baseUrl}/analyze`, {
       method: 'POST',

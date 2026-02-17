@@ -7,10 +7,14 @@ import { MessageList } from '@/components/procurement/message-list';
 import { ThinkingWidget } from '@/components/procurement/thinking-widget';
 import { InputArea } from '@/components/procurement/input-area';
 import { ReportPreview } from '@/components/procurement/report-preview';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Message } from '@/types/procurement';
+import { AlertTriangle } from 'lucide-react';
+
+const MAX_FILES = 3;
 
 export default function ProcurementPage() {
   const {
@@ -24,7 +28,7 @@ export default function ProcurementPage() {
     error,
     isConnected,
     isChatLoading,
-    uploadFile,
+    uploadFiles,
     generateReport,
     declineReport,
     sendChatMessage,
@@ -34,9 +38,16 @@ export default function ProcurementPage() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [showReportCTA, setShowReportCTA] = useState(true);
   const [showChat, setShowChat] = useState(false);
+  const [showFileLimitModal, setShowFileLimitModal] = useState(false);
 
-  const handleFileSelect = useCallback((file: File) => {
-    setPendingFiles(prev => [...prev, file]);
+  const handleFilesSelect = useCallback((newFiles: File[]) => {
+    setPendingFiles((prev) => {
+      const merged = [...prev, ...newFiles];
+      if (merged.length > MAX_FILES) {
+        setShowFileLimitModal(true);
+      }
+      return merged.slice(0, MAX_FILES);
+    });
   }, []);
 
   const handleRemoveFile = useCallback((index: number) => {
@@ -55,9 +66,8 @@ export default function ProcurementPage() {
     console.log('[handleSend] Message trimmed:', message.trim());
 
     if (pendingFiles.length > 0) {
-      console.log('[handleSend] Uploading file');
-      // Upload the first file
-      uploadFile(pendingFiles[0]);
+      console.log('[handleSend] Uploading files');
+      uploadFiles(pendingFiles);
       setPendingFiles([]);
       setShowReportCTA(true); // Reset CTA for new analysis
     } else if ((state === 'verdict' || state === 'generating' || state === 'complete') && message.trim()) {
@@ -74,7 +84,7 @@ export default function ProcurementPage() {
     } else {
       console.log('[handleSend] No action taken - state or message invalid');
     }
-  }, [pendingFiles, uploadFile, state, handleChatMessage]);
+  }, [pendingFiles, uploadFiles, state, handleChatMessage]);
 
   // Show toast notifications based on state changes
   useEffect(() => {
@@ -146,7 +156,7 @@ export default function ProcurementPage() {
           <ChatLayout>
             {state === 'idle' && (
               <ZeroState
-                onFileSelect={handleFileSelect}
+                onFilesSelect={handleFilesSelect}
                 onScenarioSelect={() => {}}
               />
             )}
@@ -165,7 +175,7 @@ export default function ProcurementPage() {
             )}
 
             <InputArea
-              onFileSelect={handleFileSelect}
+              onFilesSelect={handleFilesSelect}
               onRemoveFile={handleRemoveFile}
               onSend={handleSend}
               selectedFiles={pendingFiles}
@@ -180,6 +190,40 @@ export default function ProcurementPage() {
                   : 'Ask about procurement documents...'
               }
             />
+            {showFileLimitModal && (
+              <div
+                className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+                onClick={() => setShowFileLimitModal(false)}
+              >
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl"
+                >
+                  <div className="flex flex-col items-center text-center space-y-4">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                      <AlertTriangle className="h-8 w-8 text-black" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-black">Document limit reached</h3>
+                    <p className="text-gray-600">
+                      This version can only process up to 3 documents. More document support will
+                      follow in the next update.
+                    </p>
+                    <div className="w-full pt-2">
+                      <Button
+                        onClick={() => setShowFileLimitModal(false)}
+                        className="w-full bg-black hover:bg-gray-800 text-white rounded-full"
+                        size="lg"
+                      >
+                        Okay
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
+            )}
           </ChatLayout>
         </motion.div>
 
@@ -211,7 +255,7 @@ export default function ProcurementPage() {
       <ChatLayout>
         {state === 'idle' && (
           <ZeroState
-            onFileSelect={handleFileSelect}
+            onFilesSelect={handleFilesSelect}
             onScenarioSelect={() => {}}
           />
         )}
@@ -237,7 +281,7 @@ export default function ProcurementPage() {
         )}
 
         <InputArea
-          onFileSelect={handleFileSelect}
+          onFilesSelect={handleFilesSelect}
           onRemoveFile={handleRemoveFile}
           onSend={handleSend}
           selectedFiles={pendingFiles}
@@ -253,6 +297,40 @@ export default function ProcurementPage() {
           }
         />
       </ChatLayout>
+      {showFileLimitModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => setShowFileLimitModal(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.2 }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl"
+          >
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="h-8 w-8 text-black" />
+              </div>
+              <h3 className="text-2xl font-bold text-black">Document limit reached</h3>
+              <p className="text-gray-600">
+                This version can only process up to 3 documents. More document support will follow
+                in the next update.
+              </p>
+              <div className="w-full pt-2">
+                <Button
+                  onClick={() => setShowFileLimitModal(false)}
+                  className="w-full bg-black hover:bg-gray-800 text-white rounded-full"
+                  size="lg"
+                >
+                  Okay
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

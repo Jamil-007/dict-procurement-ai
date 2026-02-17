@@ -5,7 +5,7 @@ Implements SSE streaming, human-in-the-loop workflow, and chat.
 
 import asyncio
 import json
-from typing import AsyncGenerator
+from typing import AsyncGenerator, List
 from fastapi import FastAPI, UploadFile, HTTPException, File
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
@@ -18,10 +18,11 @@ from models import (
     ChatResponse,
     ErrorResponse,
 )
-from utils.storage import save_uploaded_file, generate_thread_id, file_exists, get_file_path
+from utils.storage import save_uploaded_files, generate_thread_id, file_exists
 from utils.llm_factory import get_llm, get_llm_info
 from graph import graph, create_initial_state, get_state, resume_graph
 from prompts import CHAT_PROMPT
+from config import settings
 
 
 app = FastAPI(
@@ -55,30 +56,39 @@ async def health_check():
 
 
 @app.post("/analyze", response_model=AnalyzeResponse)
-async def analyze_document(file: UploadFile = File(...)):
+async def analyze_document(files: List[UploadFile] = File(...)):
     """
     Upload PDF and initiate analysis.
 
     Args:
-        file: PDF file upload
+        files: PDF file uploads
 
     Returns:
         thread_id and status for tracking analysis
     """
-    # Validate file type
-    if not file.filename.endswith('.pdf'):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+    if not files:
+        raise HTTPException(status_code=400, detail="At least one PDF file is required")
+
+    if len(files) > 3:
+        raise HTTPException(status_code=400, detail="Maximum of 3 PDF files allowed")
+
+    for uploaded_file in files:
+        if not uploaded_file.filename or not uploaded_file.filename.lower().endswith('.pdf'):
+            raise HTTPException(status_code=400, detail="Only PDF files are supported")
 
     try:
         # Generate unique thread ID
         thread_id = generate_thread_id()
 
-        # Save uploaded file
-        file_content = await file.read()
-        pdf_path = await save_uploaded_file(file_content, thread_id)
+        # Save uploaded files
+        file_payloads = []
+        for uploaded_file in files:
+            file_content = await uploaded_file.read()
+            file_payloads.append((uploaded_file.filename, file_content))
+        pdf_paths = await save_uploaded_files(file_payloads, thread_id)
 
         # Create initial state
-        initial_state = create_initial_state(thread_id, pdf_path)
+        initial_state = create_initial_state(thread_id, pdf_paths)
 
         # Start graph execution in background
         config = {"configurable": {"thread_id": thread_id}}
@@ -300,7 +310,7 @@ async def chat_about_document(request: ChatRequest):
         # Get LLM and invoke with context
         llm = get_llm()
         prompt = CHAT_PROMPT.format(
-            parsed_text=parsed_text[:50000],  # Limit context size
+            parsed_text=parsed_text[:settings.CHAT_PARSED_TEXT_LIMIT],  # Limit context size
             compiled_report=compiled_report,
             query=request.query
         )

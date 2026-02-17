@@ -30,6 +30,29 @@ export interface StreamCallbacks {
   onGammaLink?: (link: string) => void;
 }
 
+export interface ChatStreamStartEvent {
+  message_id: string;
+  timestamp: number;
+}
+
+export interface ChatStreamDeltaEvent {
+  message_id: string;
+  delta: string;
+}
+
+export interface ChatStreamCompleteEvent {
+  message_id: string;
+  response: string;
+  timestamp: number;
+}
+
+export interface ChatStreamCallbacks {
+  onStart?: (event: ChatStreamStartEvent) => void;
+  onDelta?: (event: ChatStreamDeltaEvent) => void;
+  onComplete?: (event: ChatStreamCompleteEvent) => void;
+  onError?: (error: string) => void;
+}
+
 export class APIError extends Error {
   constructor(
     message: string,
@@ -194,6 +217,129 @@ class APIClient {
     });
 
     return this.handleResponse<ChatResponse>(response);
+  }
+
+  async sendChatMessageStream(
+    threadId: string,
+    query: string,
+    callbacks: ChatStreamCallbacks,
+    signal?: AbortSignal
+  ): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        thread_id: threadId,
+        query,
+      }),
+      signal,
+    });
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      let details;
+
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorData.detail || errorMessage;
+        details = errorData;
+      } catch {
+        // Fall back to status text if body is not JSON
+      }
+
+      throw new APIError(errorMessage, response.status, details);
+    }
+
+    if (!response.body) {
+      throw new APIError('Streaming response body not available');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    const processSSEEvent = (rawEvent: string) => {
+      const lines = rawEvent.split('\n');
+      let eventName = 'message';
+      const dataLines: string[] = [];
+
+      for (const rawLine of lines) {
+        const line = rawLine.trimEnd();
+        if (!line || line.startsWith(':')) {
+          continue;
+        }
+
+        if (line.startsWith('event:')) {
+          eventName = line.slice(6).trim();
+          continue;
+        }
+
+        if (line.startsWith('data:')) {
+          dataLines.push(line.slice(5).trim());
+        }
+      }
+
+      if (!dataLines.length) {
+        return;
+      }
+
+      let payload: any;
+      try {
+        payload = JSON.parse(dataLines.join('\n'));
+      } catch {
+        callbacks.onError?.('Failed to parse stream payload');
+        throw new APIError('Failed to parse stream payload');
+      }
+
+      if (eventName === 'chat_start') {
+        callbacks.onStart?.(payload as ChatStreamStartEvent);
+        return;
+      }
+
+      if (eventName === 'chat_delta') {
+        callbacks.onDelta?.(payload as ChatStreamDeltaEvent);
+        return;
+      }
+
+      if (eventName === 'chat_complete') {
+        callbacks.onComplete?.(payload as ChatStreamCompleteEvent);
+        return;
+      }
+
+      if (eventName === 'error') {
+        const message = payload?.error || 'Stream error occurred';
+        callbacks.onError?.(message);
+        throw new APIError(message);
+      }
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      let boundaryIndex = buffer.indexOf('\n\n');
+
+      while (boundaryIndex !== -1) {
+        const rawEvent = buffer.slice(0, boundaryIndex).trim();
+        buffer = buffer.slice(boundaryIndex + 2);
+
+        if (rawEvent) {
+          processSSEEvent(rawEvent);
+        }
+
+        boundaryIndex = buffer.indexOf('\n\n');
+      }
+    }
+
+    const tail = (buffer + decoder.decode()).trim();
+    if (tail) {
+      processSSEEvent(tail);
+    }
   }
 
   async getStatus(threadId: string): Promise<StatusResponse> {

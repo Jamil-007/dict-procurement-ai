@@ -179,7 +179,7 @@ export default function ProcurementPage() {
               onRemoveFile={handleRemoveFile}
               onSend={handleSend}
               selectedFiles={pendingFiles}
-              disabled={state === 'thinking' || state === 'uploading'}
+              disabled={state === 'thinking' || state === 'uploading' || isChatLoading}
               isSplitView={true}
               fileOnly={state === 'idle'}
               placeholder={
@@ -285,7 +285,7 @@ export default function ProcurementPage() {
           onRemoveFile={handleRemoveFile}
           onSend={handleSend}
           selectedFiles={pendingFiles}
-          disabled={state === 'thinking' || state === 'uploading'}
+          disabled={state === 'thinking' || state === 'uploading' || isChatLoading}
           isSplitView={false}
           fileOnly={state === 'idle'}
           placeholder={

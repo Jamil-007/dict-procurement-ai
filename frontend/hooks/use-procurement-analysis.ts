@@ -41,6 +41,8 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const threadIdRef = useRef<string | null>(null);
+  const chatAbortControllerRef = useRef<AbortController | null>(null);
+  const activeChatMessageIdRef = useRef<string | null>(null);
 
   // Cleanup function for EventSource
   const closeEventSource = useCallback(() => {
@@ -51,9 +53,19 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
     }
   }, []);
 
+  const closeChatStream = useCallback(() => {
+    if (chatAbortControllerRef.current) {
+      chatAbortControllerRef.current.abort();
+      chatAbortControllerRef.current = null;
+    }
+    activeChatMessageIdRef.current = null;
+    setIsChatLoading(false);
+  }, []);
+
   // Reset function
   const reset = useCallback(() => {
     closeEventSource();
+    closeChatStream();
     setState('idle');
     setThinkingLogs([]);
     setVerdictData(null);
@@ -63,7 +75,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
     setGammaLink(null);
     setError(null);
     threadIdRef.current = null;
-  }, [closeEventSource]);
+  }, [closeEventSource, closeChatStream]);
 
   // Upload file handler
   const uploadFiles = useCallback(async (files: File[]) => {
@@ -209,7 +221,13 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
       return;
     }
 
+    if (isChatLoading) {
+      return;
+    }
+
     try {
+      setError(null);
+
       // Add user message to chat messages
       const userChatMessage: ChatMessage = {
         id: `chat-${Date.now()}-user`,
@@ -220,31 +238,97 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
       console.log('[sendChatMessage] Adding user chat message:', userChatMessage);
       setChatMessages((prev) => [...prev, userChatMessage]);
 
-      // Set loading state
-      setIsChatLoading(true);
-
-      // Send to backend
-      console.log('[sendChatMessage] Sending to backend...');
-      const response = await apiClient.sendChatMessage(threadIdRef.current, message);
-      console.log('[sendChatMessage] Backend response:', response);
-
-      // Add AI response to chat messages
-      const aiChatMessage: ChatMessage = {
-        id: `chat-${Date.now()}-ai`,
+      const placeholderMessageId = `chat-${Date.now()}-ai-stream`;
+      const placeholderAssistantMessage: ChatMessage = {
+        id: placeholderMessageId,
         role: 'assistant',
-        content: response.response,
+        content: '',
         timestamp: Date.now(),
       };
-      console.log('[sendChatMessage] Adding AI chat message:', aiChatMessage);
-      setChatMessages((prev) => [...prev, aiChatMessage]);
+      setChatMessages((prev) => [...prev, placeholderAssistantMessage]);
+
+      setIsChatLoading(true);
+      activeChatMessageIdRef.current = placeholderMessageId;
+      const abortController = new AbortController();
+      chatAbortControllerRef.current = abortController;
+      let streamFinished = false;
+
+      console.log('[sendChatMessage] Streaming from backend...');
+      await apiClient.sendChatMessageStream(
+        threadIdRef.current,
+        message,
+        {
+          onStart: ({ message_id, timestamp }) => {
+            if (activeChatMessageIdRef.current !== placeholderMessageId) {
+              return;
+            }
+
+            activeChatMessageIdRef.current = message_id;
+            setChatMessages((prev) =>
+              prev.map((chatMessage) =>
+                chatMessage.id === placeholderMessageId
+                  ? { ...chatMessage, id: message_id, timestamp }
+                  : chatMessage
+              )
+            );
+          },
+          onDelta: ({ message_id, delta }) => {
+            if (activeChatMessageIdRef.current !== message_id) {
+              return;
+            }
+
+            setChatMessages((prev) =>
+              prev.map((chatMessage) =>
+                chatMessage.id === message_id
+                  ? { ...chatMessage, content: `${chatMessage.content}${delta}` }
+                  : chatMessage
+              )
+            );
+          },
+          onComplete: ({ message_id, response, timestamp }) => {
+            if (activeChatMessageIdRef.current !== message_id) {
+              return;
+            }
+
+            setChatMessages((prev) =>
+              prev.map((chatMessage) =>
+                chatMessage.id === message_id
+                  ? { ...chatMessage, content: response, timestamp }
+                  : chatMessage
+              )
+            );
+
+            streamFinished = true;
+            activeChatMessageIdRef.current = null;
+            setIsChatLoading(false);
+          },
+          onError: (errorMsg) => {
+            streamFinished = true;
+            setError(errorMsg);
+            activeChatMessageIdRef.current = null;
+            setIsChatLoading(false);
+          },
+        },
+        abortController.signal
+      );
+
+      if (!streamFinished) {
+        activeChatMessageIdRef.current = null;
+        setIsChatLoading(false);
+      }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return;
+      }
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
       console.error('[sendChatMessage] Error:', err);
       setError(errorMessage);
-    } finally {
       setIsChatLoading(false);
+      activeChatMessageIdRef.current = null;
+    } finally {
+      chatAbortControllerRef.current = null;
     }
-  }, []);
+  }, [isChatLoading]);
 
   // Close split view handler
   const closeSplitView = useCallback(() => {
@@ -255,8 +339,9 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
   useEffect(() => {
     return () => {
       closeEventSource();
+      closeChatStream();
     };
-  }, [closeEventSource]);
+  }, [closeEventSource, closeChatStream]);
 
   return {
     state,

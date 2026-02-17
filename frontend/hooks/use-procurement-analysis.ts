@@ -238,17 +238,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
       console.log('[sendChatMessage] Adding user chat message:', userChatMessage);
       setChatMessages((prev) => [...prev, userChatMessage]);
 
-      const placeholderMessageId = `chat-${Date.now()}-ai-stream`;
-      const placeholderAssistantMessage: ChatMessage = {
-        id: placeholderMessageId,
-        role: 'assistant',
-        content: '',
-        timestamp: Date.now(),
-      };
-      setChatMessages((prev) => [...prev, placeholderAssistantMessage]);
-
       setIsChatLoading(true);
-      activeChatMessageIdRef.current = placeholderMessageId;
       const abortController = new AbortController();
       chatAbortControllerRef.current = abortController;
       let streamFinished = false;
@@ -259,44 +249,77 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
         message,
         {
           onStart: ({ message_id, timestamp }) => {
-            if (activeChatMessageIdRef.current !== placeholderMessageId) {
-              return;
-            }
-
             activeChatMessageIdRef.current = message_id;
-            setChatMessages((prev) =>
-              prev.map((chatMessage) =>
-                chatMessage.id === placeholderMessageId
-                  ? { ...chatMessage, id: message_id, timestamp }
-                  : chatMessage
-              )
-            );
+            // Create assistant message container only when stream officially starts.
+            setChatMessages((prev) => {
+              if (prev.some((chatMessage) => chatMessage.id === message_id)) {
+                return prev;
+              }
+
+              return [
+                ...prev,
+                {
+                  id: message_id,
+                  role: 'assistant',
+                  content: '',
+                  timestamp,
+                },
+              ];
+            });
           },
           onDelta: ({ message_id, delta }) => {
             if (activeChatMessageIdRef.current !== message_id) {
               return;
             }
 
-            setChatMessages((prev) =>
-              prev.map((chatMessage) =>
+            setChatMessages((prev) => {
+              const messageExists = prev.some((chatMessage) => chatMessage.id === message_id);
+
+              if (!messageExists) {
+                return [
+                  ...prev,
+                  {
+                    id: message_id,
+                    role: 'assistant',
+                    content: delta,
+                    timestamp: Date.now(),
+                  },
+                ];
+              }
+
+              return prev.map((chatMessage) =>
                 chatMessage.id === message_id
                   ? { ...chatMessage, content: `${chatMessage.content}${delta}` }
                   : chatMessage
-              )
-            );
+              );
+            });
           },
           onComplete: ({ message_id, response, timestamp }) => {
             if (activeChatMessageIdRef.current !== message_id) {
               return;
             }
 
-            setChatMessages((prev) =>
-              prev.map((chatMessage) =>
+            setChatMessages((prev) => {
+              const messageExists = prev.some((chatMessage) => chatMessage.id === message_id);
+
+              if (!messageExists) {
+                return [
+                  ...prev,
+                  {
+                    id: message_id,
+                    role: 'assistant',
+                    content: response,
+                    timestamp,
+                  },
+                ];
+              }
+
+              return prev.map((chatMessage) =>
                 chatMessage.id === message_id
                   ? { ...chatMessage, content: response, timestamp }
                   : chatMessage
-              )
-            );
+              );
+            });
 
             streamFinished = true;
             activeChatMessageIdRef.current = null;

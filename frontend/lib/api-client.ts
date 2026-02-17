@@ -277,7 +277,7 @@ class APIClient {
         }
 
         if (line.startsWith('data:')) {
-          dataLines.push(line.slice(5).trim());
+          dataLines.push(line.slice(5).trimStart());
         }
       }
 
@@ -315,15 +315,8 @@ class APIClient {
       }
     };
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        break;
-      }
-
-      buffer += decoder.decode(value, { stream: true });
+    const processBuffer = () => {
       let boundaryIndex = buffer.indexOf('\n\n');
-
       while (boundaryIndex !== -1) {
         const rawEvent = buffer.slice(0, boundaryIndex).trim();
         buffer = buffer.slice(boundaryIndex + 2);
@@ -334,11 +327,24 @@ class APIClient {
 
         boundaryIndex = buffer.indexOf('\n\n');
       }
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      const decodedChunk = decoder.decode(value, { stream: true });
+      // Normalize newline variants so SSE boundaries are consistently detected.
+      buffer += decodedChunk.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      processBuffer();
     }
 
-    const tail = (buffer + decoder.decode()).trim();
-    if (tail) {
-      processSSEEvent(tail);
+    const finalChunk = decoder.decode();
+    if (finalChunk) {
+      buffer += finalChunk.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      processBuffer();
     }
   }
 

@@ -28,6 +28,7 @@ export default function ProcurementPage() {
     error,
     isConnected,
     isChatLoading,
+    isChatInFlight,
     uploadFiles,
     generateReport,
     declineReport,
@@ -179,7 +180,7 @@ export default function ProcurementPage() {
               onRemoveFile={handleRemoveFile}
               onSend={handleSend}
               selectedFiles={pendingFiles}
-              disabled={state === 'thinking' || state === 'uploading' || isChatLoading}
+              disabled={state === 'thinking' || state === 'uploading' || isChatInFlight}
               isSplitView={true}
               fileOnly={state === 'idle'}
               placeholder={
@@ -285,7 +286,7 @@ export default function ProcurementPage() {
           onRemoveFile={handleRemoveFile}
           onSend={handleSend}
           selectedFiles={pendingFiles}
-          disabled={state === 'thinking' || state === 'uploading' || isChatLoading}
+          disabled={state === 'thinking' || state === 'uploading' || isChatInFlight}
           isSplitView={false}
           fileOnly={state === 'idle'}
           placeholder={

@@ -19,6 +19,7 @@ export interface UseProcurementAnalysisReturn {
   error: string | null;
   isConnected: boolean;
   isChatLoading: boolean;
+  isChatInFlight: boolean;
   uploadFiles: (files: File[]) => void;
   generateReport: () => void;
   declineReport: () => void;
@@ -38,6 +39,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isChatInFlight, setIsChatInFlight] = useState(false);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const threadIdRef = useRef<string | null>(null);
@@ -60,6 +62,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
     }
     activeChatMessageIdRef.current = null;
     setIsChatLoading(false);
+    setIsChatInFlight(false);
   }, []);
 
   // Reset function
@@ -221,7 +224,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
       return;
     }
 
-    if (isChatLoading) {
+    if (isChatInFlight) {
       return;
     }
 
@@ -239,6 +242,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
       setChatMessages((prev) => [...prev, userChatMessage]);
 
       setIsChatLoading(true);
+      setIsChatInFlight(true);
       const abortController = new AbortController();
       chatAbortControllerRef.current = abortController;
       let streamFinished = false;
@@ -250,22 +254,6 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
         {
           onStart: ({ message_id, timestamp }) => {
             activeChatMessageIdRef.current = message_id;
-            // Create assistant message container only when stream officially starts.
-            setChatMessages((prev) => {
-              if (prev.some((chatMessage) => chatMessage.id === message_id)) {
-                return prev;
-              }
-
-              return [
-                ...prev,
-                {
-                  id: message_id,
-                  role: 'assistant',
-                  content: '',
-                  timestamp,
-                },
-              ];
-            });
           },
           onDelta: ({ message_id, delta }) => {
             if (activeChatMessageIdRef.current !== message_id) {
@@ -276,6 +264,10 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
               const messageExists = prev.some((chatMessage) => chatMessage.id === message_id);
 
               if (!messageExists) {
+                if (!delta.trim()) {
+                  return prev;
+                }
+                setIsChatLoading(false);
                 return [
                   ...prev,
                   {
@@ -287,6 +279,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
                 ];
               }
 
+              setIsChatLoading(false);
               return prev.map((chatMessage) =>
                 chatMessage.id === message_id
                   ? { ...chatMessage, content: `${chatMessage.content}${delta}` }
@@ -324,12 +317,14 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
             streamFinished = true;
             activeChatMessageIdRef.current = null;
             setIsChatLoading(false);
+            setIsChatInFlight(false);
           },
           onError: (errorMsg) => {
             streamFinished = true;
             setError(errorMsg);
             activeChatMessageIdRef.current = null;
             setIsChatLoading(false);
+            setIsChatInFlight(false);
           },
         },
         abortController.signal
@@ -338,6 +333,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
       if (!streamFinished) {
         activeChatMessageIdRef.current = null;
         setIsChatLoading(false);
+        setIsChatInFlight(false);
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
@@ -347,11 +343,12 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
       console.error('[sendChatMessage] Error:', err);
       setError(errorMessage);
       setIsChatLoading(false);
+      setIsChatInFlight(false);
       activeChatMessageIdRef.current = null;
     } finally {
       chatAbortControllerRef.current = null;
     }
-  }, [isChatLoading]);
+  }, [isChatInFlight]);
 
   // Close split view handler
   const closeSplitView = useCallback(() => {
@@ -377,6 +374,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
     error,
     isConnected,
     isChatLoading,
+    isChatInFlight,
     uploadFiles,
     generateReport,
     declineReport,

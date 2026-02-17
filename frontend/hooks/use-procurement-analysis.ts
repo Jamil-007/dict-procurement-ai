@@ -28,6 +28,19 @@ export interface UseProcurementAnalysisReturn {
   reset: () => void;
 }
 
+function buildVerdictIntroMessage(verdict: VerdictData): string {
+  const topCategories = verdict.findings
+    .slice(0, 2)
+    .map((finding) => finding.category)
+    .filter(Boolean);
+
+  const categoryText = topCategories.length
+    ? `Key risk areas: ${topCategories.join(' and ')}.`
+    : 'I can walk you through the key findings.';
+
+  return `Analysis complete: ${verdict.status} with ${verdict.confidence}% confidence. ${categoryText} Which part should we review first?`;
+}
+
 export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
   const [state, setState] = useState<SimulationState>('idle');
   const [thinkingLogs, setThinkingLogs] = useState<ThinkingLog[]>([]);
@@ -149,6 +162,15 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
           setVerdictData(verdict);
           setState('verdict');
           setShowSplitView(true);
+          setChatMessages((prev) => {
+            const introMessage: ChatMessage = {
+              id: `chat-${Date.now()}-verdict-intro`,
+              role: 'assistant',
+              content: buildVerdictIntroMessage(verdict),
+              timestamp: Date.now(),
+            };
+            return [...prev, introMessage];
+          });
         },
         onComplete: () => {
           closeEventSource();

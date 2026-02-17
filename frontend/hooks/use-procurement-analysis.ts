@@ -19,12 +19,26 @@ export interface UseProcurementAnalysisReturn {
   error: string | null;
   isConnected: boolean;
   isChatLoading: boolean;
+  isChatInFlight: boolean;
   uploadFiles: (files: File[]) => void;
   generateReport: () => void;
   declineReport: () => void;
   sendChatMessage: (message: string) => Promise<void>;
   closeSplitView: () => void;
   reset: () => void;
+}
+
+function buildVerdictIntroMessage(verdict: VerdictData): string {
+  const topCategories = verdict.findings
+    .slice(0, 2)
+    .map((finding) => finding.category)
+    .filter(Boolean);
+
+  const categoryText = topCategories.length
+    ? `Key risk areas: ${topCategories.join(' and ')}.`
+    : 'I can walk you through the key findings.';
+
+  return `Analysis complete: ${verdict.status} with ${verdict.confidence}% confidence. ${categoryText} Which part should we review first?`;
 }
 
 export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
@@ -38,9 +52,12 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
   const [error, setError] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isChatInFlight, setIsChatInFlight] = useState(false);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const threadIdRef = useRef<string | null>(null);
+  const chatAbortControllerRef = useRef<AbortController | null>(null);
+  const activeChatMessageIdRef = useRef<string | null>(null);
 
   // Cleanup function for EventSource
   const closeEventSource = useCallback(() => {
@@ -51,9 +68,20 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
     }
   }, []);
 
+  const closeChatStream = useCallback(() => {
+    if (chatAbortControllerRef.current) {
+      chatAbortControllerRef.current.abort();
+      chatAbortControllerRef.current = null;
+    }
+    activeChatMessageIdRef.current = null;
+    setIsChatLoading(false);
+    setIsChatInFlight(false);
+  }, []);
+
   // Reset function
   const reset = useCallback(() => {
     closeEventSource();
+    closeChatStream();
     setState('idle');
     setThinkingLogs([]);
     setVerdictData(null);
@@ -63,7 +91,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
     setGammaLink(null);
     setError(null);
     threadIdRef.current = null;
-  }, [closeEventSource]);
+  }, [closeEventSource, closeChatStream]);
 
   // Upload file handler
   const uploadFiles = useCallback(async (files: File[]) => {
@@ -134,6 +162,15 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
           setVerdictData(verdict);
           setState('verdict');
           setShowSplitView(true);
+          setChatMessages((prev) => {
+            const introMessage: ChatMessage = {
+              id: `chat-${Date.now()}-verdict-intro`,
+              role: 'assistant',
+              content: buildVerdictIntroMessage(verdict),
+              timestamp: Date.now(),
+            };
+            return [...prev, introMessage];
+          });
         },
         onComplete: () => {
           closeEventSource();
@@ -209,7 +246,13 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
       return;
     }
 
+    if (isChatInFlight) {
+      return;
+    }
+
     try {
+      setError(null);
+
       // Add user message to chat messages
       const userChatMessage: ChatMessage = {
         id: `chat-${Date.now()}-user`,
@@ -220,31 +263,114 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
       console.log('[sendChatMessage] Adding user chat message:', userChatMessage);
       setChatMessages((prev) => [...prev, userChatMessage]);
 
-      // Set loading state
       setIsChatLoading(true);
+      setIsChatInFlight(true);
+      const abortController = new AbortController();
+      chatAbortControllerRef.current = abortController;
+      let streamFinished = false;
 
-      // Send to backend
-      console.log('[sendChatMessage] Sending to backend...');
-      const response = await apiClient.sendChatMessage(threadIdRef.current, message);
-      console.log('[sendChatMessage] Backend response:', response);
+      console.log('[sendChatMessage] Streaming from backend...');
+      await apiClient.sendChatMessageStream(
+        threadIdRef.current,
+        message,
+        {
+          onStart: ({ message_id, timestamp }) => {
+            activeChatMessageIdRef.current = message_id;
+          },
+          onDelta: ({ message_id, delta }) => {
+            if (activeChatMessageIdRef.current !== message_id) {
+              return;
+            }
 
-      // Add AI response to chat messages
-      const aiChatMessage: ChatMessage = {
-        id: `chat-${Date.now()}-ai`,
-        role: 'assistant',
-        content: response.response,
-        timestamp: Date.now(),
-      };
-      console.log('[sendChatMessage] Adding AI chat message:', aiChatMessage);
-      setChatMessages((prev) => [...prev, aiChatMessage]);
+            setChatMessages((prev) => {
+              const messageExists = prev.some((chatMessage) => chatMessage.id === message_id);
+
+              if (!messageExists) {
+                if (!delta.trim()) {
+                  return prev;
+                }
+                setIsChatLoading(false);
+                return [
+                  ...prev,
+                  {
+                    id: message_id,
+                    role: 'assistant',
+                    content: delta,
+                    timestamp: Date.now(),
+                  },
+                ];
+              }
+
+              setIsChatLoading(false);
+              return prev.map((chatMessage) =>
+                chatMessage.id === message_id
+                  ? { ...chatMessage, content: `${chatMessage.content}${delta}` }
+                  : chatMessage
+              );
+            });
+          },
+          onComplete: ({ message_id, response, timestamp }) => {
+            if (activeChatMessageIdRef.current !== message_id) {
+              return;
+            }
+
+            setChatMessages((prev) => {
+              const messageExists = prev.some((chatMessage) => chatMessage.id === message_id);
+
+              if (!messageExists) {
+                return [
+                  ...prev,
+                  {
+                    id: message_id,
+                    role: 'assistant',
+                    content: response,
+                    timestamp,
+                  },
+                ];
+              }
+
+              return prev.map((chatMessage) =>
+                chatMessage.id === message_id
+                  ? { ...chatMessage, content: response, timestamp }
+                  : chatMessage
+              );
+            });
+
+            streamFinished = true;
+            activeChatMessageIdRef.current = null;
+            setIsChatLoading(false);
+            setIsChatInFlight(false);
+          },
+          onError: (errorMsg) => {
+            streamFinished = true;
+            setError(errorMsg);
+            activeChatMessageIdRef.current = null;
+            setIsChatLoading(false);
+            setIsChatInFlight(false);
+          },
+        },
+        abortController.signal
+      );
+
+      if (!streamFinished) {
+        activeChatMessageIdRef.current = null;
+        setIsChatLoading(false);
+        setIsChatInFlight(false);
+      }
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return;
+      }
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
       console.error('[sendChatMessage] Error:', err);
       setError(errorMessage);
-    } finally {
       setIsChatLoading(false);
+      setIsChatInFlight(false);
+      activeChatMessageIdRef.current = null;
+    } finally {
+      chatAbortControllerRef.current = null;
     }
-  }, []);
+  }, [isChatInFlight]);
 
   // Close split view handler
   const closeSplitView = useCallback(() => {
@@ -255,8 +381,9 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
   useEffect(() => {
     return () => {
       closeEventSource();
+      closeChatStream();
     };
-  }, [closeEventSource]);
+  }, [closeEventSource, closeChatStream]);
 
   return {
     state,
@@ -269,6 +396,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
     error,
     isConnected,
     isChatLoading,
+    isChatInFlight,
     uploadFiles,
     generateReport,
     declineReport,

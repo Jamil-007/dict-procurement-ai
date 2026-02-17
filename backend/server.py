@@ -5,8 +5,10 @@ Implements SSE streaming, human-in-the-loop workflow, and chat.
 
 import asyncio
 import json
-from typing import AsyncGenerator, List
-from fastapi import FastAPI, UploadFile, HTTPException, File
+import time
+import uuid
+from typing import Any, AsyncGenerator, List
+from fastapi import FastAPI, UploadFile, HTTPException, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 from models import (
@@ -42,6 +44,65 @@ app.add_middleware(
 
 # Store for tracking background tasks
 analysis_tasks = {}
+
+
+def _extract_text_from_chunk_content(content: Any) -> str:
+    """Normalize provider-specific chunk content into plain text."""
+    if content is None:
+        return ""
+
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        return "".join(_extract_text_from_chunk_content(item) for item in content)
+
+    if isinstance(content, dict):
+        text = content.get("text")
+        if isinstance(text, str):
+            return text
+
+        nested_content = content.get("content")
+        if nested_content is not None:
+            return _extract_text_from_chunk_content(nested_content)
+
+        return ""
+
+    return str(content)
+
+
+def _extract_text_from_stream_chunk(chunk: Any) -> str:
+    """Extract text from LangChain stream chunk payloads."""
+    if chunk is None:
+        return ""
+
+    content = getattr(chunk, "content", chunk)
+    return _extract_text_from_chunk_content(content)
+
+
+def _build_chat_prompt(thread_id: str, query: str) -> str:
+    """Validate chat state and build prompt for chat endpoints."""
+    if not file_exists(thread_id):
+        raise HTTPException(status_code=404, detail="Analysis session not found")
+
+    config = {"configurable": {"thread_id": thread_id}}
+    state_snapshot = graph.get_state(config)
+
+    if not state_snapshot or not state_snapshot.values:
+        raise HTTPException(status_code=404, detail="State not found")
+
+    state = state_snapshot.values
+    parsed_text = state.get("parsed_text", "")
+    compiled_report = state.get("compiled_report", "")
+
+    if not parsed_text:
+        raise HTTPException(status_code=400, detail="Document not yet analyzed")
+
+    return CHAT_PROMPT.format(
+        parsed_text=parsed_text[:settings.CHAT_PARSED_TEXT_LIMIT],
+        compiled_report=compiled_report,
+        query=query
+    )
 
 
 @app.get("/health")
@@ -287,34 +348,9 @@ async def chat_about_document(request: ChatRequest):
     Returns:
         AI response based on document and analysis
     """
-    if not file_exists(request.thread_id):
-        raise HTTPException(status_code=404, detail="Analysis session not found")
-
     try:
-        # Retrieve state
-        config = {"configurable": {"thread_id": request.thread_id}}
-        state_snapshot = graph.get_state(config)
-
-        if not state_snapshot or not state_snapshot.values:
-            raise HTTPException(status_code=404, detail="State not found")
-
-        state = state_snapshot.values
-
-        # Build context from parsed text and compiled report
-        parsed_text = state.get("parsed_text", "")
-        compiled_report = state.get("compiled_report", "")
-
-        if not parsed_text:
-            raise HTTPException(status_code=400, detail="Document not yet analyzed")
-
-        # Get LLM and invoke with context
+        prompt = _build_chat_prompt(request.thread_id, request.query)
         llm = get_llm()
-        prompt = CHAT_PROMPT.format(
-            parsed_text=parsed_text[:settings.CHAT_PARSED_TEXT_LIMIT],  # Limit context size
-            compiled_report=compiled_report,
-            query=request.query
-        )
-
         response = await asyncio.to_thread(lambda: llm.invoke(prompt))
         answer = response.content if hasattr(response, 'content') else str(response)
 
@@ -324,6 +360,74 @@ async def chat_about_document(request: ChatRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
+
+
+@app.post("/chat/stream")
+async def stream_chat_about_document(chat_request: ChatRequest, http_request: Request):
+    """
+    Stream chat response chunks for progressive UI rendering.
+    """
+    try:
+        prompt = _build_chat_prompt(chat_request.thread_id, chat_request.query)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
+
+    async def event_generator() -> AsyncGenerator[dict, None]:
+        message_id = str(uuid.uuid4())
+        timestamp_ms = int(time.time() * 1000)
+        full_response_parts: List[str] = []
+
+        try:
+            llm = get_llm()
+
+            yield {
+                "event": "chat_start",
+                "data": json.dumps({
+                    "message_id": message_id,
+                    "timestamp": timestamp_ms,
+                })
+            }
+
+            async for chunk in llm.astream(prompt):
+                if await http_request.is_disconnected():
+                    break
+
+                delta = _extract_text_from_stream_chunk(chunk)
+                if not delta:
+                    continue
+
+                full_response_parts.append(delta)
+                yield {
+                    "event": "chat_delta",
+                    "data": json.dumps({
+                        "message_id": message_id,
+                        "delta": delta,
+                    })
+                }
+
+            if not await http_request.is_disconnected():
+                final_response = "".join(full_response_parts)
+                yield {
+                    "event": "chat_complete",
+                    "data": json.dumps({
+                        "message_id": message_id,
+                        "response": final_response,
+                        "timestamp": int(time.time() * 1000),
+                    })
+                }
+
+        except Exception as e:
+            yield {
+                "event": "error",
+                "data": json.dumps({
+                    "message_id": message_id if message_id else None,
+                    "error": str(e),
+                })
+            }
+
+    return EventSourceResponse(event_generator())
 
 
 @app.get("/status/{thread_id}")

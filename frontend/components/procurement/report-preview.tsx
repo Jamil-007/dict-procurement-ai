@@ -367,10 +367,10 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
             <CardContent className="pt-6 space-y-4">
               <div className="space-y-2">
                 <h3 className="text-base font-semibold text-black">
-                  Generate Formal PDF Report?
+                  Generate Action Items
                 </h3>
                 <p className="text-sm text-gray-600">
-                  Create a comprehensive PDF report.
+                  Get concise steps to fix HIGH severity issues and pass procurement compliance.
                 </p>
               </div>
 
@@ -393,7 +393,7 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
                       Generating...
                     </>
                   ) : (
-                    'Yes, Generate Report'
+                    'Generate Action Items'
                   )}
                 </Button>
                 <Button
@@ -403,7 +403,7 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
                   className="flex-1 bg-gray-200 hover:bg-gray-300 text-black rounded-full"
                   size="lg"
                 >
-                  No, Save Tokens
+                  Skip for Now
                 </Button>
               </div>
             </CardContent>

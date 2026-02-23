@@ -75,7 +75,7 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
         yPos = 20;
       }
       doc.text(line, margin, yPos);
-      yPos += 5;
+      yPos += 6;
     });
     yPos += 12;
 
@@ -104,12 +104,17 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
           yPos = 20;
         }
         const lines = doc.splitTextToSize(`• ${item}`, pageWidth - margin * 2 - 5);
-        lines.forEach((line: string) => {
+        lines.forEach((line: string, lineIndex: number) => {
+          if (yPos > 270) {
+            doc.addPage();
+            yPos = 20;
+          }
           doc.text(line, margin + 5, yPos);
-          yPos += 5;
+          yPos += 6;
         });
+        yPos += 2; // Extra spacing between items
       });
-      yPos += 5;
+      yPos += 3;
     });
 
     // Recommendations
@@ -132,8 +137,20 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
         'The document is ready to proceed to the next stage.'
       ];
       passRecommendations.forEach(rec => {
-        doc.text(`  • ${rec}`, margin, yPos);
-        yPos += 6;
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        const lines = doc.splitTextToSize(`• ${rec}`, pageWidth - margin * 2);
+        lines.forEach((line: string) => {
+          if (yPos > 270) {
+            doc.addPage();
+            yPos = 20;
+          }
+          doc.text(line, margin, yPos);
+          yPos += 6;
+        });
+        yPos += 2;
       });
     } else {
       const failRecommendations = [
@@ -142,8 +159,20 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
         'Consider re-submission after corrections are made.'
       ];
       failRecommendations.forEach(rec => {
-        doc.text(`  • ${rec}`, margin, yPos);
-        yPos += 6;
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        const lines = doc.splitTextToSize(`• ${rec}`, pageWidth - margin * 2);
+        lines.forEach((line: string) => {
+          if (yPos > 270) {
+            doc.addPage();
+            yPos = 20;
+          }
+          doc.text(line, margin, yPos);
+          yPos += 6;
+        });
+        yPos += 2;
       });
     }
 
@@ -390,7 +419,7 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
                       >
                         <ChevronRight className="h-4 w-4" />
                       </motion.div>
-                      Generating...
+                      Preparing Action Items...
                     </>
                   ) : (
                     'Generate Action Items'

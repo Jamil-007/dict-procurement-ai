@@ -112,8 +112,12 @@ export function VerdictCard({
     // Title
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(verdict.title, margin, yPos);
-    yPos += 15;
+    const titleLines = doc.splitTextToSize(verdict.title, pageWidth - margin * 2);
+    titleLines.forEach((line: string) => {
+      doc.text(line, margin, yPos);
+      yPos += 7;
+    });
+    yPos += 8;
 
     // Findings
     doc.setFontSize(16);
@@ -138,13 +142,18 @@ export function VerdictCard({
           doc.addPage();
           yPos = 20;
         }
-        const lines = doc.splitTextToSize(`  • ${item}`, pageWidth - margin * 2 - 5);
+        const lines = doc.splitTextToSize(`• ${item}`, pageWidth - margin * 2 - 5);
         lines.forEach((line: string) => {
+          if (yPos > 270) {
+            doc.addPage();
+            yPos = 20;
+          }
           doc.text(line, margin + 5, yPos);
-          yPos += 5;
+          yPos += 6;
         });
+        yPos += 2; // Extra spacing between items
       });
-      yPos += 5;
+      yPos += 3;
     });
 
     // Footer
@@ -268,7 +277,7 @@ export function VerdictCard({
                       >
                         <ChevronRight className="h-4 w-4" />
                       </motion.div>
-                      Generating...
+                      Preparing Action Items...
                     </>
                   ) : (
                     'Generate Action Items'

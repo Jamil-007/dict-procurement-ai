@@ -40,6 +40,7 @@ export default function ProcurementPage() {
   const [showReportCTA, setShowReportCTA] = useState(true);
   const [showChat, setShowChat] = useState(false);
   const [showFileLimitModal, setShowFileLimitModal] = useState(false);
+  const [isGeneratingActionItems, setIsGeneratingActionItems] = useState(false);
 
   const handleFilesSelect = useCallback((newFiles: File[]) => {
     setPendingFiles((prev) => {
@@ -133,26 +134,34 @@ export default function ProcurementPage() {
   const handleGenerateReport = async () => {
     setShowReportCTA(false);
     setShowChat(true);
+    setIsGeneratingActionItems(true);
     
-    // Decline Gamma generation and request action items via chat
-    await declineReport();
-    
-    // Get HIGH severity findings
-    const highSeverityFindings = verdictData?.findings.filter(f => f.severity === 'high') || [];
-    
-    // Build action items request message
-    let actionItemsQuery = 'Based on the analysis, please provide concise action items to fix the HIGH severity issues found in the procurement document.';
-    
-    if (highSeverityFindings.length > 0) {
-      const categories = highSeverityFindings.map(f => f.category).join(', ');
-      actionItemsQuery += ` Focus on: ${categories}.`;
+    try {
+      // Show immediate feedback
+      toast.info('Preparing action items...', { duration: 2000 });
+      
+      // Decline Gamma generation and request action items via chat
+      await declineReport();
+      
+      // Get HIGH severity findings
+      const highSeverityFindings = verdictData?.findings.filter(f => f.severity === 'high') || [];
+      
+      // Build action items request message
+      let actionItemsQuery = 'Based on the analysis, please provide concise action items to fix the HIGH severity issues found in the procurement document.';
+      
+      if (highSeverityFindings.length > 0) {
+        const categories = highSeverityFindings.map(f => f.category).join(', ');
+        actionItemsQuery += ` Focus on: ${categories}.`;
+      }
+      
+      actionItemsQuery += ' For each HIGH severity issue, provide: 1) What needs to be fixed, 2) How to fix it, and 3) The specific section or requirement to reference.';
+      
+      // Automatically send the action items request
+      toast.success('Action items request sent. AI is analyzing...', { duration: 3000 });
+      await handleChatMessage(actionItemsQuery);
+    } finally {
+      setIsGeneratingActionItems(false);
     }
-    
-    actionItemsQuery += ' For each HIGH severity issue, provide: 1) What needs to be fixed, 2) How to fix it, and 3) The specific section or requirement to reference.';
-    
-    // Automatically send the action items request
-    toast.info('Generating action items for HIGH severity issues...');
-    await handleChatMessage(actionItemsQuery);
   };
 
   const handleDeclineReport = () => {
@@ -260,7 +269,7 @@ export default function ProcurementPage() {
             gammaLink={gammaLink}
             onGenerateReport={handleGenerateReport}
             onDeclineReport={handleDeclineReport}
-            isGenerating={state === 'generating' || (!showReportCTA && isChatLoading)}
+            isGenerating={state === 'generating' || isGeneratingActionItems || (!showReportCTA && isChatLoading)}
             showCTA={showReportCTA}
             onReset={reset}
           />

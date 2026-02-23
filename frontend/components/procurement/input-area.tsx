@@ -39,6 +39,8 @@ export function InputArea({
   };
 
   const handleFileButtonClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (!disabled && fileInputRef.current) {
       fileInputRef.current.click();
     }

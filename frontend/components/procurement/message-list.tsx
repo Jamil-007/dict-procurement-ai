@@ -27,48 +27,81 @@ const messageVariants = {
   },
 };
 
-// Simple markdown formatter for AI messages
+// Enhanced markdown formatter for AI messages
 const formatMarkdown = (text: string) => {
   if (!text) return [];
 
   const lines = text.split('\n');
   const elements: JSX.Element[] = [];
 
+  const processBold = (text: string) => {
+    // Clean up multiple asterisks (e.g., **text:** ** -> **text:**)
+    const cleanedText = text.replace(/\*\*([^*]+):\*\*\s*\*\*/g, '**$1:**');
+    const parts = cleanedText.split(/(\*\*[^*]+\*\*)/g);
+    
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>;
+      }
+      return part ? <span key={i}>{part}</span> : null;
+    });
+  };
+
   lines.forEach((line, index) => {
-    // Check for bullet points
-    if (line.trim().startsWith('*') || line.trim().startsWith('-')) {
-      const bulletText = line.trim().substring(1).trim();
-      // Process bold text within bullets
-      const parts = bulletText.split(/(\*\*.*?\*\*)/g);
+    const trimmedLine = line.trim();
+
+    // Headers
+    if (trimmedLine.startsWith('### ')) {
+      const headerText = trimmedLine.substring(4);
       elements.push(
-        <div key={index} className="flex gap-2 ml-2 mb-1">
-          <span className="text-gray-600">•</span>
-          <span>
-            {parts.map((part, i) => {
-              if (part.startsWith('**') && part.endsWith('**')) {
-                return <strong key={i}>{part.slice(2, -2)}</strong>;
-              }
-              return <span key={i}>{part}</span>;
-            })}
-          </span>
+        <h3 key={index} className="text-lg font-bold mt-4 mb-2">
+          {processBold(headerText)}
+        </h3>
+      );
+    } else if (trimmedLine.startsWith('## ')) {
+      const headerText = trimmedLine.substring(3);
+      elements.push(
+        <h2 key={index} className="text-xl font-bold mt-4 mb-2">
+          {processBold(headerText)}
+        </h2>
+      );
+    } else if (trimmedLine.startsWith('# ')) {
+      const headerText = trimmedLine.substring(2);
+      elements.push(
+        <h1 key={index} className="text-2xl font-bold mt-4 mb-2">
+          {processBold(headerText)}
+        </h1>
+      );
+    }
+    // Bullet points
+    else if (trimmedLine.startsWith('*') && !trimmedLine.startsWith('**')) {
+      const bulletText = trimmedLine.substring(1).trim();
+      elements.push(
+        <div key={index} className="flex gap-2 ml-2 mb-1.5">
+          <span className="text-gray-600 mt-0.5">•</span>
+          <span className="flex-1">{processBold(bulletText)}</span>
         </div>
       );
-    } else if (line.trim()) {
-      // Regular text with bold support
-      const parts = line.split(/(\*\*.*?\*\*)/g);
+    } else if (trimmedLine.startsWith('-') && !trimmedLine.startsWith('--')) {
+      const bulletText = trimmedLine.substring(1).trim();
       elements.push(
-        <p key={index} className="mb-2">
-          {parts.map((part, i) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-              return <strong key={i}>{part.slice(2, -2)}</strong>;
-            }
-            return <span key={i}>{part}</span>;
-          })}
+        <div key={index} className="flex gap-2 ml-2 mb-1.5">
+          <span className="text-gray-600 mt-0.5">•</span>
+          <span className="flex-1">{processBold(bulletText)}</span>
+        </div>
+      );
+    }
+    // Regular text
+    else if (trimmedLine) {
+      elements.push(
+        <p key={index} className="mb-2 leading-relaxed">
+          {processBold(trimmedLine)}
         </p>
       );
-    } else if (index < lines.length - 1) {
-      // Empty line creates spacing
-      elements.push(<div key={index} className="h-2" />);
+    }
+    // Empty lines
+    else if (index < lines.length - 1) {
+      elements.push(<div key={index} className="h-1" />);
     }
   });
 

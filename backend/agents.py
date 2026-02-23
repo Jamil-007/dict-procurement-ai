@@ -613,7 +613,7 @@ def compiler_agent(state: AgentState) -> Dict[str, Any]:
         }
 
 
-async def gamma_generator_node(state: AgentState) -> Dict[str, Any]:
+def gamma_generator_node(state: AgentState) -> Dict[str, Any]:
     """
     Generate Gamma presentation from the compiled report (conditional node).
     """
@@ -626,10 +626,15 @@ async def gamma_generator_node(state: AgentState) -> Dict[str, Any]:
     ]
 
     try:
-        gamma_link = await gamma_client.generate_presentation(
+        # Run async function in sync context for LangGraph compatibility
+        import asyncio
+        
+        # Use asyncio.run() to execute async function in synchronous context
+        gamma_link = asyncio.run(gamma_client.generate_presentation(
             content=state["compiled_report"],
             thread_id=state["thread_id"]
-        )
+        ))
+        
         logs.append(create_thinking_log("Gamma Generator", f"Presentation ready: {gamma_link}", "complete"))
 
         return {

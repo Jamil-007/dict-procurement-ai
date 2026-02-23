@@ -48,7 +48,7 @@ class ReviewResponse(BaseModel):
 class ChatRequest(BaseModel):
     """Request to chat about the analyzed document."""
     thread_id: str
-    query: str
+    query: str = Field(..., min_length=1, max_length=5000)
 
 
 class ChatResponse(BaseModel):

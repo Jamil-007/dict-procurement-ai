@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, ChevronRight, AlertTriangle } from 'lucide-react';
+import { FileText, ChevronRight, AlertTriangle, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { ReportSkeleton } from './report-skeleton';
 import { VerdictData } from '@/types/procurement';
 import { cn } from '@/lib/utils';
+import { jsPDF } from 'jspdf';
 
 interface ReportPreviewProps {
   isLoading: boolean;
@@ -24,6 +25,142 @@ interface ReportPreviewProps {
 
 export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateReport, onDeclineReport, isGenerating, showCTA, onReset }: ReportPreviewProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const handleDownloadPDF = () => {
+    if (!verdictData) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    let yPos = 20;
+
+    // Title
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PROCUREMENT DOCUMENT ANALYSIS', margin, yPos);
+    yPos += 10;
+
+    // Metadata
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Status: ${verdictData.status}`, margin, yPos);
+    yPos += 7;
+    doc.text(`Confidence: ${verdictData.confidence}%`, margin, yPos);
+    yPos += 7;
+    doc.text(`Analysis Date: ${new Date().toLocaleDateString()}`, margin, yPos);
+    yPos += 12;
+
+    // Title of report
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    const titleLines = doc.splitTextToSize(verdictData.title, pageWidth - margin * 2);
+    titleLines.forEach((line: string) => {
+      doc.text(line, margin, yPos);
+      yPos += 7;
+    });
+    yPos += 8;
+
+    // Executive Summary
+    doc.setFontSize(16);
+    doc.text('Executive Summary', margin, yPos);
+    yPos += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const summaryText = `This procurement document has been analyzed using our multi-agent AI system, which evaluated compliance across multiple dimensions including budget alignment, regulatory requirements, and risk assessment. The analysis resulted in a ${verdictData.status} verdict with ${verdictData.confidence}% confidence, based on comprehensive evaluation of ${verdictData.findings.length} major categories.`;
+    const summaryLines = doc.splitTextToSize(summaryText, pageWidth - margin * 2);
+    summaryLines.forEach((line: string) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      doc.text(line, margin, yPos);
+      yPos += 5;
+    });
+    yPos += 12;
+
+    // Findings
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Detailed Findings', margin, yPos);
+    yPos += 10;
+
+    verdictData.findings.forEach((finding, index) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${index + 1}. ${finding.category} [${finding.severity.toUpperCase()}]`, margin, yPos);
+      yPos += 7;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      finding.items.forEach((item) => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        const lines = doc.splitTextToSize(`• ${item}`, pageWidth - margin * 2 - 5);
+        lines.forEach((line: string) => {
+          doc.text(line, margin + 5, yPos);
+          yPos += 5;
+        });
+      });
+      yPos += 5;
+    });
+
+    // Recommendations
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 20;
+    }
+    yPos += 10;
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Recommendations', margin, yPos);
+    yPos += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    if (verdictData.status === 'PASS') {
+      const passRecommendations = [
+        'This procurement document meets all compliance requirements.',
+        'No critical issues were identified during the analysis.',
+        'The document is ready to proceed to the next stage.'
+      ];
+      passRecommendations.forEach(rec => {
+        doc.text(`  • ${rec}`, margin, yPos);
+        yPos += 6;
+      });
+    } else {
+      const failRecommendations = [
+        'Address all high-severity findings before proceeding.',
+        'Review medium-severity items for potential improvements.',
+        'Consider re-submission after corrections are made.'
+      ];
+      failRecommendations.forEach(rec => {
+        doc.text(`  • ${rec}`, margin, yPos);
+        yPos += 6;
+      });
+    }
+
+    // Footer
+    if (yPos > 260) {
+      doc.addPage();
+      yPos = 20;
+    }
+    yPos += 15;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Report generated by Procurement AI Analyst', margin, yPos);
+    yPos += 5;
+    doc.text('Powered by Multi-Agent AI Technology', margin, yPos);
+
+    doc.save(`procurement-analysis-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
 
   if (isLoading) {
     return (
@@ -83,7 +220,16 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
     >
       {/* Header */}
       {onReset && (
-        <div className="flex items-center justify-end p-4 bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-10">
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full border-gray-300 hover:bg-gray-100 text-black"
+            onClick={handleDownloadPDF}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Download Report
+          </Button>
           <Button
             variant="outline"
             size="sm"

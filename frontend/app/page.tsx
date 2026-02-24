@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useProcurementAnalysis } from '@/hooks/use-procurement-analysis';
+import { useProcurementAnalysis } from "@/hooks/use-procurement-analysis";
 import { ChatLayout } from '@/components/procurement/chat-layout';
 import { ZeroState } from '@/components/procurement/zero-state';
 import { MessageList } from '@/components/procurement/message-list';

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Paperclip, ArrowUp, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -27,6 +27,7 @@ export function InputArea({
   fileOnly = false,
 }: InputAreaProps) {
   const [message, setMessage] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -34,6 +35,14 @@ export function InputArea({
       onFilesSelect(Array.from(files));
       // Reset the input so the same file can be selected again if needed
       e.target.value = '';
+    }
+  };
+
+  const handleFileButtonClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!disabled && fileInputRef.current) {
+      fileInputRef.current.click();
     }
   };
 
@@ -61,19 +70,19 @@ export function InputArea({
                   variant="ghost"
                   size="icon"
                   className="shrink-0 hover:bg-gray-100 rounded-full"
-                  onClick={() => !disabled && document.getElementById('input-file-upload')?.click()}
+                  onClick={handleFileButtonClick}
                   disabled={disabled}
                 >
                   <Paperclip className="h-5 w-5 text-gray-600" />
                 </Button>
 
                 <input
-                  id="input-file-upload"
+                  ref={fileInputRef}
                   type="file"
                   accept=".pdf"
                   onChange={handleFileInput}
                   disabled={disabled}
-                  className="hidden"
+                  style={{ display: 'none' }}
                   multiple
                 />
               </>
@@ -81,14 +90,14 @@ export function InputArea({
 
             {/* Show file chips inline OR text input, not both */}
             {selectedFiles.length > 0 ? (
-              <div className="flex-1 flex items-center gap-2 min-w-0">
+              <div className="flex-1 flex items-center gap-2 min-w-0 overflow-x-auto scrollbar-hide">
                 {selectedFiles.map((file, index) => (
                   <div
                     key={index}
-                    className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1.5 text-sm"
+                    className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1.5 text-sm shrink-0"
                   >
                     <FileText className="h-4 w-4 text-gray-600 shrink-0" />
-                    <span className="text-gray-800 max-w-[200px] truncate">{file.name}</span>
+                    <span className="text-gray-800 max-w-[150px] truncate">{file.name}</span>
                     <button
                       type="button"
                       onClick={() => onRemoveFile(index)}
@@ -113,7 +122,7 @@ export function InputArea({
                   'disabled:opacity-50 disabled:cursor-not-allowed',
                   fileOnly && 'cursor-default'
                 )}
-                onClick={fileOnly ? () => document.getElementById('input-file-upload')?.click() : undefined}
+                onClick={fileOnly ? handleFileButtonClick : undefined}
               />
             )}
 

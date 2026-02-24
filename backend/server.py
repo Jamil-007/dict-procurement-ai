@@ -36,10 +36,15 @@ app = FastAPI(
 # Configure CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://dict-procurement-ai-5o1j.vercel.app", "https://dict-procurement-ai.vercel.app","http://localhost:3000", "http://localhost:3001"],
+    allow_origins=[
+        "https://dict-procurement-ai-5o1j.vercel.app",
+        "https://dict-procurement-ai.vercel.app",
+        "http://localhost:3000",
+        "http://localhost:3001"
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # Store for tracking background tasks
@@ -136,6 +141,11 @@ async def analyze_document(files: List[UploadFile] = File(...)):
     for uploaded_file in files:
         if not uploaded_file.filename or not uploaded_file.filename.lower().endswith('.pdf'):
             raise HTTPException(status_code=400, detail="Only PDF files are supported")
+        
+        # Validate content type
+        content_type = uploaded_file.content_type or ''
+        if content_type and not content_type.startswith('application/pdf'):
+            raise HTTPException(status_code=400, detail="Invalid file content type")
 
     try:
         # Generate unique thread ID
@@ -157,8 +167,17 @@ async def analyze_document(files: List[UploadFile] = File(...)):
 
         return AnalyzeResponse(thread_id=thread_id, status="processing")
 
+    except ValueError as e:
+        # ValueError from storage validation - sanitize error message
+        error_msg = str(e)
+        # Don't expose file paths
+        if 'path' in error_msg.lower() or '/' in error_msg or '\\' in error_msg:
+            error_msg = "Invalid file format or size"
+        raise HTTPException(status_code=400, detail=error_msg)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+        # Log the actual error but return generic message
+        print(f"Analysis error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Analysis failed. Please try again.")
 
 
 async def run_graph_async(initial_state, config, thread_id):
@@ -349,7 +368,12 @@ async def chat_about_document(request: ChatRequest):
         AI response based on document and analysis
     """
     try:
-        prompt = _build_chat_prompt(request.thread_id, request.query)
+        # Validate and sanitize query
+        query = request.query.strip()
+        if not query:
+            raise HTTPException(status_code=400, detail="Query cannot be empty")
+        
+        prompt = _build_chat_prompt(request.thread_id, query)
         llm = get_llm()
         response = await asyncio.to_thread(lambda: llm.invoke(prompt))
         answer = response.content if hasattr(response, 'content') else str(response)
@@ -359,7 +383,9 @@ async def chat_about_document(request: ChatRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
+        # Don't expose internal error details
+        print(f"Chat error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Chat request failed")
 
 
 @app.post("/chat/stream")
@@ -368,11 +394,17 @@ async def stream_chat_about_document(chat_request: ChatRequest, http_request: Re
     Stream chat response chunks for progressive UI rendering.
     """
     try:
-        prompt = _build_chat_prompt(chat_request.thread_id, chat_request.query)
+        # Validate and sanitize query
+        query = chat_request.query.strip()
+        if not query:
+            raise HTTPException(status_code=400, detail="Query cannot be empty")
+        
+        prompt = _build_chat_prompt(chat_request.thread_id, query)
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
+        print(f"Chat stream error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Chat request failed")
 
     async def event_generator() -> AsyncGenerator[dict, None]:
         message_id = str(uuid.uuid4())

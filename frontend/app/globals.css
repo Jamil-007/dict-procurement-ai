@@ -108,3 +108,13 @@
   );
   background-size: 1000px 100%;
 }
+
+/* Utility class for hiding scrollbars while maintaining scroll */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

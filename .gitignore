@@ -1,0 +1,33 @@
+# Root-level gitignore for monorepo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Archives
+*.zip
+*.tar.gz
+*.rar

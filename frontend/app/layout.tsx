@@ -13,6 +13,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Procurement AI Analyst",
   description: "Intelligent document analysis for procurement compliance",
+  icons: {
+    icon: [
+      { url: "/dict-logo.png" },
+    ],
+  },
 };
 
 export default function RootLayout({
@@ -22,6 +27,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/dict-logo.png" type="image/png" />
+      </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <ThemeProvider
           attribute="class"

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import { FileText, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -11,6 +11,7 @@ interface FileUploadProps {
 
 export function FileUpload({ onFilesSelect, disabled }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -49,6 +50,12 @@ export function FileUpload({ onFilesSelect, disabled }: FileUploadProps) {
     }
   }, [onFilesSelect]);
 
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    if (!disabled && fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  }, [disabled]);
+
   return (
     <div
       onDragOver={handleDragOver}
@@ -62,20 +69,20 @@ export function FileUpload({ onFilesSelect, disabled }: FileUploadProps) {
           : 'border-gray-300 hover:border-gray-500 hover:bg-gray-50',
         disabled && 'opacity-50 cursor-not-allowed'
       )}
-      onClick={() => !disabled && document.getElementById('file-input')?.click()}
+      onClick={handleClick}
     >
       <input
-        id="file-input"
+        ref={fileInputRef}
         type="file"
         accept=".pdf"
         onChange={handleFileInput}
         disabled={disabled}
-        className="hidden"
+        style={{ display: 'none' }}
         multiple
       />
 
       <div className={cn(
-        'rounded-full p-4 smooth-transition',
+        'rounded-full p-4 smooth-transition pointer-events-none',
         isDragging ? 'bg-gray-200' : 'bg-gray-100'
       )}>
         {isDragging ? (
@@ -85,7 +92,7 @@ export function FileUpload({ onFilesSelect, disabled }: FileUploadProps) {
         )}
       </div>
 
-      <div className="text-center">
+      <div className="text-center pointer-events-none">
         <p className="text-sm font-medium text-black mb-1">
           {isDragging ? 'Drop your Procurement PDF here' : 'Drop Procurement PDF here or click to browse'}
         </p>

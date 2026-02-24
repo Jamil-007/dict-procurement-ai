@@ -40,6 +40,7 @@ export default function ProcurementPage() {
   const [showReportCTA, setShowReportCTA] = useState(true);
   const [showChat, setShowChat] = useState(false);
   const [showFileLimitModal, setShowFileLimitModal] = useState(false);
+  const [isGeneratingActionItems, setIsGeneratingActionItems] = useState(false);
 
   const handleFilesSelect = useCallback((newFiles: File[]) => {
     setPendingFiles((prev) => {
@@ -130,10 +131,26 @@ export default function ProcurementPage() {
     }
   }, [chatMessages]);
 
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     setShowReportCTA(false);
-    setShowChat(true); // Also enable chat after report generation
-    generateReport();
+    setShowChat(true);
+    setIsGeneratingActionItems(true);
+    
+    // Decline Gamma in background (don't wait)
+    declineReport().catch(() => {});
+    
+    try {
+      // Simple, direct prompt for faster response
+      const actionItemsQuery = verdictData?.status === 'FAIL' 
+        ? 'Based on the analysis verdict, provide a clear action plan with specific steps to fix the identified issues and achieve compliance. Focus on the HIGH severity findings first.'
+        : 'Based on the analysis verdict, provide recommendations to maintain compliance and best practices for this procurement document.';
+      
+      // Send immediately without delays
+      toast.info('Generating action plan...', { duration: 2000 });
+      await handleChatMessage(actionItemsQuery);
+    } finally {
+      setIsGeneratingActionItems(false);
+    }
   };
 
   const handleDeclineReport = () => {
@@ -241,7 +258,7 @@ export default function ProcurementPage() {
             gammaLink={gammaLink}
             onGenerateReport={handleGenerateReport}
             onDeclineReport={handleDeclineReport}
-            isGenerating={state === 'generating'}
+            isGenerating={state === 'generating' || isGeneratingActionItems || (!showReportCTA && isChatLoading)}
             showCTA={showReportCTA}
             onReset={reset}
           />

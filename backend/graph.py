@@ -130,13 +130,16 @@ def get_state(thread_id: str) -> AgentState:
         return None
 
 
-def resume_graph(thread_id: str, generate_gamma: bool = False) -> None:
+def resume_graph(thread_id: str, generate_gamma: bool = False) -> dict:
     """
     Resume graph execution after human-in-the-loop decision.
 
     Args:
         thread_id: Thread identifier
         generate_gamma: Whether to generate Gamma presentation
+
+    Returns:
+        Final state after graph execution completes
     """
     config = {"configurable": {"thread_id": thread_id}}
 
@@ -146,5 +149,9 @@ def resume_graph(thread_id: str, generate_gamma: bool = False) -> None:
         updated_state = current_state.values.copy()
         updated_state["generate_gamma"] = generate_gamma
 
-        # Resume execution
+        # Update state and resume execution
         graph.update_state(config, updated_state)
+        # Actually invoke the graph to continue from the interrupt point
+        result = graph.invoke(None, config)
+        return result
+    return {}

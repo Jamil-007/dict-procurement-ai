@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, ChevronRight, AlertTriangle } from 'lucide-react';
+import { FileText, ChevronRight, AlertTriangle, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,18 @@ import { Separator } from '@/components/ui/separator';
 import { ReportSkeleton } from './report-skeleton';
 import { VerdictData } from '@/types/procurement';
 import { cn } from '@/lib/utils';
+import { jsPDF } from 'jspdf';
+
+// Format text with bold markdown
+const formatText = (text: string) => {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+};
 
 interface ReportPreviewProps {
   isLoading: boolean;
@@ -24,6 +36,171 @@ interface ReportPreviewProps {
 
 export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateReport, onDeclineReport, isGenerating, showCTA, onReset }: ReportPreviewProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const handleDownloadPDF = () => {
+    if (!verdictData) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    let yPos = 20;
+
+    // Title
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PROCUREMENT DOCUMENT ANALYSIS', margin, yPos);
+    yPos += 10;
+
+    // Metadata
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Status: ${verdictData.status}`, margin, yPos);
+    yPos += 7;
+    doc.text(`Confidence: ${verdictData.confidence}%`, margin, yPos);
+    yPos += 7;
+    doc.text(`Analysis Date: ${new Date().toLocaleDateString()}`, margin, yPos);
+    yPos += 12;
+
+    // Title of report
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    const titleLines = doc.splitTextToSize(verdictData.title, pageWidth - margin * 2);
+    titleLines.forEach((line: string) => {
+      doc.text(line, margin, yPos);
+      yPos += 7;
+    });
+    yPos += 8;
+
+    // Executive Summary
+    doc.setFontSize(16);
+    doc.text('Executive Summary', margin, yPos);
+    yPos += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const summaryText = `This procurement document has been analyzed using our multi-agent AI system, which evaluated compliance across multiple dimensions including budget alignment, regulatory requirements, and risk assessment. The analysis resulted in a ${verdictData.status} verdict with ${verdictData.confidence}% confidence, based on comprehensive evaluation of ${verdictData.findings.length} major categories.`;
+    const summaryLines = doc.splitTextToSize(summaryText, pageWidth - margin * 2);
+    summaryLines.forEach((line: string) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      doc.text(line, margin, yPos);
+      yPos += 6;
+    });
+    yPos += 12;
+
+    // Findings
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Detailed Findings', margin, yPos);
+    yPos += 10;
+
+    verdictData.findings.forEach((finding, index) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${index + 1}. ${finding.category} [${finding.severity.toUpperCase()}]`, margin, yPos);
+      yPos += 7;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      finding.items.forEach((item) => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        const lines = doc.splitTextToSize(`• ${item}`, pageWidth - margin * 2 - 5);
+        lines.forEach((line: string, lineIndex: number) => {
+          if (yPos > 270) {
+            doc.addPage();
+            yPos = 20;
+          }
+          doc.text(line, margin + 5, yPos);
+          yPos += 6;
+        });
+        yPos += 2; // Extra spacing between items
+      });
+      yPos += 3;
+    });
+
+    // Recommendations
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 20;
+    }
+    yPos += 10;
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Recommendations', margin, yPos);
+    yPos += 10;
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    if (verdictData.status === 'PASS') {
+      const passRecommendations = [
+        'This procurement document meets all compliance requirements.',
+        'No critical issues were identified during the analysis.',
+        'The document is ready to proceed to the next stage.'
+      ];
+      passRecommendations.forEach(rec => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        const lines = doc.splitTextToSize(`• ${rec}`, pageWidth - margin * 2);
+        lines.forEach((line: string) => {
+          if (yPos > 270) {
+            doc.addPage();
+            yPos = 20;
+          }
+          doc.text(line, margin, yPos);
+          yPos += 6;
+        });
+        yPos += 2;
+      });
+    } else {
+      const failRecommendations = [
+        'Address all high-severity findings before proceeding.',
+        'Review medium-severity items for potential improvements.',
+        'Consider re-submission after corrections are made.'
+      ];
+      failRecommendations.forEach(rec => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        const lines = doc.splitTextToSize(`• ${rec}`, pageWidth - margin * 2);
+        lines.forEach((line: string) => {
+          if (yPos > 270) {
+            doc.addPage();
+            yPos = 20;
+          }
+          doc.text(line, margin, yPos);
+          yPos += 6;
+        });
+        yPos += 2;
+      });
+    }
+
+    // Footer
+    if (yPos > 260) {
+      doc.addPage();
+      yPos = 20;
+    }
+    yPos += 15;
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'italic');
+    doc.text('Report generated by Procurement AI Analyst', margin, yPos);
+    yPos += 5;
+    doc.text('Powered by Multi-Agent AI Technology', margin, yPos);
+
+    doc.save(`procurement-analysis-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
 
   if (isLoading) {
     return (
@@ -83,7 +260,16 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
     >
       {/* Header */}
       {onReset && (
-        <div className="flex items-center justify-end p-4 bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200 sticky top-0 z-10">
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full border-gray-300 hover:bg-gray-100 text-black"
+            onClick={handleDownloadPDF}
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Download Report
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -99,8 +285,8 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* Title Section */}
         <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-black">{verdictData.title}</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-3xl font-bold text-black break-words">{verdictData.title}</h1>
             <Badge
               variant="outline"
               className={cn(
@@ -168,8 +354,8 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
           <CardContent className="space-y-4">
             {verdictData.findings.map((finding, index) => (
               <div key={index} className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-black">{finding.category}</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-semibold text-black break-words">{finding.category}</h3>
                   <Badge
                     variant="outline"
                     className={cn(
@@ -184,7 +370,7 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
                 </div>
                 <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 pl-4">
                   {finding.items.map((item, itemIndex) => (
-                    <li key={itemIndex}>{item}</li>
+                    <li key={itemIndex} className="break-words">{formatText(item)}</li>
                   ))}
                 </ul>
                 {index < verdictData.findings.length - 1 && <Separator className="mt-4 bg-gray-200" />}
@@ -221,10 +407,10 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
             <CardContent className="pt-6 space-y-4">
               <div className="space-y-2">
                 <h3 className="text-base font-semibold text-black">
-                  Generate Formal PDF Report?
+                  Generate Action Items
                 </h3>
                 <p className="text-sm text-gray-600">
-                  Create a comprehensive PDF report.
+                  Get concise steps to fix HIGH severity issues and pass procurement compliance.
                 </p>
               </div>
 
@@ -244,10 +430,10 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
                       >
                         <ChevronRight className="h-4 w-4" />
                       </motion.div>
-                      Generating...
+                      Preparing Action Items...
                     </>
                   ) : (
-                    'Yes, Generate Report'
+                    'Generate Action Items'
                   )}
                 </Button>
                 <Button
@@ -257,7 +443,7 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
                   className="flex-1 bg-gray-200 hover:bg-gray-300 text-black rounded-full"
                   size="lg"
                 >
-                  No, Save Tokens
+                  Skip for Now
                 </Button>
               </div>
             </CardContent>

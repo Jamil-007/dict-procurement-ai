@@ -20,18 +20,20 @@ def sanitize_filename(filename: str) -> str:
     # Remove any path components
     filename = Path(filename).name
     # Remove dangerous characters, keep only alphanumeric, dash, underscore, dot
-    filename = re.sub(r'[^a-zA-Z0-9._-]', '_', filename)
+    filename = re.sub(r"[^a-zA-Z0-9._-]", "_", filename)
     # Remove leading dots to prevent hidden files
-    filename = filename.lstrip('.')
+    filename = filename.lstrip(".")
     # Limit length
     if len(filename) > 255:
         name_part = filename[:200]
-        ext_part = filename[-50:] if '.' in filename[-50:] else '.pdf'
+        ext_part = filename[-50:] if "." in filename[-50:] else ".pdf"
         filename = name_part + ext_part
-    return filename or 'document.pdf'
+    return filename or "document.pdf"
 
 
-async def save_uploaded_files(file_payloads: List[Tuple[str, bytes]], thread_id: str) -> List[str]:
+async def save_uploaded_files(
+    file_payloads: List[Tuple[str, bytes]], thread_id: str
+) -> List[str]:
     """
     Save uploaded PDF files to disk.
 
@@ -54,7 +56,7 @@ async def save_uploaded_files(file_payloads: List[Tuple[str, bytes]], thread_id:
 
     saved_paths = []
     used_names = set()
-    
+
     # File size limit: 50MB per file
     MAX_FILE_SIZE = 50 * 1024 * 1024
 
@@ -62,23 +64,23 @@ async def save_uploaded_files(file_payloads: List[Tuple[str, bytes]], thread_id:
         # Check file size
         if len(file_content) > MAX_FILE_SIZE:
             raise ValueError(f"File {filename} exceeds maximum size of 50MB")
-        
+
         # Check minimum file size (100 bytes)
         if len(file_content) < 100:
             raise ValueError(f"File {filename} is too small to be a valid PDF")
-        
+
         # Validate PDF magic bytes
-        if not file_content.startswith(b'%PDF'):
+        if not file_content.startswith(b"%PDF"):
             raise ValueError(f"File {filename} is not a valid PDF file")
-        
+
         # Sanitize filename
         safe_filename = sanitize_filename(filename or f"document_{idx}.pdf")
         base_name = Path(safe_filename).stem or f"document_{idx}"
         suffix = Path(safe_filename).suffix or ".pdf"
-        
+
         # Ensure .pdf extension
-        if suffix.lower() != '.pdf':
-            suffix = '.pdf'
+        if suffix.lower() != ".pdf":
+            suffix = ".pdf"
 
         safe_name = f"{base_name}{suffix}"
         counter = 1
@@ -88,11 +90,11 @@ async def save_uploaded_files(file_payloads: List[Tuple[str, bytes]], thread_id:
         used_names.add(safe_name)
 
         file_path = thread_dir / safe_name
-        
+
         # Ensure file path is within upload directory (prevent path traversal)
         if not str(file_path.resolve()).startswith(str(thread_dir.resolve())):
             raise ValueError("Invalid file path detected")
-        
+
         async with aiofiles.open(file_path, "wb") as f:
             await f.write(file_content)
         saved_paths.append(str(file_path))
@@ -102,13 +104,13 @@ async def save_uploaded_files(file_payloads: List[Tuple[str, bytes]], thread_id:
 
 def get_thread_upload_dir(thread_id: str) -> Path:
     """Get the upload directory path for a given thread_id.
-    
+
     Args:
         thread_id: Thread identifier
-        
+
     Returns:
         Path to thread upload directory
-        
+
     Raises:
         ValueError: If thread_id is invalid
     """
@@ -119,20 +121,23 @@ def get_thread_upload_dir(thread_id: str) -> Path:
 
 def file_exists(thread_id: str) -> bool:
     """Check if at least one PDF file exists for the given thread_id.
-    
+
     Args:
         thread_id: Thread identifier
-        
+
     Returns:
         True if PDF files exist, False otherwise
     """
     if not validate_thread_id(thread_id):
         return False
-    
+
     thread_dir = get_thread_upload_dir(thread_id)
     if not thread_dir.exists() or not thread_dir.is_dir():
         return False
-    return any(path.is_file() and path.suffix.lower() == ".pdf" for path in thread_dir.iterdir())
+    return any(
+        path.is_file() and path.suffix.lower() == ".pdf"
+        for path in thread_dir.iterdir()
+    )
 
 
 def generate_thread_id() -> str:

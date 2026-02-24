@@ -3,7 +3,7 @@ LangGraph state graph definition for the procurement analysis workflow.
 Manages the multi-agent pipeline with human-in-the-loop capabilities.
 """
 
-from typing import TypedDict, List, Dict, Any
+from typing import List
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
 from agents import (
@@ -67,10 +67,7 @@ def should_generate_gamma(state: AgentState) -> str:
 workflow.add_conditional_edges(
     "report_compiler",
     should_generate_gamma,
-    {
-        "gamma_generator": "gamma_generator",
-        END: END
-    }
+    {"gamma_generator": "gamma_generator", END: END},
 )
 
 # Gamma generator goes to END
@@ -101,14 +98,14 @@ def create_initial_state(thread_id: str, pdf_paths: List[str]) -> AgentState:
             "market_scope": {},
             "green": {},
             "tatak_pinoy": {},
-            "compliance": {}
+            "compliance": {},
         },
         "compiled_report": "",
         "human_feedback": "",
         "generate_gamma": False,
         "gamma_link": "",
         "thread_id": thread_id,
-        "thinking_logs": []
+        "thinking_logs": [],
     }
 
 

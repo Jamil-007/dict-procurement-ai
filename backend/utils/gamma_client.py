@@ -37,13 +37,13 @@ class GammaClient:
                     f"{self.base_url}/docs/create-from-text",
                     headers={
                         "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json"
+                        "Content-Type": "application/json",
                     },
                     json={
                         "text": content,
                         "title": f"Procurement Analysis Report - {thread_id[:8]}",
-                        "mode": "auto"  # Let Gamma auto-format the content
-                    }
+                        "mode": "auto",  # Let Gamma auto-format the content
+                    },
                 )
 
                 response.raise_for_status()
@@ -68,9 +68,11 @@ class GammaClient:
                 error_detail = ""
                 try:
                     error_detail = e.response.json()
-                except:
+                except Exception:
                     error_detail = e.response.text
-                raise Exception(f"Gamma API error ({e.response.status_code}): {error_detail}")
+                raise Exception(
+                    f"Gamma API error ({e.response.status_code}): {error_detail}"
+                )
             except httpx.RequestError as e:
                 raise Exception(f"Failed to connect to Gamma API: {str(e)}")
 

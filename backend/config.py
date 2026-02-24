@@ -36,10 +36,7 @@ class Settings(BaseSettings):
     CHAT_PARSED_TEXT_LIMIT: int = 150000
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=True,
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore"
     )
 
     def __init__(self, **kwargs):

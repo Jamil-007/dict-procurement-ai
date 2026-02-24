@@ -136,28 +136,17 @@ export default function ProcurementPage() {
     setShowChat(true);
     setIsGeneratingActionItems(true);
     
+    // Decline Gamma in background (don't wait)
+    declineReport().catch(() => {});
+    
     try {
-      // Show immediate feedback
-      toast.info('Preparing action items...', { duration: 2000 });
+      // Simple, direct prompt for faster response
+      const actionItemsQuery = verdictData?.status === 'FAIL' 
+        ? 'Based on the analysis verdict, provide a clear action plan with specific steps to fix the identified issues and achieve compliance. Focus on the HIGH severity findings first.'
+        : 'Based on the analysis verdict, provide recommendations to maintain compliance and best practices for this procurement document.';
       
-      // Decline Gamma generation and request action items via chat
-      await declineReport();
-      
-      // Get HIGH severity findings
-      const highSeverityFindings = verdictData?.findings.filter(f => f.severity === 'high') || [];
-      
-      // Build action items request message
-      let actionItemsQuery = 'Based on the analysis, please provide concise action items to fix the HIGH severity issues found in the procurement document.';
-      
-      if (highSeverityFindings.length > 0) {
-        const categories = highSeverityFindings.map(f => f.category).join(', ');
-        actionItemsQuery += ` Focus on: ${categories}.`;
-      }
-      
-      actionItemsQuery += ' For each HIGH severity issue, provide: 1) What needs to be fixed, 2) How to fix it, and 3) The specific section or requirement to reference.';
-      
-      // Automatically send the action items request
-      toast.success('Action items request sent. AI is analyzing...', { duration: 3000 });
+      // Send immediately without delays
+      toast.info('Generating action plan...', { duration: 2000 });
       await handleChatMessage(actionItemsQuery);
     } finally {
       setIsGeneratingActionItems(false);

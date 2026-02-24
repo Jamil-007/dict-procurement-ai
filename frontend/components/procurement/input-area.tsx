@@ -90,14 +90,14 @@ export function InputArea({
 
             {/* Show file chips inline OR text input, not both */}
             {selectedFiles.length > 0 ? (
-              <div className="flex-1 flex items-center gap-2 min-w-0">
+              <div className="flex-1 flex items-center gap-2 min-w-0 overflow-x-auto scrollbar-hide">
                 {selectedFiles.map((file, index) => (
                   <div
                     key={index}
-                    className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1.5 text-sm"
+                    className="flex items-center gap-2 bg-gray-100 rounded-full px-3 py-1.5 text-sm shrink-0"
                   >
                     <FileText className="h-4 w-4 text-gray-600 shrink-0" />
-                    <span className="text-gray-800 max-w-[200px] truncate">{file.name}</span>
+                    <span className="text-gray-800 max-w-[150px] truncate">{file.name}</span>
                     <button
                       type="button"
                       onClick={() => onRemoveFile(index)}

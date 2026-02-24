@@ -54,21 +54,21 @@ const formatMarkdown = (text: string) => {
     if (trimmedLine.startsWith('### ')) {
       const headerText = trimmedLine.substring(4);
       elements.push(
-        <h3 key={index} className="text-lg font-bold mt-4 mb-2">
+        <h3 key={index} className="text-lg font-bold mt-4 mb-2 break-words">
           {processBold(headerText)}
         </h3>
       );
     } else if (trimmedLine.startsWith('## ')) {
       const headerText = trimmedLine.substring(3);
       elements.push(
-        <h2 key={index} className="text-xl font-bold mt-4 mb-2">
+        <h2 key={index} className="text-xl font-bold mt-4 mb-2 break-words">
           {processBold(headerText)}
         </h2>
       );
     } else if (trimmedLine.startsWith('# ')) {
       const headerText = trimmedLine.substring(2);
       elements.push(
-        <h1 key={index} className="text-2xl font-bold mt-4 mb-2">
+        <h1 key={index} className="text-2xl font-bold mt-4 mb-2 break-words">
           {processBold(headerText)}
         </h1>
       );
@@ -78,23 +78,23 @@ const formatMarkdown = (text: string) => {
       const bulletText = trimmedLine.substring(1).trim();
       elements.push(
         <div key={index} className="flex gap-2 ml-2 mb-1.5">
-          <span className="text-gray-600 mt-0.5">•</span>
-          <span className="flex-1">{processBold(bulletText)}</span>
+          <span className="text-gray-600 mt-0.5 shrink-0">•</span>
+          <span className="flex-1 break-words">{processBold(bulletText)}</span>
         </div>
       );
     } else if (trimmedLine.startsWith('-') && !trimmedLine.startsWith('--')) {
       const bulletText = trimmedLine.substring(1).trim();
       elements.push(
         <div key={index} className="flex gap-2 ml-2 mb-1.5">
-          <span className="text-gray-600 mt-0.5">•</span>
-          <span className="flex-1">{processBold(bulletText)}</span>
+          <span className="text-gray-600 mt-0.5 shrink-0">•</span>
+          <span className="flex-1 break-words">{processBold(bulletText)}</span>
         </div>
       );
     }
     // Regular text
     else if (trimmedLine) {
       elements.push(
-        <p key={index} className="mb-2 leading-relaxed">
+        <p key={index} className="mb-2 leading-relaxed break-words">
           {processBold(trimmedLine)}
         </p>
       );
@@ -195,7 +195,7 @@ export function MessageList({ messages, chatMessages = [], children, isChatLoadi
       >
         <div
           className={cn(
-            'rounded-3xl px-4 py-2 smooth-transition',
+            'rounded-3xl px-4 py-2 smooth-transition overflow-hidden',
             message.type === 'user'
               ? 'bg-black text-white'
               : 'bg-gray-100 text-black'
@@ -203,11 +203,11 @@ export function MessageList({ messages, chatMessages = [], children, isChatLoadi
         >
           {message.fileName && (
             <div className="flex items-center gap-2 mb-2 pb-2 border-b border-gray-400">
-              <FileText className="h-4 w-4" />
-              <span className="text-sm font-medium">{message.fileName}</span>
+              <FileText className="h-4 w-4 shrink-0" />
+              <span className="text-sm font-medium truncate">{message.fileName}</span>
             </div>
           )}
-          <div className="text-sm">
+          <div className="text-sm break-words overflow-wrap-anywhere">
             {message.type === 'ai' ? formatMarkdown(message.content || '') : message.content}
           </div>
         </div>

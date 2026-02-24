@@ -20,9 +20,9 @@ export interface UseProcurementAnalysisReturn {
   isConnected: boolean;
   isChatLoading: boolean;
   isChatInFlight: boolean;
-  uploadFiles: (files: File[]) => void;
-  generateReport: () => void;
-  declineReport: () => void;
+  uploadFiles: (files: File[]) => Promise<void>;
+  generateReport: () => Promise<void>;
+  declineReport: () => Promise<void>;
   sendChatMessage: (message: string) => Promise<void>;
   closeSplitView: () => void;
   reset: () => void;

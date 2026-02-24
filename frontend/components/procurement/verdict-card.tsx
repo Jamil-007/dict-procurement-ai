@@ -24,6 +24,17 @@ import { VerdictData, FindingSeverity } from '@/types/procurement';
 import { cn } from '@/lib/utils';
 import { jsPDF } from 'jspdf';
 
+// Format text with bold markdown
+const formatText = (text: string) => {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+};
+
 interface VerdictCardProps {
   verdict: VerdictData;
   onGenerateReport: () => void;
@@ -194,7 +205,7 @@ export function VerdictCard({
                   {verdict.status}
                 </Badge>
               </div>
-              <CardTitle className="text-2xl mb-2 text-black">{verdict.title}</CardTitle>
+              <CardTitle className="text-2xl mb-2 text-black break-words">{verdict.title}</CardTitle>
               <CardDescription className="text-base text-gray-600">
                 Analysis completed with{' '}
                 <span className="font-semibold text-black">{verdict.confidence}% confidence</span>
@@ -222,9 +233,9 @@ export function VerdictCard({
               {verdict.findings.map((finding, index) => (
                 <AccordionItem key={index} value={`finding-${index}`} className="border-2 border-gray-200 rounded-2xl mb-2">
                   <AccordionTrigger className="px-4 hover:no-underline">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                       {getSeverityIcon(finding.severity)}
-                      <span className="font-medium text-black">{finding.category}</span>
+                      <span className="font-medium text-black break-words">{finding.category}</span>
                       <Badge variant="outline" className={cn('ml-2 border rounded-full', getSeverityColor(finding.severity))}>
                         {getSeverityLabel(finding.severity)}
                       </Badge>
@@ -235,7 +246,7 @@ export function VerdictCard({
                       {finding.items.map((item, itemIndex) => (
                         <li key={itemIndex} className="flex items-start gap-2 text-sm text-black">
                           <ChevronRight className="h-4 w-4 mt-0.5 text-gray-500 shrink-0" />
-                          <span>{item}</span>
+                          <span className="break-words flex-1">{formatText(item)}</span>
                         </li>
                       ))}
                     </ul>

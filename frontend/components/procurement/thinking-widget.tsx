@@ -244,7 +244,7 @@ export function ThinkingWidget({ logs, isComplete }: ThinkingWidgetProps) {
           {/* Content */}
           <div className="flex-1 min-w-0">
             <h3 className={cn(
-              "text-sm font-semibold mb-1",
+              "text-sm font-semibold mb-1 break-words",
               lane.status === 'complete' && 'text-gray-700',
               lane.status === 'active' && 'text-black'
             )}>
@@ -254,7 +254,7 @@ export function ThinkingWidget({ logs, isComplete }: ThinkingWidgetProps) {
                 lane.displayName
               )}
             </h3>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-500 break-words">
               {lane.status === 'active' ? (
                 <>
                   Processing<AnimatedDots />

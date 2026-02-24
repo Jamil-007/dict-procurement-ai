@@ -12,6 +12,17 @@ import { VerdictData } from '@/types/procurement';
 import { cn } from '@/lib/utils';
 import { jsPDF } from 'jspdf';
 
+// Format text with bold markdown
+const formatText = (text: string) => {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>;
+    }
+    return <span key={i}>{part}</span>;
+  });
+};
+
 interface ReportPreviewProps {
   isLoading: boolean;
   verdictData: VerdictData | null;
@@ -274,8 +285,8 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* Title Section */}
         <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-bold text-black">{verdictData.title}</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-3xl font-bold text-black break-words">{verdictData.title}</h1>
             <Badge
               variant="outline"
               className={cn(
@@ -343,8 +354,8 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
           <CardContent className="space-y-4">
             {verdictData.findings.map((finding, index) => (
               <div key={index} className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold text-black">{finding.category}</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-semibold text-black break-words">{finding.category}</h3>
                   <Badge
                     variant="outline"
                     className={cn(
@@ -359,7 +370,7 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
                 </div>
                 <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 pl-4">
                   {finding.items.map((item, itemIndex) => (
-                    <li key={itemIndex}>{item}</li>
+                    <li key={itemIndex} className="break-words">{formatText(item)}</li>
                   ))}
                 </ul>
                 {index < verdictData.findings.length - 1 && <Separator className="mt-4 bg-gray-200" />}

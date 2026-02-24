@@ -19,19 +19,21 @@ def get_llm() -> BaseChatModel:
         try:
             # Try newer langchain-google-genai package first
             from langchain_google_genai import ChatGoogleGenerativeAI
+
             return ChatGoogleGenerativeAI(
                 model=settings.VERTEX_MODEL_NAME,
                 google_api_key=None,  # Uses Application Default Credentials
-                temperature=settings.TEMPERATURE
+                temperature=settings.TEMPERATURE,
             )
         except ImportError:
             # Fallback to langchain-google-vertexai (deprecated but still works)
             from langchain_google_vertexai import ChatVertexAI
+
             return ChatVertexAI(
                 model_name=settings.VERTEX_MODEL_NAME,
                 project=settings.GOOGLE_CLOUD_PROJECT,
                 location=settings.GOOGLE_CLOUD_LOCATION,
-                temperature=settings.TEMPERATURE
+                temperature=settings.TEMPERATURE,
             )
 
     elif settings.LLM_PROVIDER == "anthropic":
@@ -39,10 +41,11 @@ def get_llm() -> BaseChatModel:
             raise ValueError("ANTHROPIC_API_KEY must be set for Anthropic provider")
 
         from langchain_anthropic import ChatAnthropic
+
         return ChatAnthropic(
             model=settings.ANTHROPIC_MODEL_NAME,
             anthropic_api_key=settings.ANTHROPIC_API_KEY,
-            temperature=settings.TEMPERATURE
+            temperature=settings.TEMPERATURE,
         )
 
     else:
@@ -53,6 +56,8 @@ def get_llm_info() -> dict:
     """Returns information about the configured LLM provider."""
     return {
         "provider": settings.LLM_PROVIDER,
-        "model": settings.VERTEX_MODEL_NAME if settings.LLM_PROVIDER == "vertex_ai" else settings.ANTHROPIC_MODEL_NAME,
-        "temperature": settings.TEMPERATURE
+        "model": settings.VERTEX_MODEL_NAME
+        if settings.LLM_PROVIDER == "vertex_ai"
+        else settings.ANTHROPIC_MODEL_NAME,
+        "temperature": settings.TEMPERATURE,
     }

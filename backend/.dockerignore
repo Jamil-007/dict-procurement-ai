@@ -27,3 +27,9 @@ uploads/*
 !uploads/.gitkeep
 .env.local
 .DS_Store
+.env
+*.env
+service-account-key.json
+deploy-backend*.sh
+env.md
+env.yaml

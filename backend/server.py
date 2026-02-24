@@ -13,16 +13,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 from models import (
     AnalyzeResponse,
-    VerdictData,
     ReviewRequest,
     ReviewResponse,
     ChatRequest,
     ChatResponse,
-    ErrorResponse,
 )
 from utils.storage import save_uploaded_files, generate_thread_id, file_exists
 from utils.llm_factory import get_llm, get_llm_info
-from graph import graph, create_initial_state, get_state, resume_graph
+from graph import graph, create_initial_state
 from prompts import CHAT_PROMPT
 from config import settings
 
@@ -30,7 +28,7 @@ from config import settings
 app = FastAPI(
     title="Procurement Analysis API",
     description="AI-powered procurement document analysis for Philippine Government Procurement (RA 12009)",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 # Configure CORS for frontend
@@ -40,7 +38,7 @@ app.add_middleware(
         "https://dict-procurement-ai-5o1j.vercel.app",
         "https://dict-procurement-ai.vercel.app",
         "http://localhost:3000",
-        "http://localhost:3001"
+        "http://localhost:3001",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
@@ -104,9 +102,9 @@ def _build_chat_prompt(thread_id: str, query: str) -> str:
         raise HTTPException(status_code=400, detail="Document not yet analyzed")
 
     return CHAT_PROMPT.format(
-        parsed_text=parsed_text[:settings.CHAT_PARSED_TEXT_LIMIT],
+        parsed_text=parsed_text[: settings.CHAT_PARSED_TEXT_LIMIT],
         compiled_report=compiled_report,
-        query=query
+        query=query,
     )
 
 
@@ -117,7 +115,7 @@ async def health_check():
     return {
         "status": "ok",
         "llm_provider": llm_info["provider"],
-        "model": llm_info["model"]
+        "model": llm_info["model"],
     }
 
 
@@ -139,12 +137,14 @@ async def analyze_document(files: List[UploadFile] = File(...)):
         raise HTTPException(status_code=400, detail="Maximum of 3 PDF files allowed")
 
     for uploaded_file in files:
-        if not uploaded_file.filename or not uploaded_file.filename.lower().endswith('.pdf'):
+        if not uploaded_file.filename or not uploaded_file.filename.lower().endswith(
+            ".pdf"
+        ):
             raise HTTPException(status_code=400, detail="Only PDF files are supported")
-        
+
         # Validate content type
-        content_type = uploaded_file.content_type or ''
-        if content_type and not content_type.startswith('application/pdf'):
+        content_type = uploaded_file.content_type or ""
+        if content_type and not content_type.startswith("application/pdf"):
             raise HTTPException(status_code=400, detail="Invalid file content type")
 
     try:
@@ -171,17 +171,20 @@ async def analyze_document(files: List[UploadFile] = File(...)):
         # ValueError from storage validation - sanitize error message
         error_msg = str(e)
         # Don't expose file paths
-        if 'path' in error_msg.lower() or '/' in error_msg or '\\' in error_msg:
+        if "path" in error_msg.lower() or "/" in error_msg or "\\" in error_msg:
             error_msg = "Invalid file format or size"
         raise HTTPException(status_code=400, detail=error_msg)
     except Exception as e:
         # Log the actual error but return generic message
         print(f"Analysis error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Analysis failed. Please try again.")
+        raise HTTPException(
+            status_code=500, detail="Analysis failed. Please try again."
+        )
 
 
 async def run_graph_async(initial_state, config, thread_id):
     """Run graph execution asynchronously with streaming."""
+
     def stream_graph():
         """Execute graph in sync context with streaming."""
         result_state = initial_state
@@ -194,7 +197,10 @@ async def run_graph_async(initial_state, config, thread_id):
                         result_state = {**result_state, **node_state}
 
                     # Store updated state so SSE can pick it up
-                    analysis_tasks[thread_id] = {"status": "running", "state": result_state}
+                    analysis_tasks[thread_id] = {
+                        "status": "running",
+                        "state": result_state,
+                    }
 
             return result_state
         except Exception as e:
@@ -212,7 +218,7 @@ async def run_graph_async(initial_state, config, thread_id):
         analysis_tasks[thread_id] = {
             "status": "error",
             "error": str(e),
-            "state": initial_state
+            "state": initial_state,
         }
 
 
@@ -241,7 +247,7 @@ async def stream_analysis(thread_id: str):
             if asyncio.get_event_loop().time() - start_time > max_wait_time:
                 yield {
                     "event": "error",
-                    "data": json.dumps({"error": "Analysis timeout"})
+                    "data": json.dumps({"error": "Analysis timeout"}),
                 }
                 break
 
@@ -257,10 +263,7 @@ async def stream_analysis(thread_id: str):
                     # Stream new thinking logs with slight delay for UI rendering
                     if len(thinking_logs) > last_log_index:
                         for log in thinking_logs[last_log_index:]:
-                            yield {
-                                "event": "thinking_log",
-                                "data": json.dumps(log)
-                            }
+                            yield {"event": "thinking_log", "data": json.dumps(log)}
                             # Small delay between logs to allow UI to render each state
                             await asyncio.sleep(0.1)
                         last_log_index = len(thinking_logs)
@@ -270,22 +273,19 @@ async def stream_analysis(thread_id: str):
                         # Stream verdict
                         try:
                             verdict = json.loads(state["compiled_report"])
-                            yield {
-                                "event": "verdict",
-                                "data": json.dumps(verdict)
-                            }
+                            yield {"event": "verdict", "data": json.dumps(verdict)}
 
                             # Analysis complete, waiting for review
                             yield {
                                 "event": "complete",
-                                "data": json.dumps({"status": "awaiting_review"})
+                                "data": json.dumps({"status": "awaiting_review"}),
                             }
                             break
 
                         except json.JSONDecodeError:
                             yield {
                                 "event": "error",
-                                "data": json.dumps({"error": "Invalid verdict format"})
+                                "data": json.dumps({"error": "Invalid verdict format"}),
                             }
                             break
 
@@ -294,15 +294,14 @@ async def stream_analysis(thread_id: str):
                 if task_info.get("status") == "error":
                     yield {
                         "event": "error",
-                        "data": json.dumps({"error": task_info.get("error", "Unknown error")})
+                        "data": json.dumps(
+                            {"error": task_info.get("error", "Unknown error")}
+                        ),
                     }
                     break
 
             except Exception as e:
-                yield {
-                    "event": "error",
-                    "data": json.dumps({"error": str(e)})
-                }
+                yield {"event": "error", "data": json.dumps({"error": str(e)})}
                 break
 
             # Wait before next poll
@@ -326,7 +325,7 @@ async def review_decision(request: ReviewRequest):
         raise HTTPException(status_code=404, detail="Analysis session not found")
 
     try:
-        generate_gamma = (request.action == "generate_gamma")
+        generate_gamma = request.action == "generate_gamma"
 
         # Resume graph execution
         config = {"configurable": {"thread_id": request.thread_id}}
@@ -340,15 +339,10 @@ async def review_decision(request: ReviewRequest):
         updated_state["generate_gamma"] = generate_gamma
 
         # Continue graph execution
-        result = await asyncio.to_thread(
-            lambda: graph.invoke(updated_state, config)
-        )
+        result = await asyncio.to_thread(lambda: graph.invoke(updated_state, config))
 
         if generate_gamma and result.get("gamma_link"):
-            return ReviewResponse(
-                status="complete",
-                gamma_link=result["gamma_link"]
-            )
+            return ReviewResponse(status="complete", gamma_link=result["gamma_link"])
         else:
             return ReviewResponse(status="complete", gamma_link=None)
 
@@ -372,11 +366,11 @@ async def chat_about_document(request: ChatRequest):
         query = request.query.strip()
         if not query:
             raise HTTPException(status_code=400, detail="Query cannot be empty")
-        
+
         prompt = _build_chat_prompt(request.thread_id, query)
         llm = get_llm()
         response = await asyncio.to_thread(lambda: llm.invoke(prompt))
-        answer = response.content if hasattr(response, 'content') else str(response)
+        answer = response.content if hasattr(response, "content") else str(response)
 
         return ChatResponse(response=answer)
 
@@ -398,7 +392,7 @@ async def stream_chat_about_document(chat_request: ChatRequest, http_request: Re
         query = chat_request.query.strip()
         if not query:
             raise HTTPException(status_code=400, detail="Query cannot be empty")
-        
+
         prompt = _build_chat_prompt(chat_request.thread_id, query)
     except HTTPException:
         raise
@@ -416,10 +410,12 @@ async def stream_chat_about_document(chat_request: ChatRequest, http_request: Re
 
             yield {
                 "event": "chat_start",
-                "data": json.dumps({
-                    "message_id": message_id,
-                    "timestamp": timestamp_ms,
-                })
+                "data": json.dumps(
+                    {
+                        "message_id": message_id,
+                        "timestamp": timestamp_ms,
+                    }
+                ),
             }
 
             async for chunk in llm.astream(prompt):
@@ -433,30 +429,36 @@ async def stream_chat_about_document(chat_request: ChatRequest, http_request: Re
                 full_response_parts.append(delta)
                 yield {
                     "event": "chat_delta",
-                    "data": json.dumps({
-                        "message_id": message_id,
-                        "delta": delta,
-                    })
+                    "data": json.dumps(
+                        {
+                            "message_id": message_id,
+                            "delta": delta,
+                        }
+                    ),
                 }
 
             if not await http_request.is_disconnected():
                 final_response = "".join(full_response_parts)
                 yield {
                     "event": "chat_complete",
-                    "data": json.dumps({
-                        "message_id": message_id,
-                        "response": final_response,
-                        "timestamp": int(time.time() * 1000),
-                    })
+                    "data": json.dumps(
+                        {
+                            "message_id": message_id,
+                            "response": final_response,
+                            "timestamp": int(time.time() * 1000),
+                        }
+                    ),
                 }
 
         except Exception as e:
             yield {
                 "event": "error",
-                "data": json.dumps({
-                    "message_id": message_id if message_id else None,
-                    "error": str(e),
-                })
+                "data": json.dumps(
+                    {
+                        "message_id": message_id if message_id else None,
+                        "error": str(e),
+                    }
+                ),
             }
 
     return EventSourceResponse(event_generator())
@@ -489,5 +491,5 @@ async def get_analysis_status(thread_id: str):
         "status": "complete" if state.get("compiled_report") else "processing",
         "has_verdict": bool(state.get("compiled_report")),
         "has_gamma": bool(state.get("gamma_link")),
-        "thinking_logs_count": len(state.get("thinking_logs", []))
+        "thinking_logs_count": len(state.get("thinking_logs", [])),
     }

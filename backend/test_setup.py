@@ -56,14 +56,24 @@ def check_env():
     missing_vars = []
 
     for var in required_vars:
-        if var not in env_content or f"{var}=" in env_content and "your-" in env_content:
+        if (
+            var not in env_content
+            or f"{var}=" in env_content
+            and "your-" in env_content
+        ):
             missing_vars.append(var)
 
     # Check provider-specific requirements
-    if "LLM_PROVIDER=anthropic" in env_content and ("ANTHROPIC_API_KEY" not in env_content or "ANTHROPIC_API_KEY=your-anthropic-key" in env_content):
+    if "LLM_PROVIDER=anthropic" in env_content and (
+        "ANTHROPIC_API_KEY" not in env_content
+        or "ANTHROPIC_API_KEY=your-anthropic-key" in env_content
+    ):
         missing_vars.append("ANTHROPIC_API_KEY")
 
-    if "LLM_PROVIDER=vertex_ai" in env_content and ("GOOGLE_CLOUD_PROJECT" not in env_content or "GOOGLE_CLOUD_PROJECT=your-" in env_content):
+    if "LLM_PROVIDER=vertex_ai" in env_content and (
+        "GOOGLE_CLOUD_PROJECT" not in env_content
+        or "GOOGLE_CLOUD_PROJECT=your-" in env_content
+    ):
         missing_vars.append("GOOGLE_CLOUD_PROJECT")
 
     if missing_vars:
@@ -107,7 +117,6 @@ def check_imports():
 def check_llm_provider():
     """Check if LLM provider is properly configured."""
     try:
-        from config import settings
         from utils.llm_factory import get_llm_info
 
         info = get_llm_info()
@@ -115,8 +124,9 @@ def check_llm_provider():
 
         # Try to initialize LLM
         from utils.llm_factory import get_llm
-        llm = get_llm()
-        print(f"✅ LLM initialized successfully")
+
+        get_llm()
+        print("✅ LLM initialized successfully")
 
         return True
 

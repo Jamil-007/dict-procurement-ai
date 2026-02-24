@@ -6,7 +6,6 @@ Each agent processes the state and returns updated state with findings.
 import json
 import time
 import uuid
-import operator
 from typing import TypedDict, List, Dict, Any, Annotated
 from pathlib import Path
 from utils.llm_factory import get_llm
@@ -50,6 +49,7 @@ def append_thinking_logs(left: list, right: list) -> list:
 
 class AgentState(TypedDict, total=False):
     """State structure for the LangGraph workflow."""
+
     original_pdf_paths: List[str]
     parsed_text: str
     analysis_results: Annotated[dict, merge_analysis_results]
@@ -61,14 +61,16 @@ class AgentState(TypedDict, total=False):
     thinking_logs: Annotated[list, append_thinking_logs]
 
 
-def create_thinking_log(agent: str, message: str, status: str = "active") -> Dict[str, Any]:
+def create_thinking_log(
+    agent: str, message: str, status: str = "active"
+) -> Dict[str, Any]:
     """Helper function to create a thinking log entry."""
     return {
         "id": str(uuid.uuid4()),
         "agent": agent,
         "message": message,
         "timestamp": int(time.time() * 1000),  # Convert to milliseconds for JavaScript
-        "status": status
+        "status": status,
     }
 
 
@@ -77,14 +79,11 @@ def with_active_log(agent_name: str, active_message: str):
     Decorator that automatically emits an 'active' log when agent starts.
     The wrapped agent function should only return 'complete' logs.
     """
+
     def decorator(agent_func):
         def wrapper(state: AgentState) -> Dict[str, Any]:
             # Emit active log first
             active_log = create_thinking_log(agent_name, active_message, "active")
-            initial_result = {
-                "thinking_logs": [active_log]
-            }
-
             # Run the actual agent function
             agent_result = agent_func(state)
 
@@ -96,6 +95,7 @@ def with_active_log(agent_name: str, active_message: str):
             return agent_result
 
         return wrapper
+
     return decorator
 
 
@@ -120,19 +120,17 @@ def pdf_parser_node(state: AgentState) -> Dict[str, Any]:
             )
 
         parsed_text = "\n\n".join(parsed_documents)
-        logs.append(create_thinking_log("PDF Parser", "PDF text extraction complete", "complete"))
+        logs.append(
+            create_thinking_log(
+                "PDF Parser", "PDF text extraction complete", "complete"
+            )
+        )
 
-        return {
-            "parsed_text": parsed_text,
-            "thinking_logs": logs
-        }
+        return {"parsed_text": parsed_text, "thinking_logs": logs}
     except Exception as e:
         logs.append(create_thinking_log("PDF Parser", f"Error: {str(e)}", "complete"))
 
-        return {
-            "parsed_text": f"Error parsing PDF: {str(e)}",
-            "thinking_logs": logs
-        }
+        return {"parsed_text": f"Error parsing PDF: {str(e)}", "thinking_logs": logs}
 
 
 @with_active_log("Specification Validator", "Checking specification compliance...")
@@ -149,7 +147,7 @@ def specification_validator_agent(state: AgentState) -> Dict[str, Any]:
         response = llm.invoke(prompt)
 
         # Extract JSON from response
-        content = response.content if hasattr(response, 'content') else str(response)
+        content = response.content if hasattr(response, "content") else str(response)
 
         # Try to parse JSON from the response
         try:
@@ -166,29 +164,31 @@ def specification_validator_agent(state: AgentState) -> Dict[str, Any]:
                 "compliant": False,
                 "issues": ["Failed to parse analysis results"],
                 "severity": "medium",
-                "recommendations": []
+                "recommendations": [],
             }
 
-        logs.append(create_thinking_log("Specification Validator", "Specification analysis complete", "complete"))
+        logs.append(
+            create_thinking_log(
+                "Specification Validator", "Specification analysis complete", "complete"
+            )
+        )
 
-        return {
-            "analysis_results": {"spec_check": result},
-            "thinking_logs": logs
-        }
+        return {"analysis_results": {"spec_check": result}, "thinking_logs": logs}
 
     except Exception as e:
         result = {
             "compliant": False,
             "issues": [f"Analysis error: {str(e)}"],
             "severity": "high",
-            "recommendations": []
+            "recommendations": [],
         }
-        logs.append(create_thinking_log("Specification Validator", f"Error: {str(e)}", "complete"))
+        logs.append(
+            create_thinking_log(
+                "Specification Validator", f"Error: {str(e)}", "complete"
+            )
+        )
 
-        return {
-            "analysis_results": {"spec_check": result},
-            "thinking_logs": logs
-        }
+        return {"analysis_results": {"spec_check": result}, "thinking_logs": logs}
 
 
 @with_active_log("LCCA Analyzer", "Analyzing lifecycle costs...")
@@ -203,7 +203,7 @@ def lcca_agent(state: AgentState) -> Dict[str, Any]:
         prompt = LCCA_PROMPT.format(parsed_text=state["parsed_text"])
         response = llm.invoke(prompt)
 
-        content = response.content if hasattr(response, 'content') else str(response)
+        content = response.content if hasattr(response, "content") else str(response)
 
         try:
             if "```json" in content:
@@ -218,15 +218,16 @@ def lcca_agent(state: AgentState) -> Dict[str, Any]:
                 "cost_factors_identified": [],
                 "missing_considerations": ["Failed to parse analysis"],
                 "severity": "medium",
-                "recommendations": []
+                "recommendations": [],
             }
 
-        logs.append(create_thinking_log("LCCA Analyzer", "Lifecycle cost analysis complete", "complete"))
+        logs.append(
+            create_thinking_log(
+                "LCCA Analyzer", "Lifecycle cost analysis complete", "complete"
+            )
+        )
 
-        return {
-            "analysis_results": {"lcca": result},
-            "thinking_logs": logs
-        }
+        return {"analysis_results": {"lcca": result}, "thinking_logs": logs}
 
     except Exception as e:
         result = {
@@ -234,14 +235,13 @@ def lcca_agent(state: AgentState) -> Dict[str, Any]:
             "cost_factors_identified": [],
             "missing_considerations": [f"Analysis error: {str(e)}"],
             "severity": "high",
-            "recommendations": []
+            "recommendations": [],
         }
-        logs.append(create_thinking_log("LCCA Analyzer", f"Error: {str(e)}", "complete"))
+        logs.append(
+            create_thinking_log("LCCA Analyzer", f"Error: {str(e)}", "complete")
+        )
 
-        return {
-            "analysis_results": {"lcca": result},
-            "thinking_logs": logs
-        }
+        return {"analysis_results": {"lcca": result}, "thinking_logs": logs}
 
 
 @with_active_log("Market Researcher", "Researching market prices...")
@@ -266,39 +266,46 @@ Document:
 Respond with just the key items and budget, one per line."""
 
         extraction_response = llm.invoke(extraction_prompt)
-        items_to_search = extraction_response.content if hasattr(extraction_response, 'content') else str(extraction_response)
+        items_to_search = (
+            extraction_response.content
+            if hasattr(extraction_response, "content")
+            else str(extraction_response)
+        )
 
         # Use Tavily for market research (if configured)
         market_data = f"Market research for items:\n{items_to_search}\n\n"
 
         try:
             from config import settings
+
             if settings.TAVILY_API_KEY:
                 from tavily import TavilyClient
+
                 tavily = TavilyClient(api_key=settings.TAVILY_API_KEY)
 
                 # Search for market prices
                 search_results = tavily.search(
                     query=f"Philippines market price {items_to_search[:200]}",
-                    max_results=3
+                    max_results=3,
                 )
 
                 market_data += "Search results:\n"
                 for result in search_results.get("results", []):
                     market_data += f"- {result.get('title', '')}: {result.get('content', '')[:200]}\n"
             else:
-                market_data += "(Tavily API not configured - using document analysis only)"
+                market_data += (
+                    "(Tavily API not configured - using document analysis only)"
+                )
         except Exception as search_error:
             market_data += f"(Market search unavailable: {str(search_error)})"
 
         # Analyze with market data
         prompt = MARKET_SCOPING_PROMPT.format(
-            parsed_text=state["parsed_text"],
-            market_data=market_data
+            parsed_text=state["parsed_text"], market_data=market_data
         )
         response = llm.invoke(prompt)
 
-        content = response.content if hasattr(response, 'content') else str(response)
+        content = response.content if hasattr(response, "content") else str(response)
 
         try:
             if "```json" in content:
@@ -314,15 +321,16 @@ Respond with just the key items and budget, one per line."""
                 "supplier_availability": "unknown",
                 "issues": ["Failed to parse analysis"],
                 "severity": "low",
-                "recommendations": []
+                "recommendations": [],
             }
 
-        logs.append(create_thinking_log("Market Researcher", "Market analysis complete", "complete"))
+        logs.append(
+            create_thinking_log(
+                "Market Researcher", "Market analysis complete", "complete"
+            )
+        )
 
-        return {
-            "analysis_results": {"market_scope": result},
-            "thinking_logs": logs
-        }
+        return {"analysis_results": {"market_scope": result}, "thinking_logs": logs}
 
     except Exception as e:
         result = {
@@ -331,14 +339,13 @@ Respond with just the key items and budget, one per line."""
             "supplier_availability": "unknown",
             "issues": [f"Analysis error: {str(e)}"],
             "severity": "medium",
-            "recommendations": []
+            "recommendations": [],
         }
-        logs.append(create_thinking_log("Market Researcher", f"Error: {str(e)}", "complete"))
+        logs.append(
+            create_thinking_log("Market Researcher", f"Error: {str(e)}", "complete")
+        )
 
-        return {
-            "analysis_results": {"market_scope": result},
-            "thinking_logs": logs
-        }
+        return {"analysis_results": {"market_scope": result}, "thinking_logs": logs}
 
 
 @with_active_log("Sustainability Analyst", "Evaluating sustainability criteria...")
@@ -353,7 +360,7 @@ def green_sustainable_agent(state: AgentState) -> Dict[str, Any]:
         prompt = GREEN_SUSTAINABLE_PROMPT.format(parsed_text=state["parsed_text"])
         response = llm.invoke(prompt)
 
-        content = response.content if hasattr(response, 'content') else str(response)
+        content = response.content if hasattr(response, "content") else str(response)
 
         try:
             if "```json" in content:
@@ -368,15 +375,18 @@ def green_sustainable_agent(state: AgentState) -> Dict[str, Any]:
                 "environmental_considerations": [],
                 "missing_criteria": ["Failed to parse analysis"],
                 "severity": "low",
-                "recommendations": []
+                "recommendations": [],
             }
 
-        logs.append(create_thinking_log("Sustainability Analyst", "Sustainability evaluation complete", "complete"))
+        logs.append(
+            create_thinking_log(
+                "Sustainability Analyst",
+                "Sustainability evaluation complete",
+                "complete",
+            )
+        )
 
-        return {
-            "analysis_results": {"green": result},
-            "thinking_logs": logs
-        }
+        return {"analysis_results": {"green": result}, "thinking_logs": logs}
 
     except Exception as e:
         result = {
@@ -384,14 +394,15 @@ def green_sustainable_agent(state: AgentState) -> Dict[str, Any]:
             "environmental_considerations": [],
             "missing_criteria": [f"Analysis error: {str(e)}"],
             "severity": "medium",
-            "recommendations": []
+            "recommendations": [],
         }
-        logs.append(create_thinking_log("Sustainability Analyst", f"Error: {str(e)}", "complete"))
+        logs.append(
+            create_thinking_log(
+                "Sustainability Analyst", f"Error: {str(e)}", "complete"
+            )
+        )
 
-        return {
-            "analysis_results": {"green": result},
-            "thinking_logs": logs
-        }
+        return {"analysis_results": {"green": result}, "thinking_logs": logs}
 
 
 @with_active_log("Domestic Preference Checker", "Verifying Tatak Pinoy compliance...")
@@ -406,7 +417,7 @@ def tatak_pinoy_agent(state: AgentState) -> Dict[str, Any]:
         prompt = TATAK_PINOY_PROMPT.format(parsed_text=state["parsed_text"])
         response = llm.invoke(prompt)
 
-        content = response.content if hasattr(response, 'content') else str(response)
+        content = response.content if hasattr(response, "content") else str(response)
 
         try:
             if "```json" in content:
@@ -422,15 +433,18 @@ def tatak_pinoy_agent(state: AgentState) -> Dict[str, Any]:
                 "compliance_issues": ["Failed to parse analysis"],
                 "opportunities": [],
                 "severity": "low",
-                "recommendations": []
+                "recommendations": [],
             }
 
-        logs.append(create_thinking_log("Domestic Preference Checker", "Tatak Pinoy analysis complete", "complete"))
+        logs.append(
+            create_thinking_log(
+                "Domestic Preference Checker",
+                "Tatak Pinoy analysis complete",
+                "complete",
+            )
+        )
 
-        return {
-            "analysis_results": {"tatak_pinoy": result},
-            "thinking_logs": logs
-        }
+        return {"analysis_results": {"tatak_pinoy": result}, "thinking_logs": logs}
 
     except Exception as e:
         result = {
@@ -439,14 +453,15 @@ def tatak_pinoy_agent(state: AgentState) -> Dict[str, Any]:
             "compliance_issues": [f"Analysis error: {str(e)}"],
             "opportunities": [],
             "severity": "medium",
-            "recommendations": []
+            "recommendations": [],
         }
-        logs.append(create_thinking_log("Domestic Preference Checker", f"Error: {str(e)}", "complete"))
+        logs.append(
+            create_thinking_log(
+                "Domestic Preference Checker", f"Error: {str(e)}", "complete"
+            )
+        )
 
-        return {
-            "analysis_results": {"tatak_pinoy": result},
-            "thinking_logs": logs
-        }
+        return {"analysis_results": {"tatak_pinoy": result}, "thinking_logs": logs}
 
 
 @with_active_log("Modality Advisor", "Determining procurement modality...")
@@ -461,7 +476,7 @@ def compliance_modality_agent(state: AgentState) -> Dict[str, Any]:
         prompt = COMPLIANCE_MODALITY_PROMPT.format(parsed_text=state["parsed_text"])
         response = llm.invoke(prompt)
 
-        content = response.content if hasattr(response, 'content') else str(response)
+        content = response.content if hasattr(response, "content") else str(response)
 
         try:
             if "```json" in content:
@@ -477,15 +492,16 @@ def compliance_modality_agent(state: AgentState) -> Dict[str, Any]:
                 "procurement_characteristics": [],
                 "compliance_requirements": ["Failed to parse analysis"],
                 "severity": "low",
-                "recommendations": []
+                "recommendations": [],
             }
 
-        logs.append(create_thinking_log("Modality Advisor", "Modality analysis complete", "complete"))
+        logs.append(
+            create_thinking_log(
+                "Modality Advisor", "Modality analysis complete", "complete"
+            )
+        )
 
-        return {
-            "analysis_results": {"compliance": result},
-            "thinking_logs": logs
-        }
+        return {"analysis_results": {"compliance": result}, "thinking_logs": logs}
 
     except Exception as e:
         result = {
@@ -494,14 +510,13 @@ def compliance_modality_agent(state: AgentState) -> Dict[str, Any]:
             "procurement_characteristics": [],
             "compliance_requirements": [f"Analysis error: {str(e)}"],
             "severity": "medium",
-            "recommendations": []
+            "recommendations": [],
         }
-        logs.append(create_thinking_log("Modality Advisor", f"Error: {str(e)}", "complete"))
+        logs.append(
+            create_thinking_log("Modality Advisor", f"Error: {str(e)}", "complete")
+        )
 
-        return {
-            "analysis_results": {"compliance": result},
-            "thinking_logs": logs
-        }
+        return {"analysis_results": {"compliance": result}, "thinking_logs": logs}
 
 
 @with_active_log("Report Compiler", "Compiling final report...")
@@ -525,7 +540,7 @@ def compiler_agent(state: AgentState) -> Dict[str, Any]:
         prompt = COMPILER_PROMPT.format(analysis_results=analysis_summary)
         response = llm.invoke(prompt)
 
-        content = response.content if hasattr(response, 'content') else str(response)
+        content = response.content if hasattr(response, "content") else str(response)
 
         # Extract JSON verdict
         try:
@@ -539,16 +554,16 @@ def compiler_agent(state: AgentState) -> Dict[str, Any]:
             content = content.strip()
 
             # If content doesn't start with {, try to find the first {
-            if not content.startswith('{'):
-                start_idx = content.find('{')
+            if not content.startswith("{"):
+                start_idx = content.find("{")
                 if start_idx != -1:
                     content = content[start_idx:]
 
             # If content doesn't end with }, try to find the last }
-            if not content.endswith('}'):
-                end_idx = content.rfind('}')
+            if not content.endswith("}"):
+                end_idx = content.rfind("}")
                 if end_idx != -1:
-                    content = content[:end_idx + 1]
+                    content = content[: end_idx + 1]
 
             verdict = json.loads(content)
 
@@ -572,22 +587,24 @@ def compiler_agent(state: AgentState) -> Dict[str, Any]:
                     {
                         "category": "System Error",
                         "items": [f"Failed to compile report: {str(e)}"],
-                        "severity": "high"
+                        "severity": "high",
                     }
-                ]
+                ],
             }
             compiled_report = json.dumps(verdict, indent=2)
 
-        logs.append(create_thinking_log("Report Compiler", "Report compilation complete", "complete"))
+        logs.append(
+            create_thinking_log(
+                "Report Compiler", "Report compilation complete", "complete"
+            )
+        )
 
-        return {
-            "compiled_report": compiled_report,
-            "thinking_logs": logs
-        }
+        return {"compiled_report": compiled_report, "thinking_logs": logs}
 
     except Exception as e:
         # Log the full error for debugging
         import traceback
+
         print(f"ERROR: Critical error in compiler_agent: {str(e)}")
         print(traceback.format_exc())
 
@@ -600,17 +617,16 @@ def compiler_agent(state: AgentState) -> Dict[str, Any]:
                 {
                     "category": "System Error",
                     "items": [f"Critical error: {str(e)}"],
-                    "severity": "high"
+                    "severity": "high",
                 }
-            ]
+            ],
         }
         compiled_report = json.dumps(verdict, indent=2)
-        logs.append(create_thinking_log("Report Compiler", f"Error: {str(e)}", "complete"))
+        logs.append(
+            create_thinking_log("Report Compiler", f"Error: {str(e)}", "complete")
+        )
 
-        return {
-            "compiled_report": compiled_report,
-            "thinking_logs": logs
-        }
+        return {"compiled_report": compiled_report, "thinking_logs": logs}
 
 
 def gamma_generator_node(state: AgentState) -> Dict[str, Any]:
@@ -628,24 +644,25 @@ def gamma_generator_node(state: AgentState) -> Dict[str, Any]:
     try:
         # Run async function in sync context for LangGraph compatibility
         import asyncio
-        
-        # Use asyncio.run() to execute async function in synchronous context
-        gamma_link = asyncio.run(gamma_client.generate_presentation(
-            content=state["compiled_report"],
-            thread_id=state["thread_id"]
-        ))
-        
-        logs.append(create_thinking_log("Gamma Generator", f"Presentation ready: {gamma_link}", "complete"))
 
-        return {
-            "gamma_link": gamma_link,
-            "thinking_logs": logs
-        }
+        # Use asyncio.run() to execute async function in synchronous context
+        gamma_link = asyncio.run(
+            gamma_client.generate_presentation(
+                content=state["compiled_report"], thread_id=state["thread_id"]
+            )
+        )
+
+        logs.append(
+            create_thinking_log(
+                "Gamma Generator", f"Presentation ready: {gamma_link}", "complete"
+            )
+        )
+
+        return {"gamma_link": gamma_link, "thinking_logs": logs}
 
     except Exception as e:
-        logs.append(create_thinking_log("Gamma Generator", f"Error: {str(e)}", "complete"))
+        logs.append(
+            create_thinking_log("Gamma Generator", f"Error: {str(e)}", "complete")
+        )
 
-        return {
-            "gamma_link": "",
-            "thinking_logs": logs
-        }
+        return {"gamma_link": "", "thinking_logs": logs}

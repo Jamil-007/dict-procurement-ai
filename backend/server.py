@@ -38,6 +38,7 @@ app.add_middleware(
         "https://dict-procurement-ai-5o1j.vercel.app",
         "https://dict-procurement-ai.vercel.app",
         "https://procurement-ai-frontend-staging-623960795683.asia-southeast1.run.app",
+        "https://procurement-ai-frontend-prod-623960795683.asia-southeast1.run.app",
         "http://localhost:3000",
         "http://localhost:3001",
     ],

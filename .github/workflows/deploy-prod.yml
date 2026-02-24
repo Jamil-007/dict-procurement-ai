@@ -1,0 +1,112 @@
+name: Deploy Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      component:
+        description: "What to deploy"
+        required: true
+        type: choice
+        options:
+          - all
+          - backend
+          - frontend
+
+env:
+  PROJECT_ID: ai-innov-474401
+  REGION: asia-southeast1
+  GAR_REGISTRY: asia-southeast1-docker.pkg.dev/ai-innov-474401/procurement-ai
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend (Production)
+    if: inputs.component == 'all' || inputs.component == 'backend'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authorize Docker push
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push image
+        run: |
+          IMAGE=${{ env.GAR_REGISTRY }}/backend:prod-${{ github.sha }}
+          docker build -t $IMAGE backend/
+          docker push $IMAGE
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy procurement-ai-backend-prod \
+            --image ${{ env.GAR_REGISTRY }}/backend:prod-${{ github.sha }} \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --allow-unauthenticated \
+            --set-env-vars "LLM_PROVIDER=vertex_ai" \
+            --set-env-vars "GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}" \
+            --set-env-vars "GOOGLE_CLOUD_LOCATION=${{ env.REGION }}" \
+            --set-env-vars "VERTEX_MODEL_NAME=gemini-2.5-flash" \
+            --set-env-vars "STATE_STORAGE=memory" \
+            --set-secrets "TAVILY_API_KEY=TAVILY_API_KEY:latest" \
+            --set-secrets "GAMMA_API_KEY=GAMMA_API_KEY:latest" \
+            --memory 2Gi \
+            --cpu 2 \
+            --timeout 300 \
+            --max-instances 10 \
+            --min-instances 1 \
+            --concurrency 80
+
+  deploy-frontend:
+    name: Deploy Frontend (Production)
+    if: inputs.component == 'all' || inputs.component == 'frontend'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authorize Docker push
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push image
+        run: |
+          IMAGE=${{ env.GAR_REGISTRY }}/frontend:prod-${{ github.sha }}
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL=${{ secrets.PROD_API_URL }} \
+            -t $IMAGE frontend/
+          docker push $IMAGE
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy procurement-ai-frontend-prod \
+            --image ${{ env.GAR_REGISTRY }}/frontend:prod-${{ github.sha }} \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --allow-unauthenticated \
+            --memory 512Mi \
+            --cpu 1 \
+            --timeout 60 \
+            --max-instances 10 \
+            --min-instances 1 \
+            --concurrency 80

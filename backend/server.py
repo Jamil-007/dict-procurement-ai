@@ -1,5 +1,5 @@
 """
-FastAPI server with routes for procurement analysis.
+FastAPI server for procurement document analysis.
 Implements SSE streaming, human-in-the-loop workflow, and chat.
 """
 

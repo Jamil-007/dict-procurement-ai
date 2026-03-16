@@ -21,7 +21,7 @@ from models import (
 from utils.storage import save_uploaded_files, generate_thread_id, file_exists
 from utils.llm_factory import get_llm, get_llm_info
 from graph import graph, create_initial_state
-from prompts import CHAT_PROMPT
+from prompts import CHAT_PROMPT, RA_12009_DIRECTIVE
 from config import settings
 
 
@@ -107,6 +107,7 @@ def _build_chat_prompt(thread_id: str, query: str) -> str:
         parsed_text=parsed_text[: settings.CHAT_PARSED_TEXT_LIMIT],
         compiled_report=compiled_report,
         query=query,
+        ra_12009_directive=RA_12009_DIRECTIVE,
     )
 
 

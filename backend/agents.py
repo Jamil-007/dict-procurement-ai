@@ -12,6 +12,7 @@ from utils.llm_factory import get_llm
 from utils.pdf_parser import extract_text_from_pdf
 from utils.gamma_client import gamma_client
 from prompts import (
+    RA_12009_DIRECTIVE,
     SPECIFICATION_VALIDATOR_PROMPT,
     LCCA_PROMPT,
     MARKET_SCOPING_PROMPT,
@@ -143,7 +144,7 @@ def specification_validator_agent(state: AgentState) -> Dict[str, Any]:
 
     try:
         llm = get_llm()
-        prompt = SPECIFICATION_VALIDATOR_PROMPT.format(parsed_text=state["parsed_text"])
+        prompt = SPECIFICATION_VALIDATOR_PROMPT.format(parsed_text=state["parsed_text"], ra_12009_directive=RA_12009_DIRECTIVE)
         response = llm.invoke(prompt)
 
         # Extract JSON from response
@@ -200,7 +201,7 @@ def lcca_agent(state: AgentState) -> Dict[str, Any]:
 
     try:
         llm = get_llm()
-        prompt = LCCA_PROMPT.format(parsed_text=state["parsed_text"])
+        prompt = LCCA_PROMPT.format(parsed_text=state["parsed_text"], ra_12009_directive=RA_12009_DIRECTIVE)
         response = llm.invoke(prompt)
 
         content = response.content if hasattr(response, "content") else str(response)
@@ -301,7 +302,7 @@ Respond with just the key items and budget, one per line."""
 
         # Analyze with market data
         prompt = MARKET_SCOPING_PROMPT.format(
-            parsed_text=state["parsed_text"], market_data=market_data
+            parsed_text=state["parsed_text"], market_data=market_data, ra_12009_directive=RA_12009_DIRECTIVE
         )
         response = llm.invoke(prompt)
 
@@ -357,7 +358,7 @@ def green_sustainable_agent(state: AgentState) -> Dict[str, Any]:
 
     try:
         llm = get_llm()
-        prompt = GREEN_SUSTAINABLE_PROMPT.format(parsed_text=state["parsed_text"])
+        prompt = GREEN_SUSTAINABLE_PROMPT.format(parsed_text=state["parsed_text"], ra_12009_directive=RA_12009_DIRECTIVE)
         response = llm.invoke(prompt)
 
         content = response.content if hasattr(response, "content") else str(response)
@@ -414,7 +415,7 @@ def tatak_pinoy_agent(state: AgentState) -> Dict[str, Any]:
 
     try:
         llm = get_llm()
-        prompt = TATAK_PINOY_PROMPT.format(parsed_text=state["parsed_text"])
+        prompt = TATAK_PINOY_PROMPT.format(parsed_text=state["parsed_text"], ra_12009_directive=RA_12009_DIRECTIVE)
         response = llm.invoke(prompt)
 
         content = response.content if hasattr(response, "content") else str(response)
@@ -473,7 +474,7 @@ def compliance_modality_agent(state: AgentState) -> Dict[str, Any]:
 
     try:
         llm = get_llm()
-        prompt = COMPLIANCE_MODALITY_PROMPT.format(parsed_text=state["parsed_text"])
+        prompt = COMPLIANCE_MODALITY_PROMPT.format(parsed_text=state["parsed_text"], ra_12009_directive=RA_12009_DIRECTIVE)
         response = llm.invoke(prompt)
 
         content = response.content if hasattr(response, "content") else str(response)
@@ -537,7 +538,7 @@ def compiler_agent(state: AgentState) -> Dict[str, Any]:
 
         analysis_summary = json.dumps(analysis_results, indent=2)
 
-        prompt = COMPILER_PROMPT.format(analysis_results=analysis_summary)
+        prompt = COMPILER_PROMPT.format(analysis_results=analysis_summary, ra_12009_directive=RA_12009_DIRECTIVE)
         response = llm.invoke(prompt)
 
         content = response.content if hasattr(response, "content") else str(response)

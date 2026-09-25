@@ -1,7 +1,6 @@
 import type { Config } from "tailwindcss"
 
 const config: Config = {
-  darkMode: ["class"],
   content: [
     './pages/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
@@ -18,6 +17,18 @@ const config: Config = {
     },
     extend: {
       colors: {
+        // The AI Analyst palette. Named literally so markup reads the same as
+        // the design reference in html-proto/ai-analyst.html.
+        navy: "#123B6D",
+        brand: "#1E5AA8",
+        sky: "#EAF3FB",
+        page: "#F5F9FD",
+        ink: "#172B4D",
+        subtle: "#64748B",
+        line: "#D9E5F0",
+        critical: "#B42318",
+        warning: "#B54708",
+        compliant: "#067647",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -58,7 +69,10 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+        sans: ["var(--font-plex-sans)", "system-ui", "sans-serif"],
+        // Reserved for the printed report, so it reads as a document rather
+        // than as another screen.
+        serif: ["var(--font-plex-serif)", "Georgia", "serif"],
       },
       keyframes: {
         "accordion-down": {

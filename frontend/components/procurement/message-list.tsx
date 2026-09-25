@@ -219,7 +219,7 @@ export function MessageList({ messages, chatMessages = [], children, isChatLoadi
   );
 
   return (
-    <div className="w-full space-y-4 pb-32">
+    <div className="w-full space-y-4">
       {/* Initial messages (upload, etc.) */}
       {messages.map(renderMessage)}
 

@@ -23,6 +23,7 @@ from utils.llm_factory import get_llm, get_llm_info
 from graph import graph, create_initial_state
 from prompts import CHAT_PROMPT, RA_12009_DIRECTIVE
 from config import settings
+from routers import knowledge, procurements, review_api
 
 
 app = FastAPI(
@@ -43,9 +44,15 @@ app.add_middleware(
         "http://localhost:3001",
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
+
+# Procurement records, Knowledge Hub and AI Review. The Procurement Analyst
+# endpoints below are unchanged and still run off graph.py.
+app.include_router(procurements.router)
+app.include_router(knowledge.router)
+app.include_router(review_api.router)
 
 # Store for tracking background tasks
 analysis_tasks = {}

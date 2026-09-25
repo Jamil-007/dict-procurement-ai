@@ -1,0 +1,152 @@
+[
+  {
+    "id": "ra-12009",
+    "title": "RA 12009",
+    "subtitle": "New Government Procurement Act",
+    "category": "Laws & Regulations",
+    "doc_type": "Republic Act",
+    "date": "2024-07-20",
+    "pages": 96,
+    "excerpt": "An act providing for the modernisation, standardisation and regulation of the procurement activities of the government, repealing Republic Act No. 9184."
+  },
+  {
+    "id": "ra-12009-irr",
+    "title": "RA 12009 IRR",
+    "subtitle": "Implementing Rules and Regulations",
+    "category": "Laws & Regulations",
+    "doc_type": "IRR",
+    "date": "2025-02-28",
+    "pages": 214,
+    "excerpt": "Rules implementing the New Government Procurement Act, covering procurement planning, modalities, bidding procedures, and contract implementation."
+  },
+  {
+    "id": "ra-9184",
+    "title": "RA 9184",
+    "subtitle": "Government Procurement Reform Act (superseded)",
+    "category": "Laws & Regulations",
+    "doc_type": "Republic Act",
+    "date": "2003-01-10",
+    "pages": 64,
+    "excerpt": "Retained for reference in reviewing procurement commenced prior to the effectivity of RA 12009."
+  },
+  {
+    "id": "gppb-res-12-2025",
+    "title": "GPPB Resolution No. 12-2025",
+    "subtitle": "Guidelines on the determination of the ABC",
+    "category": "GPPB Issuances",
+    "doc_type": "Resolution",
+    "date": "2025-03-14",
+    "pages": 18,
+    "excerpt": "Prescribes the basis and supporting documentation for determining the approved budget for the contract for goods, infrastructure and consulting services."
+  },
+  {
+    "id": "gppb-circ-04-2025",
+    "title": "GPPB Circular No. 04-2025",
+    "subtitle": "Use of non-restrictive technical specifications",
+    "category": "GPPB Issuances",
+    "doc_type": "Circular",
+    "date": "2025-06-02",
+    "pages": 11,
+    "excerpt": "Reminds procuring entities to express requirements in performance terms and to avoid references to brand names without an equivalence clause."
+  },
+  {
+    "id": "gppb-res-07-2025",
+    "title": "GPPB Resolution No. 07-2025",
+    "subtitle": "Framework agreements for recurring ICT subscriptions",
+    "category": "GPPB Issuances",
+    "doc_type": "Resolution",
+    "date": "2025-05-09",
+    "pages": 22,
+    "excerpt": "Guidance on the use of framework agreements for requirements that recur within a fiscal year."
+  },
+  {
+    "id": "coa-circ-2023-004",
+    "title": "COA Circular No. 2023-004",
+    "subtitle": "Documentary requirements for common government transactions",
+    "category": "COA Issuances",
+    "doc_type": "Circular",
+    "date": "2023-08-17",
+    "pages": 78,
+    "excerpt": "Enumerates the documents required to support disbursements, including procurement of goods and services."
+  },
+  {
+    "id": "coa-circ-2024-002",
+    "title": "COA Circular No. 2024-002",
+    "subtitle": "Audit of ICT subscription and cloud service contracts",
+    "category": "COA Issuances",
+    "doc_type": "Circular",
+    "date": "2024-04-05",
+    "pages": 26,
+    "excerpt": "Audit guidance on recurring subscription contracts, including acceptance and continuity of service documentation."
+  },
+  {
+    "id": "dict-procurement-manual",
+    "title": "DICT Procurement Manual",
+    "subtitle": "Department procurement procedures, 2026 edition",
+    "category": "DICT Policies",
+    "doc_type": "Manual",
+    "date": "2026-01-15",
+    "pages": 148,
+    "excerpt": "Internal procedures covering procurement planning, BAC operations, document routing and review responsibilities within the Department."
+  },
+  {
+    "id": "dict-mc-03-2026",
+    "title": "DICT Memorandum Circular No. 03-2026",
+    "subtitle": "Review of ICT technical specifications",
+    "category": "DICT Policies",
+    "doc_type": "Memorandum",
+    "date": "2026-02-20",
+    "pages": 9,
+    "excerpt": "Requires technical specifications for ICT procurement to be reviewed for openness and interoperability prior to endorsement to the BAC."
+  },
+  {
+    "id": "gppb-standard-forms-goods",
+    "title": "GPPB Standard Procurement Forms",
+    "subtitle": "Goods — Philippine Bidding Documents, 7th edition",
+    "category": "Standard Forms",
+    "doc_type": "Form set",
+    "date": "2025-01-08",
+    "pages": 180,
+    "excerpt": "Standard bidding documents for the procurement of goods, including the invitation to bid, instructions to bidders and contract forms."
+  },
+  {
+    "id": "bac-resolution-template",
+    "title": "BAC Resolution Template",
+    "subtitle": "Standard format for BAC resolutions",
+    "category": "Standard Forms",
+    "doc_type": "Template",
+    "date": "2025-01-08",
+    "pages": 4,
+    "excerpt": "Prescribed format for resolutions recommending award, declaring failure of bidding, or adopting alternative modes of procurement."
+  },
+  {
+    "id": "post-qualification-checklist",
+    "title": "Post-Qualification Checklist",
+    "subtitle": "Goods and services",
+    "category": "Standard Forms",
+    "doc_type": "Checklist",
+    "date": "2025-03-03",
+    "pages": 6,
+    "excerpt": "Checklist of legal, technical and financial documents examined during post-qualification."
+  },
+  {
+    "id": "coa-decision-2024-118",
+    "title": "COA Decision No. 2024-118",
+    "subtitle": "Disallowance — unsupported variation in contract price",
+    "category": "Jurisprudence & Cases",
+    "doc_type": "Decision",
+    "date": "2024-09-12",
+    "pages": 15,
+    "excerpt": "Discusses the documentation required where the amount paid differs from the contract price stated in the signed agreement."
+  },
+  {
+    "id": "sc-gr-245678",
+    "title": "Supreme Court G.R. No. 245678",
+    "subtitle": "On restrictive technical specifications",
+    "category": "Jurisprudence & Cases",
+    "doc_type": "Decision",
+    "date": "2022-11-23",
+    "pages": 32,
+    "excerpt": "Holds that specifications tailored to a single product without justification defeat the purpose of competitive bidding."
+  }
+]

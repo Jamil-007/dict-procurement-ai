@@ -11,7 +11,6 @@ interface InputAreaProps {
   onSend: (message: string) => void;
   selectedFiles: File[];
   disabled?: boolean;
-  isSplitView?: boolean;
   placeholder?: string;
   fileOnly?: boolean;
 }
@@ -22,7 +21,6 @@ export function InputArea({
   onSend,
   selectedFiles,
   disabled,
-  isSplitView,
   placeholder = 'Ask about procurement documents...',
   fileOnly = false,
 }: InputAreaProps) {
@@ -55,10 +53,7 @@ export function InputArea({
   };
 
   return (
-    <div className={cn(
-      'p-4 bg-white border-t border-gray-200',
-      isSplitView ? 'absolute bottom-0 left-0 right-0' : 'fixed bottom-0 left-0 right-0'
-    )}>
+    <div className="p-4 bg-white border-t border-gray-200">
       <div className="max-w-3xl mx-auto">
         <form onSubmit={handleSubmit} className="relative">
           {/* Input Area */}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Check,
   Clock,
+  ExternalLink,
   GitCompareArrows,
   MessageSquare,
   MessageSquarePlus,
@@ -17,7 +18,12 @@ import { SeverityPill, SEVERITY_BAR, SEVERITY_TEXT } from "@/components/shell/st
 import { AutoTextarea } from "@/components/shell/auto-textarea";
 import { inputCls } from "@/components/shell/modal";
 import { addComment, patchFinding } from "@/lib/records-client";
-import type { Decision, Finding, FindingFeedback } from "@/types/records";
+import type {
+  Confidence,
+  Decision,
+  Finding,
+  FindingFeedback,
+} from "@/types/records";
 import { cn } from "@/lib/utils";
 
 /**
@@ -70,6 +76,25 @@ function Label({ children }: { children: React.ReactNode }) {
 function locator(page?: number | null, section?: string) {
   return [page ? `Page ${page}` : null, section || null].filter(Boolean).join(" · ");
 }
+
+/**
+ * Short form of SOURCE_TIER_MEANING in review/schema.py. A price carries very
+ * different weight depending on where it came from, so the tier is named next
+ * to every external citation rather than left for the reader to infer.
+ */
+const SOURCE_TIER: Record<number, string> = {
+  1: "Government",
+  2: "Manufacturer",
+  3: "Supplier",
+  4: "Marketplace",
+  5: "Informational",
+};
+
+const CONFIDENCE_LABEL: Record<Confidence, string> = {
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+};
 
 /** A text link in the action bar. Edit and Comment read as secondary to a decision. */
 const actionLink =
@@ -234,7 +259,46 @@ export function FindingCard({
                     </div>
                   </div>
                 )}
+                {finding.confidence && (
+                  <div>
+                    <Label>CONFIDENCE</Label>
+                    <div className="mt-1 text-[12.5px] font-medium text-ink">
+                      {CONFIDENCE_LABEL[finding.confidence]}
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {finding.policy_sources.length > 0 && (
+                <div className="mb-3 border-b border-line pb-3">
+                  <Label>CITED PROVISIONS</Label>
+                  <ul className="mt-2 space-y-2">
+                    {finding.policy_sources.map((citation, index) => (
+                      <li
+                        key={`${citation.title}-${index}`}
+                        className="rounded-lg border border-line bg-white px-3.5 py-3"
+                      >
+                        <div className="text-[11px] font-semibold text-navy">
+                          {citation.title}
+                        </div>
+                        {(citation.section || citation.page > 0) && (
+                          <div className="mt-0.5 text-[10.5px] text-subtle">
+                            {[
+                              citation.section,
+                              citation.page > 0 ? `Page ${citation.page}` : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        )}
+                        <p className="mt-2 text-[12.5px] italic leading-relaxed text-ink">
+                          "{citation.quote}"
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {finding.comparison.length > 0 ? (
                 <>
@@ -287,6 +351,45 @@ export function FindingCard({
                     </p>
                   </>
                 )
+              )}
+
+              {/* Strongest source first, so the basis of the finding reads top down. */}
+              {finding.external_sources.length > 0 && (
+                <div className="mt-3.5 border-t border-line pt-3.5">
+                  <Label>EXTERNAL SOURCES</Label>
+                  <ul className="mt-2 space-y-2">
+                    {[...finding.external_sources]
+                      .sort((a, b) => a.tier - b.tier)
+                      .map((entry, index) => (
+                        <li key={`${entry.url}-${index}`}>
+                          <a
+                            href={entry.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-start gap-1.5 text-[12.5px] font-medium text-brand transition-colors hover:text-navy"
+                          >
+                            {entry.title || entry.url}
+                            <ExternalLink
+                              className="mt-0.5 h-3 w-3 shrink-0"
+                              aria-hidden
+                            />
+                          </a>
+                          <div className="text-[11.5px] text-subtle">
+                            {[
+                              entry.publisher,
+                              SOURCE_TIER[entry.tier],
+                              entry.retrieved_at &&
+                                `Retrieved ${new Date(
+                                  entry.retrieved_at
+                                ).toLocaleDateString("en-PH")}`,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
               )}
             </div>
 

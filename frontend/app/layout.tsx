@@ -1,20 +1,28 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Sans, IBM_Plex_Serif } from "next/font/google";
+import { Plus_Jakarta_Sans, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { BetaBadge } from "@/components/beta-badge";
 
-const plexSans = IBM_Plex_Sans({
+// Everything on screen. 400/500 carry body text and metadata, 600/700/800 the
+// headings and titles — load only those five, since each weight is a file.
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-plex-sans",
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-jakarta",
 });
 
-// Only the printed report uses the serif, so it reads as a document.
-const plexSerif = IBM_Plex_Serif({
+// Accent only: signature and attestation lines in a report endorsement, where
+// a formal serif reads as a signed document rather than as another screen.
+// preload is off because nothing in the normal UI uses it — the @font-face is
+// declared either way, and the browser fetches the file only once a rule asks
+// for it. Turn preload back on if the serif ever lands above the fold.
+const playfair = Playfair_Display({
   subsets: ["latin"],
   weight: ["400", "600"],
-  variable: "--font-plex-serif",
+  style: ["normal", "italic"],
+  variable: "--font-playfair",
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -36,7 +44,7 @@ export default function RootLayout({
         <link rel="icon" href="/dict-logo.png" type="image/png" />
       </head>
       <body
-        className={`${plexSans.variable} ${plexSerif.variable} font-sans antialiased`}
+        className={`${jakarta.variable} ${playfair.variable} font-sans antialiased`}
       >
         <BetaBadge />
         {children}

@@ -54,6 +54,16 @@ class Settings(BaseSettings):
     GEMINI_MODEL_NAME: str = "gemini-2.0-flash"
     ANTHROPIC_MODEL_NAME: str = "claude-3-5-sonnet-20241022"
     TEMPERATURE: float = 0.7
+
+    # How many tokens Gemini may spend thinking before it answers. The 2.5
+    # models think by default with a dynamic budget, which on the review
+    # prompts measured at ~2,900 reasoning tokens and 17.7s against 4.5s with
+    # thinking off — invisible tokens you are billed for and wait on.
+    #   0   thinking off, fastest
+    #   -1  the model's own dynamic budget (what it did before this setting)
+    #   n   cap it at n tokens
+    # 1024 keeps real reasoning for the analysis while bounding the tail.
+    GEMINI_THINKING_BUDGET: int = 1024
     CHAT_PARSED_TEXT_LIMIT: int = 150000
 
     model_config = SettingsConfigDict(

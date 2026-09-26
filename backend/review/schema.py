@@ -45,9 +45,32 @@ def normalize_counts(counts: Optional[Dict[str, int]]) -> Dict[str, int]:
             out[level] += int(value or 0)
     return out
 
+
 Decision = Literal["accepted", "modified", "further", "rejected"]
 
 Feedback = Literal["correct", "incorrect", "irrelevant", "incomplete"]
+
+Confidence = Literal["high", "medium", "low"]
+
+#: How sure the analyzer is of the finding, which is a separate question from
+#: how serious it would be if true. A critical finding held at low confidence
+#: still belongs in front of the BAC — it just has to say so.
+CONFIDENCE_MEANING: Dict[Confidence, str] = {
+    "high": "Rests on figures stated in the documents or on an official source",
+    "medium": "Rests on indicative sources, or on a comparison needing assumptions",
+    "low": "Indicative only — thin evidence, or figures that are not like-for-like",
+}
+
+#: Weakest-to-strongest ranking for evidence retrieved from the web. A price
+#: on a marketplace listing and a price on a DBM circular are not the same kind
+#: of fact, and a pre-posting review has to show which one it relied on.
+SOURCE_TIER_MEANING: Dict[int, str] = {
+    1: "Philippine government — PhilGEPS, DBM, PS-DBM, COA, GPPB",
+    2: "Manufacturer or official distributor",
+    3: "Philippine supplier or reseller",
+    4: "Online marketplace listing",
+    5: "Informational — news, blogs, reviews",
+}
 
 
 class Source(BaseModel):
@@ -79,6 +102,41 @@ class ComparedText(BaseModel):
     quote: str = Field(..., description="Exact text as it appears in the document")
 
 
+class ExternalSource(BaseModel):
+    """
+    A web page consulted during the review, as distinct from an uploaded
+    document. Only dimensions that search externally populate this.
+
+    `tier` is what makes the citation usable in a defence of the procurement:
+    it records how authoritative the source is, so the BAC can see at a glance
+    whether a price rests on a DBM circular or on a marketplace listing.
+    """
+
+    url: str
+    title: str = Field("", description="Page title as retrieved")
+    publisher: str = Field("", description="Who published it, e.g. 'PS-DBM'")
+    tier: int = Field(
+        5, ge=1, le=5, description="See SOURCE_TIER_MEANING; 1 is strongest"
+    )
+    retrieved_at: str = Field(
+        "", description="ISO date the page was read — prices go stale"
+    )
+
+
+class PolicyCitation(BaseModel):
+    """
+    A provision from the reference library that a finding rests on.
+
+    Filled in by the review pipeline from the retrieved passage, never by the
+    model, so the title, section, page and quote are always the real ones.
+    """
+
+    title: str = Field(..., description="Document title, e.g. 'IRR of RA 12009'")
+    section: str = Field("", description="e.g. 'Section 23.1'")
+    page: int = Field(0, ge=0, description="0 when unknown")
+    quote: str = Field("", description="The provision as written")
+
+
 class ReviewFinding(BaseModel):
     """
     What a dimension analyzer produces.
@@ -100,7 +158,29 @@ class ReviewFinding(BaseModel):
     quote: str = Field("", description="Cited text when there is nothing to compare")
     comparison: List[ComparedText] = Field(default_factory=list)
     delta: Optional[str] = Field(
-        None, description="Plain summary of the discrepancy, e.g. 'Differs by ₱600,000.00'"
+        None,
+        description="Plain summary of the discrepancy, e.g. 'Differs by ₱600,000.00'",
+    )
+    confidence: Optional[Confidence] = Field(
+        None,
+        description="How sure the analyzer is. Omit when the finding rests "
+        "wholly on figures stated in the documents.",
+    )
+    external_sources: List[ExternalSource] = Field(
+        default_factory=list,
+        description="Web pages the finding relies on. Every price or "
+        "availability claim drawn from outside the documents needs one.",
+    )
+    policy_sources: List[PolicyCitation] = Field(
+        default_factory=list,
+        description="Provisions the finding rests on, resolved from the "
+        "reference library. Analyzers never set this.",
+    )
+    policy_refs: List[str] = Field(
+        default_factory=list,
+        exclude=True,
+        description="Internal: provision identifiers named by the analyzer, "
+        "resolved into policy_sources and then not persisted.",
     )
 
     @field_validator("severity", mode="before")

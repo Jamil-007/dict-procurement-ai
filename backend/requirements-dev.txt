@@ -1,0 +1,7 @@
+# Tooling only — not installed in the Cloud Run image.
+#   pip install -r requirements.txt -r requirements-dev.txt
+#   pytest
+-r requirements.txt
+
+pytest
+ruff

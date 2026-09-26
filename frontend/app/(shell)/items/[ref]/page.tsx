@@ -77,13 +77,13 @@ export default function WorkspacePage() {
           Procurements
         </Link>
 
-        <div className="text-[12px] font-semibold tracking-wide text-brand">
-          {procurement.ref}
-        </div>
-        <h1 className="mt-1 max-w-3xl text-[19px] font-bold leading-snug text-navy">
+        <h1 className="max-w-3xl text-[19px] font-bold leading-snug text-navy">
           {procurement.title}
         </h1>
-        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px]">
+        <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px]">
+          <span className="font-semibold tracking-wide text-brand">
+            {procurement.ref}
+          </span>
           <span className="font-semibold tabular-nums">
             {formatPeso(procurement.abc)}
           </span>

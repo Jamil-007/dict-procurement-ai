@@ -2,6 +2,7 @@
 Procurement records and their documents.
 """
 
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -111,6 +112,38 @@ def patch_procurement(ref: str, patch: ProcurementPatch):
     return get_store().patch_procurement(ref, patch)
 
 
+def _store_upload(
+    ref: str, filename: str, data: bytes, given: str
+) -> tuple[ProcurementDocument, Optional[str]]:
+    """
+    Store one uploaded file, and read an excerpt from it if its type is unknown.
+
+    Both calls block: save_document counts the pages with PyMuPDF and uploads
+    to the bucket, extract_text parses the opening pages. Kept together in one
+    synchronous function so the caller can hand the whole thing to a thread.
+
+    Returns the document, and the excerpt to classify or None if the caller
+    already told us the type.
+    """
+    path, pages = save_document(ref, filename, data)
+
+    excerpt = None
+    if given not in DOC_TYPES:
+        excerpt = extract_text(data, max_pages=CLASSIFY_PAGES, markers=False)
+
+    return (
+        ProcurementDocument(
+            id=str(uuid.uuid4()),
+            name=filename,
+            doc_type=given if given in DOC_TYPES else "Other",
+            pages=pages,
+            uploaded=today(),
+            gcs_path=path,
+        ),
+        excerpt,
+    )
+
+
 @router.post("/{ref}/documents", response_model=Procurement)
 async def upload_documents(
     ref: str,
@@ -132,10 +165,11 @@ async def upload_documents(
         )
 
     types = doc_types or []
-    documents: List[ProcurementDocument] = []
-    # Index in `documents` -> excerpt, for the ones nobody told us the type of.
-    to_classify: dict[int, str] = {}
 
+    # Read the request bodies first — that part is properly async — and only
+    # then do the blocking work, so the size check still rejects an oversized
+    # file before anything of it reaches the bucket.
+    pending: List[tuple[str, bytes, str]] = []
     for index, upload in enumerate(files):
         data = await upload.read()
         if not data:
@@ -145,26 +179,33 @@ async def upload_documents(
                 status_code=413,
                 detail=f"{upload.filename} exceeds the {MAX_UPLOAD_BYTES // (1024 * 1024)}MB limit",
             )
-
-        filename = upload.filename or f"document-{index + 1}.pdf"
-        path, pages = save_document(ref, filename, data)
-
-        given = types[index] if index < len(types) else ""
-        if given not in DOC_TYPES:
-            to_classify[len(documents)] = extract_text(
-                data, max_pages=CLASSIFY_PAGES, markers=False
-            )
-
-        documents.append(
-            ProcurementDocument(
-                id=str(uuid.uuid4()),
-                name=filename,
-                doc_type=given if given in DOC_TYPES else "Other",
-                pages=pages,
-                uploaded=today(),
-                gcs_path=path,
+        pending.append(
+            (
+                upload.filename or f"document-{index + 1}.pdf",
+                data,
+                types[index] if index < len(types) else "",
             )
         )
+
+    # Off the event loop, one thread per file. Uploading and parsing inline
+    # held the only loop for the length of every upload in turn, so the rest of
+    # the API — the procurement page, /health — queued behind a file transfer.
+    # The files are independent, so they go at once; gather preserves their
+    # order, which the positional `doc_types` depends on.
+    stored = await asyncio.gather(
+        *(
+            asyncio.to_thread(_store_upload, ref, filename, data, given)
+            for filename, data, given in pending
+        )
+    )
+
+    documents: List[ProcurementDocument] = []
+    # Index in `documents` -> excerpt, for the ones nobody told us the type of.
+    to_classify: dict[int, str] = {}
+    for document, excerpt in stored:
+        if excerpt is not None:
+            to_classify[len(documents)] = excerpt
+        documents.append(document)
 
     if not documents:
         raise HTTPException(status_code=400, detail="No readable files were uploaded")

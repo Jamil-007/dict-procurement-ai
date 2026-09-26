@@ -81,10 +81,21 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["var(--font-plex-sans)", "system-ui", "sans-serif"],
-        // Reserved for the printed report, so it reads as a document rather
-        // than as another screen.
-        serif: ["var(--font-plex-serif)", "Georgia", "serif"],
+        // Plus Jakarta Sans everywhere. The stack after it is what renders
+        // while the webfont loads, and on the rare client that blocks it.
+        sans: [
+          "var(--font-jakarta)",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          '"Segoe UI"',
+          "Roboto",
+          "sans-serif",
+        ],
+        // Accent only — signature and attestation lines in report
+        // endorsements. Georgia is the fallback because it ships everywhere
+        // and is the closest formal serif to Playfair at text sizes.
+        serif: ["var(--font-playfair)", "Georgia", "serif"],
       },
       keyframes: {
         "accordion-down": {

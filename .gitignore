@@ -31,3 +31,9 @@ temp/
 *.zip
 *.tar.gz
 *.rar
+
+# Reference PDFs — laws, issuances and manuals. Staging area for building the
+# knowledge index; the documents themselves live in the bucket under
+# knowledge/, not in the repo. See backend/data/knowledge_sources.json for
+# what belongs here and backend/scripts/build_knowledge_index.py to rebuild.
+Reference/

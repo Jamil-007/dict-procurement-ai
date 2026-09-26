@@ -1,10 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, Check, RefreshCw, UserCheck } from "lucide-react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  BarChart3,
+  FileText,
+  RefreshCw,
+  ShieldCheck,
+  Sparkles,
+  Briefcase,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { FindingCard } from "./finding-card";
+import { ReviewProgress } from "./review-progress";
 import { Modal, ModalFooter } from "@/components/shell/modal";
 import { btnGhost, btnPrimary } from "@/components/shell/page-header";
 import {
@@ -25,8 +36,17 @@ import { cn } from "@/lib/utils";
 
 const SEVERITY_ORDER = SEVERITY_KEYS;
 
-/** Roughly how long each step is left on screen while the run is in flight. */
-const STEP_MS = 620;
+/**
+ * Chip icons, keyed by the registry's dimension key. A dimension with no entry
+ * simply gets a text-only chip, so adding one to the backend never breaks here.
+ */
+const DIMENSION_ICONS: Record<string, LucideIcon> = {
+  compliance: AlertTriangle,
+  document_consistency: FileText,
+  document_quality: ShieldCheck,
+  procurement_market: BarChart3,
+  requirements_risk: Briefcase,
+};
 
 export function AiReviewTab({
   procurement,
@@ -44,7 +64,6 @@ export function AiReviewTab({
   const [outcomes, setOutcomes] = useState<DimensionOutcome[]>([]);
   const [active, setActive] = useState<string>("");
   const [running, setRunning] = useState(false);
-  const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(true);
   const [confirmRerun, setConfirmRerun] = useState(false);
 
@@ -61,23 +80,6 @@ export function AiReviewTab({
       )
       .finally(() => setLoading(false));
   }, [procurement.ref]);
-
-  const steps = useMemo(
-    () => ["Documents analyzed", ...dimensions.map((d) => `${d.label} review`)],
-    [dimensions]
-  );
-
-  // Walks the checklist while the request is in flight. It is a progress
-  // indicator, not a report of which dimension the backend is on — the run
-  // returns all dimensions at once.
-  useEffect(() => {
-    if (!running) return;
-    const timer = setInterval(
-      () => setStep((current) => Math.min(current + 1, steps.length)),
-      STEP_MS
-    );
-    return () => clearInterval(timer);
-  }, [running, steps.length]);
 
   const counts = useMemo(() => {
     const out = Object.fromEntries(
@@ -109,7 +111,6 @@ export function AiReviewTab({
       return;
     }
     setRunning(true);
-    setStep(0);
     onProcurementChange({ ...procurement, review_status: "processing" });
     try {
       const result = await runReview(procurement.ref);
@@ -164,48 +165,11 @@ export function AiReviewTab({
   // --- in progress ---
   if (running) {
     return (
-      <div className="max-w-xl rounded-xl border border-line bg-white px-6 py-8 sm:px-8">
-        <h2 className="text-[16px] font-semibold text-navy">
-          Reviewing Procurement Documents
-        </h2>
-        <p className="mb-6 mt-1 text-[13px] text-subtle">
-          Reading {procurement.documents.length} document
-          {procurement.documents.length === 1 ? "" : "s"} for {procurement.ref}.
-        </p>
-        <ul className="space-y-3.5">
-          {steps.map((label, index) => {
-            const state =
-              index < step ? "done" : index === step ? "active" : "idle";
-            return (
-              <li
-                key={label}
-                className={cn(
-                  "flex items-center gap-3 text-[13px]",
-                  state === "idle"
-                    ? "text-subtle"
-                    : state === "active"
-                      ? "font-semibold text-navy"
-                      : "text-ink"
-                )}
-              >
-                <span className="grid w-4 place-items-center">
-                  {state === "done" ? (
-                    <Check className="h-4 w-4 text-compliant" />
-                  ) : state === "active" ? (
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-brand border-t-transparent" />
-                  ) : (
-                    <span className="h-3.5 w-3.5 rounded-full border border-line" />
-                  )}
-                </span>
-                {label}
-              </li>
-            );
-          })}
-        </ul>
-        <p className="mt-6 text-[12.5px] text-subtle">
-          {step >= steps.length ? "Consolidating findings…" : "Analyzing…"}
-        </p>
-      </div>
+      <ReviewProgress
+        reference={procurement.ref}
+        documentCount={procurement.documents.length}
+        dimensions={dimensions}
+      />
     );
   }
 
@@ -241,15 +205,21 @@ export function AiReviewTab({
   // --- results ---
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-end gap-4">
-        <div>
-          <h2 className="text-[16px] font-semibold text-navy">AI Review</h2>
-          <p className="mt-1 text-[13px] font-semibold text-ink">
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-subtle">
+            AI Review
+          </p>
+          <h2 className="mt-1 text-[26px] font-bold leading-tight tracking-tight text-navy">
             {findings.length} finding{findings.length === 1 ? "" : "s"} identified
+          </h2>
+          <p className="mt-1.5 text-[13px] text-subtle">
+            Issues, risks, and areas for improvement identified across your
+            procurement documents.
           </p>
         </div>
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-[12px] text-subtle">
+        <div className="ml-auto flex shrink-0 items-center gap-3 pt-5">
+          <span className="text-[13px] text-subtle">
             {decided} of {findings.length} acted on
           </span>
           <button
@@ -264,27 +234,35 @@ export function AiReviewTab({
 
       {unavailable.length > 0 && <UnavailableNotice outcomes={unavailable} />}
 
-      <div className="flex items-start gap-2.5 rounded-lg border border-line bg-sky px-4 py-3">
-        <UserCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden />
-        <p className="text-[12.5px] leading-relaxed text-navy">
-          Findings and recommendations are AI-generated and require BAC review.
-          Every analysis can be edited, commented on, accepted, modified, or
-          rejected. The BAC remains the decision-maker.
-        </p>
+      <div className="flex items-start gap-3 rounded-xl border border-line bg-sky/60 px-4 py-4">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white">
+          <Sparkles className="h-4 w-4 text-brand" aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-navy">
+            These findings come from an AI review of the uploaded documents.
+          </p>
+          <p className="mt-0.5 text-[12.5px] leading-relaxed text-brand">
+            They flag potential issues, compliance gaps and recommendations
+            against RA 12009, its IRR and related issuances. Every finding can be
+            edited, commented on, accepted, modified or rejected — the BAC
+            decides.
+          </p>
+        </div>
       </div>
 
       {/* Severity legend. The dot colour here is the same fill as the bar down
           the left edge of each card, so the two read as one scale. */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
         {SEVERITY_KEYS.map((key) => (
           <span
             key={key}
             title={severityMeaning(key)}
-            className="inline-flex items-center gap-1.5 text-[11.5px] text-subtle"
+            className="inline-flex items-center gap-1.5 text-[12.5px]"
           >
             <span className={cn("h-2 w-2 rounded-full", SEVERITY_BAR[key])} />
-            <span className="font-semibold text-ink">{severityLabel(key)}</span>
-            {counts[key]}
+            <span className="font-medium text-ink">{severityLabel(key)}</span>
+            <span className="text-subtle">({counts[key]})</span>
           </span>
         ))}
       </div>
@@ -302,6 +280,7 @@ export function AiReviewTab({
               key={dimension.key}
               label={dimension.label}
               title={dimension.blurb}
+              icon={DIMENSION_ICONS[dimension.key]}
               count={perDimension[dimension.key] ?? 0}
               activeChip={active === dimension.key}
               onClick={() => setActive(dimension.key)}
@@ -367,28 +346,32 @@ function DimensionChip({
   count,
   activeChip,
   title,
+  icon: Icon,
   onClick,
 }: {
   label: string;
   count: number;
   activeChip: boolean;
   title?: string;
+  icon?: LucideIcon;
   onClick: () => void;
 }) {
   return (
     <button
       onClick={onClick}
       title={title}
+      aria-pressed={activeChip}
       className={cn(
-        "whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[12px] font-medium transition-colors",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-4 py-2 text-[13px] font-medium transition-colors",
         activeChip
           ? "border-navy bg-navy text-white"
-          : "border-line bg-white text-subtle hover:border-brand hover:text-brand"
+          : "border-line bg-white text-ink hover:border-brand hover:text-brand"
       )}
     >
+      {Icon && <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />}
       {label}
-      <span className={cn("ml-1.5", activeChip ? "text-white/60" : "text-subtle/60")}>
-        {count}
+      <span className={activeChip ? "text-white/70" : "text-subtle"}>
+        ({count})
       </span>
     </button>
   );

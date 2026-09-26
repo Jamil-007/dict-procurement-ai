@@ -5,7 +5,9 @@ The dimension list is served from the registry rather than hardcoded in the
 frontend, so adding or renaming a dimension needs no frontend change.
 """
 
+import asyncio
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import List, Optional
 
@@ -36,26 +38,54 @@ def _require(ref: str) -> Procurement:
     return procurement
 
 
+#: How many documents to fetch at once. The work is a GCS download followed by
+#: a PyMuPDF parse — waiting on the network for most of it — so more threads
+#: than cores is the right shape. Capped so a procurement with thirty
+#: attachments does not open thirty connections at once.
+MAX_DOCUMENT_WORKERS = 8
+
+
+def _read_for_review(doc) -> Optional[ReviewDocument]:
+    """One document, or None if it cannot contribute to the review."""
+    if not doc.gcs_path:
+        return None
+    try:
+        # Markers on: findings cite a page rather than guessing at one.
+        text = extract_text(read_document(doc.gcs_path))
+    except Exception:  # noqa: BLE001 - one unreadable file must not stop the review
+        logger.warning("Could not read %s", doc.name, exc_info=True)
+        return None
+    if not text.strip():
+        logger.warning("No readable text in %s", doc.name)
+        return None
+    return ReviewDocument(
+        name=doc.name, doc_type=doc.doc_type, pages=doc.pages, text=text
+    )
+
+
 def _build_context(procurement: Procurement) -> ReviewContext:
+    """
+    Fetch and parse every attached document.
+
+    Blocking throughout, so call it from a thread. The documents are fetched
+    concurrently: read one at a time, five attachments meant five round trips
+    to the bucket end to end, and that latency is most of what the reviewer
+    waits through before the first model call.
+    """
+    attachments = procurement.documents or []
     documents: List[ReviewDocument] = []
 
-    for doc in procurement.documents:
-        if not doc.gcs_path:
-            continue
-        try:
-            # Markers on: findings cite a page rather than guessing at one.
-            text = extract_text(read_document(doc.gcs_path))
-        except Exception:  # noqa: BLE001 - one unreadable file must not stop the review
-            logger.warning("Could not read %s", doc.name, exc_info=True)
-            continue
-        if not text.strip():
-            logger.warning("No readable text in %s", doc.name)
-            continue
-        documents.append(
-            ReviewDocument(
-                name=doc.name, doc_type=doc.doc_type, pages=doc.pages, text=text
-            )
-        )
+    if attachments:
+        workers = min(len(attachments), MAX_DOCUMENT_WORKERS)
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            # .map keeps the results in the order given, so the reviewer sees
+            # the documents in the order they were attached however the
+            # downloads happen to finish.
+            documents = [
+                parsed
+                for parsed in pool.map(_read_for_review, attachments)
+                if parsed is not None
+            ]
 
     return ReviewContext(
         procurement_ref=procurement.ref,
@@ -131,7 +161,13 @@ async def run_procurement_review(
     store.save_procurement(procurement)
 
     try:
-        context = _build_context(procurement)
+        # Off the event loop: _build_context downloads every document from GCS
+        # and parses it with PyMuPDF, both synchronous. Run here, it holds the
+        # only loop for the whole download — /health stopped answering for over
+        # a minute during a review, and the procurement page queued behind it.
+        # The store writes around this call block too, but they are one small
+        # round trip each rather than tens of seconds.
+        context = await asyncio.to_thread(_build_context, procurement)
         if not context.documents:
             raise HTTPException(status_code=400, detail="No readable documents")
         result = await run_review(context, keys=keys)

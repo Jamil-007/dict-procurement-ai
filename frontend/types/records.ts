@@ -66,6 +66,29 @@ export interface ComparedText {
   quote: string;
 }
 
+export type Confidence = "high" | "medium" | "low";
+
+/**
+ * A web page a dimension consulted, as opposed to an uploaded document. `tier`
+ * ranks how authoritative it is: 1 Philippine government, 2 manufacturer or
+ * official distributor, 3 Philippine supplier, 4 marketplace listing,
+ * 5 informational. Mirrors SOURCE_TIER_MEANING in review/schema.py.
+ */
+export interface ExternalSource {
+  url: string;
+  title: string;
+  publisher: string;
+  tier: number;
+  retrieved_at: string;
+}
+
+export interface PolicyCitation {
+  title: string;
+  section: string;
+  page: number;
+  quote: string;
+}
+
 export interface Comment {
   text: string;
   author: string;
@@ -84,6 +107,10 @@ export interface Finding {
   quote: string;
   comparison: ComparedText[];
   delta: string | null;
+  /** Absent when the finding rests wholly on figures stated in the documents. */
+  confidence: Confidence | null;
+  external_sources: ExternalSource[];
+  policy_sources: PolicyCitation[];
   procurement_ref: string;
   decision: Decision | null;
   decided_by: string | null;

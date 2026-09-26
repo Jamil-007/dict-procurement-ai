@@ -39,10 +39,12 @@ def register(key: str, label: str, blurb: str = "", owner: str = ""):
     """
     Register a dimension analyzer.
 
-    The decorated function takes a ReviewContext and returns a list of
-    ReviewFinding. It may be sync or async — the runner handles both, running
-    sync functions in a worker thread so a blocking llm.invoke() does not
-    stall the other dimensions.
+    The decorated function takes a ReviewContext and returns either a list of
+    ReviewFinding or a DimensionOutput, which wraps the same findings together
+    with an assessment of what was reviewed and anything it could not resolve.
+    It may be sync or async — the runner handles both, running sync functions
+    in a worker thread so a blocking llm.invoke() does not stall the other
+    dimensions.
 
         @register(key="document_quality", label="Document Quality")
         def run(ctx: ReviewContext) -> list[ReviewFinding]:

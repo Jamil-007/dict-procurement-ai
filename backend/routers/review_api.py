@@ -16,7 +16,15 @@ from pydantic import BaseModel
 
 from domain import Procurement
 from review import ReviewContext, ReviewDocument, all_dimensions, run_review
-from review.schema import Comment, Decision, Feedback, Severity, StoredFinding
+from review.schema import (
+    Comment,
+    Decision,
+    DimensionSummary,
+    Feedback,
+    RejectionReason,
+    Severity,
+    StoredFinding,
+)
 from store import get_store
 from store.files import extract_text, read_document
 
@@ -125,6 +133,11 @@ class DimensionOutcome(BaseModel):
     label: str
     status: str
     findings: int
+    # What the dimension says about its own run. Carried through because a
+    # count of zero findings is ambiguous on its own — it reads the same
+    # whether the dimension checked and found nothing or had nothing to check.
+    summary: Optional[DimensionSummary] = None
+    research_gaps: List[str] = []
     error: Optional[str] = None
     duration_ms: int
 
@@ -203,6 +216,8 @@ async def run_procurement_review(
                 label=d.label,
                 status=d.status,
                 findings=len(d.findings),
+                summary=d.summary,
+                research_gaps=d.research_gaps,
                 error=d.error,
                 duration_ms=d.duration_ms,
             )
@@ -227,8 +242,12 @@ class FindingPatch(BaseModel):
     What the BAC can change on a finding.
 
     Editing any of severity/title/analysis/recommendation marks the finding
-    edited and records the decision as "modified"; the original AI wording is
-    preserved in ai_analysis.
+    edited and keeps the original AI wording in ai_analysis. Editing is not
+    itself a decision — the committee still has to accept or reject.
+
+    Rejecting requires a reason, and "other" requires the note to say what it
+    was: the finding disappears from the review and the report, so the record
+    of why has to be more than a bare flag.
     """
 
     severity: Optional[Severity] = None
@@ -236,10 +255,14 @@ class FindingPatch(BaseModel):
     analysis: Optional[str] = None
     recommendation: Optional[str] = None
     decision: Optional[Decision] = None
+    rejection_reason: Optional[RejectionReason] = None
+    rejection_note: Optional[str] = None
     feedback: Optional[Feedback] = None
 
 
 EDIT_FIELDS = ("severity", "title", "analysis", "recommendation")
+
+REJECTION_NOTE_LIMIT = 500
 
 
 @router.patch("/procurements/{ref}/findings/{finding_id}", response_model=StoredFinding)
@@ -251,16 +274,45 @@ def patch_finding(ref: str, finding_id: str, patch: FindingPatch):
         raise HTTPException(status_code=404, detail="Unknown finding")
 
     changes = patch.model_dump(exclude_none=True)
+
+    note = (changes.get("rejection_note") or "").strip()
+    if len(note) > REJECTION_NOTE_LIMIT:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Comments cannot exceed {REJECTION_NOTE_LIMIT} characters",
+        )
+    if "rejection_note" in changes:
+        changes["rejection_note"] = note
+
+    if changes.get("decision") == "rejected":
+        reason = changes.get("rejection_reason")
+        if not reason:
+            raise HTTPException(
+                status_code=400, detail="A reason is required to reject a finding"
+            )
+        if reason == "other" and not note:
+            raise HTTPException(
+                status_code=400,
+                detail="Describe the reason when rejecting as “Other”",
+            )
+
     edited = any(field in changes for field in EDIT_FIELDS)
 
     for key, value in changes.items():
         setattr(finding, key, value)
 
+    # Accepting after a rejection clears the rejection, so a finding brought
+    # back into the report does not carry a stale reason with it.
+    if changes.get("decision") and changes["decision"] != "rejected":
+        finding.rejection_reason = None
+        finding.rejection_note = ""
+
     if edited:
         finding.edited = True
-        finding.decision = changes.get("decision", "modified")
 
-    if finding.decision and "feedback" not in changes:
+    # Only a decision is attributed. Editing wording or leaving feedback must
+    # not re-stamp who decided and when.
+    if changes.get("decision"):
         finding.decided_by = ACTOR
         finding.decided_at = _now()
 

@@ -50,7 +50,22 @@ export interface ProcurementCreate {
 }
 
 export type Severity = "critical" | "medium" | "low" | "info" | "compliant";
+/**
+ * The BAC accepts or rejects. "modified" and "further" are no longer offered
+ * but stay in the union so a finding decided before they were dropped still
+ * loads. Mirrors Decision in review/schema.py.
+ */
 export type Decision = "accepted" | "modified" | "further" | "rejected";
+
+/** Mirrors RejectionReason in review/schema.py. */
+export type RejectionReason =
+  | "not_applicable"
+  | "insufficient_evidence"
+  | "misinterpreted"
+  | "duplicate"
+  | "acceptable"
+  | "other";
+
 export type FindingFeedback = "correct" | "incorrect" | "irrelevant" | "incomplete";
 
 export interface Source {
@@ -115,6 +130,9 @@ export interface Finding {
   decision: Decision | null;
   decided_by: string | null;
   decided_at: string | null;
+  /** Set only when decision is "rejected". */
+  rejection_reason: RejectionReason | null;
+  rejection_note: string;
   edited: boolean;
   ai_analysis: string;
   ai_recommendation: string;
@@ -130,11 +148,27 @@ export interface Dimension {
   owner: string;
 }
 
+/**
+ * What a dimension says about its own run, as distinct from its findings.
+ *
+ * A count of zero findings is ambiguous on its own — it reads the same whether
+ * the dimension checked and found nothing or had nothing to check. The
+ * assessment is where it says which ground it actually walked.
+ */
+export interface DimensionSummary {
+  assessment: string;
+  documents_reviewed: string[];
+  confidence: Confidence | null;
+}
+
 export interface DimensionOutcome {
   key: string;
   label: string;
   status: "ok" | "failed" | "timeout";
   findings: number;
+  summary: DimensionSummary | null;
+  /** What the dimension could not resolve, and why. */
+  research_gaps: string[];
   error: string | null;
   duration_ms: number;
 }
@@ -170,6 +204,7 @@ export const DOC_TYPES = [
   "Annual Procurement Plan (APP)",
   "Project Procurement Management Plan (PPMP)",
   "Market Study",
+  "Market Scoping Checklist",
   // Price canvassing evidence gathered for the market study and the ABC, so
   // this is a planning input, not a bid received after posting.
   "Supplier Quotation",
@@ -187,6 +222,11 @@ export const DOC_TYPES = [
   "BAC Resolution",
   "Minutes of BAC Meeting",
   "Post-Qualification Report",
+  // Award. The tool reviews before posting, so these arrive only when a
+  // procurement is uploaded after the fact — but the dimensions cite them
+  // when they are there, so they need to be nameable.
+  "Notice of Award",
+  "Contract",
   "Other",
 ] as const;
 

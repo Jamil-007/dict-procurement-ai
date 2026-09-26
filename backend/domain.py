@@ -28,6 +28,7 @@ DOC_TYPES = [
     "Annual Procurement Plan (APP)",
     "Project Procurement Management Plan (PPMP)",
     "Market Study",
+    "Market Scoping Checklist",
     # Price canvassing evidence gathered for the market study and the ABC, so
     # this is a planning input, not a bid received after posting.
     "Supplier Quotation",
@@ -45,6 +46,11 @@ DOC_TYPES = [
     "BAC Resolution",
     "Minutes of BAC Meeting",
     "Post-Qualification Report",
+    # Award. The tool reviews before posting, so these arrive only when a
+    # procurement is uploaded after the fact — but the dimensions cite them
+    # when they are there, so they need to be nameable.
+    "Notice of Award",
+    "Contract",
     "Other",
 ]
 

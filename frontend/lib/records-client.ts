@@ -115,7 +115,19 @@ export const listFindings = (ref: string) =>
 export const patchFinding = (
   ref: string,
   findingId: string,
-  patch: Partial<Pick<Finding, "severity" | "title" | "analysis" | "recommendation" | "decision" | "feedback">>
+  patch: Partial<
+    Pick<
+      Finding,
+      | "severity"
+      | "title"
+      | "analysis"
+      | "recommendation"
+      | "decision"
+      | "rejection_reason"
+      | "rejection_note"
+      | "feedback"
+    >
+  >
 ) =>
   request<Finding>(`/procurements/${ref}/findings/${findingId}`, {
     method: "PATCH",

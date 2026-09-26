@@ -8,11 +8,11 @@ and JSON repair.
 import json
 import logging
 import re
-from typing import Any, Iterable, List
+from typing import Any, Iterable, List, Optional
 
 from pydantic import ValidationError
 
-from review.schema import ReviewFinding
+from review.schema import DimensionOutput, DimensionSummary, ReviewFinding
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +60,37 @@ Rules:
 - Never state that something is illegal or non-compliant. That is the
   committee's determination, not yours.
 - Return [] if you find nothing worth raising.
+"""
+
+# Paste this in ADDITION to FINDING_JSON_CONTRACT in a dimension that should
+# also report what it reviewed. It overrides the "Return ONLY a JSON array"
+# instruction above, so the two must always appear in that order.
+SUMMARY_CONTRACT = """
+OVERRIDE: do not return a bare array after all. Return this object instead,
+with the findings array from above sitting inside it:
+
+{
+  "summary": {
+    "assessment": "What you reviewed and what you concluded, in two or three sentences",
+    "documents_reviewed": ["TOR.pdf", "Purchase Request.pdf"],
+    "confidence": "high" | "medium" | "low"
+  },
+  "findings": [ ... ],
+  "research_gaps": [
+    "What you could not resolve, and what would have resolved it"
+  ]
+}
+
+Rules for these three:
+- "documents_reviewed" lists only files you were actually given below. Never
+  name a document that was not provided.
+- The assessment is required even when "findings" is empty — especially then.
+  An empty findings list with no assessment is indistinguishable from a
+  dimension that failed, and the committee has to be able to tell which areas
+  were genuinely covered.
+- Put a missing document in "research_gaps", not in a finding, unless its
+  absence is itself the issue you are raising.
+- Leave "research_gaps" as [] when nothing was missing.
 """
 
 # Paste this in ADDITION to FINDING_JSON_CONTRACT in any dimension that reasons
@@ -177,19 +208,14 @@ def _repair_source(entry: dict) -> None:
     }
 
 
-def findings_from_response(content: str, dimension: str) -> List[ReviewFinding]:
+def _findings_from_list(payload: list, dimension: str) -> List[ReviewFinding]:
     """
-    Parse a model response into findings, dropping any element that does not
+    Validate a list of raw entries into findings, dropping any that does not
     fit the schema rather than failing the whole dimension.
+
+    Raises only when everything was dropped — a response that parsed but
+    yielded nothing usable is a failure, not a clean review.
     """
-    payload = extract_json(content)
-
-    if isinstance(payload, dict):
-        # Accept {"findings": [...]} as well as a bare array.
-        payload = payload.get("findings", [payload])
-    if not isinstance(payload, list):
-        raise ValueError(f"Expected a list of findings, got {type(payload).__name__}")
-
     findings: List[ReviewFinding] = []
     dropped = 0
 
@@ -216,6 +242,71 @@ def findings_from_response(content: str, dimension: str) -> List[ReviewFinding]:
         )
 
     return findings
+
+
+def findings_from_response(content: str, dimension: str) -> List[ReviewFinding]:
+    """
+    Parse a model response into findings, ignoring anything wrapped around
+    them. Use output_from_response instead when the dimension also asks for
+    an assessment.
+    """
+    payload = extract_json(content)
+
+    if isinstance(payload, dict):
+        # Accept {"findings": [...]} as well as a bare array.
+        payload = payload.get("findings", [payload])
+    if not isinstance(payload, list):
+        raise ValueError(f"Expected a list of findings, got {type(payload).__name__}")
+
+    return _findings_from_list(payload, dimension)
+
+
+def _summary_from(payload: dict, dimension: str) -> Optional[DimensionSummary]:
+    """The summary block, or None if the model omitted or mangled it."""
+    raw = payload.get("summary")
+    if not isinstance(raw, dict):
+        return None
+    try:
+        return DimensionSummary(**raw)
+    except ValidationError as exc:
+        # The findings are the valuable part — never lose them over this.
+        logger.warning("Dropped a malformed %s summary: %s", dimension, exc.errors())
+        return None
+
+
+def output_from_response(content: str, dimension: str) -> DimensionOutput:
+    """
+    Parse a model response into findings plus its summary and research gaps.
+
+    Tolerates a bare array, so a dimension carrying SUMMARY_CONTRACT still
+    parses when the model ignores it and answers in the older shape. The
+    findings are what matter; the envelope around them is a bonus and is
+    dropped rather than allowed to fail the dimension.
+    """
+    payload = extract_json(content)
+
+    if isinstance(payload, list):
+        return DimensionOutput(findings=_findings_from_list(payload, dimension))
+
+    if not isinstance(payload, dict):
+        raise ValueError(
+            f"Expected findings or an object containing them, got "
+            f"{type(payload).__name__}"
+        )
+
+    raw_findings = payload.get("findings")
+    if not isinstance(raw_findings, list):
+        # A single finding returned as a bare object, which models do.
+        raw_findings = [payload]
+
+    gaps = payload.get("research_gaps")
+    gaps = [str(g) for g in gaps if str(g).strip()] if isinstance(gaps, list) else []
+
+    return DimensionOutput(
+        findings=_findings_from_list(raw_findings, dimension),
+        summary=_summary_from(payload, dimension),
+        research_gaps=gaps,
+    )
 
 
 def strip_unretrieved_sources(

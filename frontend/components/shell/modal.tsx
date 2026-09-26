@@ -15,14 +15,24 @@ export function Modal({
   onClose,
   title,
   description,
+  icon,
   width = "max-w-lg",
+  height,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   description?: string;
+  /** Optional glyph to the left of the title, for dialogs that carry weight. */
+  icon?: React.ReactNode;
   width?: string;
+  /**
+   * Caps the dialog's height, e.g. "max-h-[80vh]". The header and footer stay
+   * put and the body between them scrolls, so a long dialog never runs past
+   * the viewport. The body has to opt in with `flex-1 overflow-y-auto`.
+   */
+  height?: string;
   children: React.ReactNode;
 }) {
   useEffect(() => {
@@ -43,9 +53,12 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`relative my-8 w-full ${width} rounded-xl border border-line bg-white shadow-xl`}
+        className={`relative my-8 w-full ${width} ${
+          height ? `flex flex-col ${height}` : ""
+        } rounded-xl border border-line bg-white shadow-xl`}
       >
-        <div className="flex items-start gap-4 border-b border-line px-6 pb-4 pt-5">
+        <div className="flex shrink-0 items-start gap-4 border-b border-line px-6 pb-4 pt-5">
+          {icon}
           <div className="min-w-0">
             <h2 className="text-[16px] font-semibold text-navy">{title}</h2>
             {description && (
@@ -81,7 +94,7 @@ export function ModalFooter({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex justify-end gap-2 rounded-b-xl border-t border-line bg-page px-6 py-4">
+    <div className="flex shrink-0 justify-end gap-2 rounded-b-xl border-t border-line bg-page px-6 py-4">
       <button type="button" onClick={onCancel} className={btnGhost}>
         Cancel
       </button>

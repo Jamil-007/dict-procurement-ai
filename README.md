@@ -123,7 +123,7 @@ under `backend/review/dimensions/` that registers itself:
 
 ```python
 @register(key="document_quality", label="Document Quality", blurb="...", owner="Mark")
-def run(ctx: ReviewContext) -> list[ReviewFinding]:
+def run(ctx: ReviewContext) -> DimensionOutput:
     ...
 ```
 
@@ -131,30 +131,53 @@ Registration is the only shared state. The `/review/dimensions` endpoint, the
 runner and the report sections all read the registry, so adding or renaming a
 dimension is a backend-only change — the frontend picks it up with no edit.
 
+`run` may return a bare `list[ReviewFinding]` or a `DimensionOutput`, which
+wraps the same findings with an `assessment` of what was reviewed and any
+`research_gaps`. The runner accepts either. The envelope exists because "I
+checked and found nothing" and "I had nothing to check" both render as an
+empty list, and the committee has to be able to tell those apart.
+
 ### Dimension status
 
-| Dimension | Key | Status | Owner | Covers |
-|---|---|---|---|---|
-| Compliance | `compliance` | **Stub** | Dev B | RA 12009, its IRR, GPPB and COA issuances, documentary completeness |
-| Document Consistency | `document_consistency` | **Stub** | Dev B | Figures, dates, quantities and terms compared across documents |
-| Document Quality | `document_quality` | **Live** | Mark | Structure, clarity and completeness of the TOR and technical specs |
-| Procurement & Market | `procurement_market` | **Live** | Mark | Specification openness, ABC alignment, existing system dependencies |
-| Requirements & Risk | `requirements_risk` | **Stub** | Mark | Deliverables, warranty, payment conditions, contract obligations |
+All five are live. What separates them is what each one is allowed to say — the
+whole design rests on the boundaries between them, because five reviewers over
+one set of documents will otherwise file the same finding five times.
 
-**Stub** means the module registers and runs but returns no findings — roughly 30
-lines, no model call. The dimension appears in the UI and reports "ok / 0
-findings". Nothing outside the stub's own file needs to change to fill it in.
+| Dimension | Key | Owner | Its question |
+|---|---|---|---|
+| Compliance | `compliance` | Dev B | Does the documentation appear aligned with applicable procurement requirements? |
+| Document Consistency | `document_consistency` | Dev A | Do the documents agree with one another on the same facts? |
+| Document Quality | `document_quality` | Mark | Is each individual document complete, clear, structured and internally coherent? |
+| Procurement & Market | `procurement_market` | Mark | Does the procurement make sense against available market evidence? |
+| Requirements & Risk | `requirements_risk` | Dev C | Are requirements sufficiently defined, and are material risks addressed? |
 
-Two are live, and they are not equivalent:
+The boundaries that get crossed most often, written out because they are not
+obvious:
 
-- **`document_quality`** is the worked example. Build a prompt, call `analyze()`,
-  return findings. Read it first.
-- **`procurement_market`** is the only dimension using retrieval, and the only one
-  that can reach outside the documents. Its full brief is
-  `docs/dimension-procurement-market.md`. Two things are easy to get wrong: the
-  Tavily search is optional and off by default, and a specification that looks
-  tailored to one product is raised as *a potential concern requiring BAC review*,
-  never as a determination that it is restrictive.
+- A delivery period of 30 days in section 3 and 60 days in section 8 of the
+  **same** document is Document Quality. The same disagreement **across** two
+  documents is Document Consistency.
+- "The support requirement says 'adequate' without defining it" is Document
+  Quality — the wording. "Coverage, response time and escalation are undefined"
+  is Requirements & Risk — the substance. Not both.
+- "Only two suppliers carry this module" is Procurement & Market. "The
+  procurement does not address that dependency" is Requirements & Risk.
+- A missing requirement is only Compliance when a retrieved provision requires
+  it. Otherwise it is a requirement gap, not a rule breach.
+
+Three are worth reading before the others:
+
+- **`document_quality`** is the shape everything else follows: build a prompt,
+  call `analyze_with_summary()`, return the output.
+- **`compliance`** leans hardest on the reference library, because its subject
+  matter *is* the rules. Every statutory citation is grounded against what
+  retrieval actually returned (`ground_policy_basis`), so a provision the model
+  half-remembers is discarded rather than shown to the BAC.
+- **`procurement_market`** is the only one that can reach outside the documents.
+  Its full brief is `docs/dimension-procurement-market.md`. Two things are easy
+  to get wrong: the Tavily search is optional and off by default, and a
+  specification that looks tailored to one product is raised as *a potential
+  concern requiring BAC review*, never as a determination that it is restrictive.
 
 ### Severity scale
 
@@ -315,10 +338,13 @@ and a broken test is the more urgent signal.
 ## Adding a dimension
 
 1. Copy `review/dimensions/document_quality.py` — it is the reference shape.
-2. Write the prompt, call `analyze()`, return `ReviewFinding`s.
-3. Import the module in `review/dimensions/__init__.py`. That is the only shared
+2. Write the prompt, paste in `FINDING_JSON_CONTRACT` and `SUMMARY_CONTRACT`,
+   call `analyze_with_summary()`, return the `DimensionOutput`.
+3. Say in the prompt what the dimension does **not** own. Every dimension has a
+   `STAY INSIDE THIS DIMENSION` section, and a test asserts it is still there.
+4. Import the module in `review/dimensions/__init__.py`. That is the only shared
    file you touch.
-4. Add its key to `ORDER` in `review/registry.py` if you want a specific position.
+5. Add its key to `ORDER` in `review/registry.py` if you want a specific position.
 
 The runner owns parallelism, timeouts, finding ids and error isolation. A
 dimension's `run` may be sync or async; a sync one is given a worker thread, so a

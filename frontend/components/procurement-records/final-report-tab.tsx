@@ -85,9 +85,12 @@ export function FinalReportTab({
   );
   const [busy, setBusy] = useState(false);
 
+  // Rejected findings never reach the report. The committee ruled them out in
+  // the review, so they are dropped on the way in rather than filtered at each
+  // place the report counts or lists findings.
   useEffect(() => {
     listFindings(procurement.ref)
-      .then(setFindings)
+      .then((all) => setFindings(all.filter((f) => f.decision !== "rejected")))
       .catch(() => setFindings([]));
   }, [procurement.ref]);
 
@@ -154,7 +157,7 @@ export function FinalReportTab({
     setBusy(true);
     try {
       const result = await runReview(procurement.ref);
-      setFindings(result.findings);
+      setFindings(result.findings.filter((f) => f.decision !== "rejected"));
       setConfirming(null);
       toast.success("Report regenerated");
     } catch (err) {

@@ -52,7 +52,11 @@ FILENAME_PATTERNS: tuple[tuple[str, str], ...] = (
         r"\bppmp\b|project\s+procurement\s+management\s+plan",
         "Project Procurement Management Plan (PPMP)",
     ),
-    (r"market\s+(study|research|scoping|survey)", "Market Study"),
+    # "scoping" belongs to the checklist below, so it is deliberately not one
+    # of the alternatives here — both patterns matching would only produce the
+    # ambiguous two-hit case and send the file to the model for nothing.
+    (r"market\s+(study|research|survey)", "Market Study"),
+    (r"market\s+scoping|scoping\s+checklist", "Market Scoping Checklist"),
     (r"quotation|canvass", "Supplier Quotation"),
     (r"purchase\s+request", "Purchase Request"),
     (
@@ -66,6 +70,11 @@ FILENAME_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"\bbac\s+res|\bresolution\b", "BAC Resolution"),
     (r"\bminutes\b", "Minutes of BAC Meeting"),
     (r"post\s*qual", "Post-Qualification Report"),
+    (r"\bnoa\b|notice\s+of\s+award", "Notice of Award"),
+    # "contract" alone is too loose — it appears in "Contract Agreement" but
+    # also in "Contract Cost Breakdown" — so require it to stand on its own or
+    # with the word that makes it the instrument itself.
+    (r"^contract$|contract\s+agreement|\bsigned\s+contract\b", "Contract"),
 )
 
 

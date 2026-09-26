@@ -63,11 +63,15 @@ def _with_counts(procurement: Procurement) -> Procurement:
     Attach the finding tally the list page shows beside each record.
 
     Always recomputed on read, so a stale copy written to the store is never
-    what the client sees.
+    what the client sees. Rejected findings are left out entirely — the
+    committee has ruled them off the review, so they should not still be
+    inflating the severity counts on the list page.
     """
     counts = empty_counts()
     decided = 0
     for finding in get_store().list_findings(procurement.ref):
+        if finding.decision == "rejected":
+            continue
         if finding.severity in counts:
             counts[finding.severity] += 1
         if finding.decision:

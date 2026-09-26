@@ -23,13 +23,15 @@ import type {
   Decision,
   Finding,
   FindingFeedback,
+  RejectionReason,
 } from "@/types/records";
 import { cn } from "@/lib/utils";
+import { REJECTION_LABEL, RejectFindingDialog } from "./reject-finding-dialog";
 
 /**
- * The BAC decides by rejecting, modifying or accepting. `further` is no longer
- * offered but stays mapped here so a finding decided before it was dropped
- * still renders its chip.
+ * The BAC decides by rejecting or accepting. `modified` and `further` are no
+ * longer offered but stay mapped here so a finding decided before they were
+ * dropped still renders its chip.
  */
 const DECISION_CHIP: Record<
   Decision,
@@ -122,19 +124,36 @@ export function FindingCard({
   const [recommendation, setRecommendation] = useState(finding.recommendation);
   const [commenting, setCommenting] = useState(false);
   const [comment, setComment] = useState("");
+  const [rejecting, setRejecting] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const decision = finding.decision ? DECISION_CHIP[finding.decision] : null;
 
+  /** Returns whether the patch landed, so callers can keep a dialog open. */
   async function apply(patch: Parameters<typeof patchFinding>[2]) {
     setBusy(true);
     try {
       onChange(await patchFinding(finding.procurement_ref, finding.id, patch));
+      return true;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not save");
+      return false;
     } finally {
       setBusy(false);
     }
+  }
+
+  async function confirmReject(reason: RejectionReason, note: string) {
+    const ok = await apply({
+      decision: "rejected",
+      rejection_reason: reason,
+      rejection_note: note,
+    });
+    if (!ok) return;
+    setRejecting(false);
+    toast.success("Analysis rejected", {
+      description: "It is hidden from the review and left out of the report.",
+    });
   }
 
   async function saveEdit() {
@@ -446,6 +465,14 @@ export function FindingCard({
               <p className="mt-4 text-[11.5px] text-subtle">
                 {DECISION_CHIP[finding.decision].label} by {finding.decided_by} ·{" "}
                 {new Date(finding.decided_at ?? "").toLocaleString("en-PH")}
+                {finding.rejection_reason &&
+                  ` · ${REJECTION_LABEL[finding.rejection_reason]}`}
+              </p>
+            )}
+
+            {finding.rejection_note && (
+              <p className="mt-1 whitespace-pre-line text-[12px] leading-relaxed text-subtle">
+                {finding.rejection_note}
               </p>
             )}
           </div>
@@ -485,7 +512,7 @@ export function FindingCard({
 
                 <div className="ml-auto flex flex-wrap gap-2">
                   <button
-                    onClick={() => apply({ decision: "rejected" })}
+                    onClick={() => setRejecting(true)}
                     disabled={busy}
                     className={cn(
                       "rounded-md border px-4 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60",
@@ -495,18 +522,6 @@ export function FindingCard({
                     )}
                   >
                     Reject
-                  </button>
-                  <button
-                    onClick={() => apply({ decision: "modified" })}
-                    disabled={busy}
-                    className={cn(
-                      "rounded-md border px-4 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60",
-                      finding.decision === "modified"
-                        ? "border-navy bg-navy text-white"
-                        : "border-brand bg-white text-navy hover:bg-sky"
-                    )}
-                  >
-                    Modify
                   </button>
                   <button
                     onClick={() => apply({ decision: "accepted" })}
@@ -547,6 +562,15 @@ export function FindingCard({
           </div>
         </div>
       </div>
+
+      <RejectFindingDialog
+        open={rejecting}
+        finding={finding}
+        dimensionLabel={dimensionLabel}
+        busy={busy}
+        onCancel={() => setRejecting(false)}
+        onConfirm={confirmReject}
+      />
     </article>
   );
 }

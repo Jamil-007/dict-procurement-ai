@@ -49,16 +49,25 @@ def no_model(monkeypatch):
             "Certificate of Availability of Funds",
         ),
         ("Post-Qualification Report.pdf", "Post-Qualification Report"),
+        ("Notice of Award.pdf", "Notice of Award"),
+        # "scoping" is the checklist's word alone, so this must not come back
+        # as Market Study, and must not be ambiguous between the two either.
+        ("Market Scoping Checklist.pdf", "Market Scoping Checklist"),
         # Acronyms.
         ("TOR.pdf", "Terms of Reference (TOR)"),
         ("PPMP-2026.pdf", "Project Procurement Management Plan (PPMP)"),
         ("ITB.pdf", "Invitation to Bid"),
+        ("NOA.pdf", "Notice of Award"),
         # Separators, casing and a procurement ref in front.
         ("PROC-2026-004_technical_specifications_v2.PDF", "Technical Specifications"),
         ("proc 2026 004 market study.pdf", "Market Study"),
         ("BAC_Resolution_No_12.pdf", "BAC Resolution"),
         # Paths, in case a client sends one.
         ("uploads/2026/Purchase Request.pdf", "Purchase Request"),
+        ("Contract_Agreement_signed.pdf", "Contract"),
+        # "contract" alone is too loose to type a file by, so it abstains and
+        # the word that actually names a type wins.
+        ("Contract Cost Breakdown.pdf", "Detailed Cost Breakdown"),
     ],
 )
 def test_filename_names_the_type(filename, expected):

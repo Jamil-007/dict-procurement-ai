@@ -15,7 +15,9 @@ from review.registry import all_dimensions, get_dimension, register
 from review.runner import run_review
 from review.schema import (
     ComparedText,
+    DimensionOutput,
     DimensionResult,
+    DimensionSummary,
     ReviewFinding,
     ReviewResult,
     Source,
@@ -28,6 +30,8 @@ __all__ = [
     "ReviewFinding",
     "ReviewResult",
     "DimensionResult",
+    "DimensionOutput",
+    "DimensionSummary",
     "StoredFinding",
     "Source",
     "ComparedText",

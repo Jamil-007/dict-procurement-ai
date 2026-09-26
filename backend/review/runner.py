@@ -14,7 +14,12 @@ from typing import Callable, List, Optional
 
 from review.context import ReviewContext
 from review.registry import DimensionSpec, all_dimensions
-from review.schema import DimensionResult, ReviewFinding, ReviewResult
+from review.schema import (
+    DimensionOutput,
+    DimensionResult,
+    ReviewFinding,
+    ReviewResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +30,13 @@ DIMENSION_TIMEOUT_SECONDS = 180
 ProgressHook = Callable[[DimensionResult], None]
 
 
-async def _invoke(spec: DimensionSpec, ctx: ReviewContext) -> List[ReviewFinding]:
-    """Call a dimension, whether it was written sync or async."""
+async def _invoke(spec: DimensionSpec, ctx: ReviewContext):
+    """
+    Call a dimension, whether it was written sync or async.
+
+    Returns whatever the analyzer returned — a list of findings or a
+    DimensionOutput. Normalising the two is the caller's job.
+    """
     if inspect.iscoroutinefunction(spec.run):
         return await spec.run(ctx)
     # Sync analyzers block on llm.invoke(), so keep them off the event loop.
@@ -42,7 +52,7 @@ async def _run_one(
         return int((time.monotonic() - started) * 1000)
 
     try:
-        findings = await asyncio.wait_for(_invoke(spec, ctx), timeout=timeout)
+        output = await asyncio.wait_for(_invoke(spec, ctx), timeout=timeout)
     except asyncio.TimeoutError:
         logger.warning("Dimension '%s' timed out after %ss", spec.key, timeout)
         return DimensionResult(
@@ -62,26 +72,37 @@ async def _run_one(
             duration_ms=elapsed(),
         )
 
-    if findings is None:
-        findings = []
-    if not isinstance(findings, list):
+    # A dimension may return a bare list of findings or a DimensionOutput that
+    # also carries an assessment and any research gaps. Both are supported so
+    # that adding the richer shape did not force every existing analyzer to
+    # change.
+    if output is None:
+        output = DimensionOutput()
+    elif isinstance(output, list):
+        output = DimensionOutput(findings=output)
+    elif not isinstance(output, DimensionOutput):
         return DimensionResult(
             key=spec.key,
             label=spec.label,
             status="failed",
-            error=f"Expected a list of findings, got {type(findings).__name__}",
+            error=(
+                "Expected a list of findings or a DimensionOutput, got "
+                f"{type(output).__name__}"
+            ),
             duration_ms=elapsed(),
         )
 
     # Stamp the dimension key so an analyzer cannot mislabel its own output.
-    for finding in findings:
+    for finding in output.findings:
         finding.dimension = spec.key
 
     return DimensionResult(
         key=spec.key,
         label=spec.label,
         status="ok",
-        findings=findings,
+        findings=output.findings,
+        summary=output.summary,
+        research_gaps=output.research_gaps,
         duration_ms=elapsed(),
     )
 

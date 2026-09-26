@@ -8,9 +8,9 @@ Treat this file as frozen once agreed. Changing a field here means every
 dimension owner and the frontend card have to change with it.
 """
 
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, get_args
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 Severity = Literal["critical", "medium", "low", "info", "compliant"]
 
@@ -46,7 +46,23 @@ def normalize_counts(counts: Optional[Dict[str, int]]) -> Dict[str, int]:
     return out
 
 
+#: The BAC either accepts a finding or rejects it. "modified" and "further"
+#: are no longer offered — editing a finding's wording no longer counts as a
+#: decision — but both stay in the union so a finding decided before they were
+#: dropped still loads and still renders its chip.
 Decision = Literal["accepted", "modified", "further", "rejected"]
+
+#: Why a finding was rejected. Required on rejection: a hidden finding that
+#: never reaches the report has to carry a reason on the record, and a free
+#: text box alone makes the reasons impossible to count across procurements.
+RejectionReason = Literal[
+    "not_applicable",
+    "insufficient_evidence",
+    "misinterpreted",
+    "duplicate",
+    "acceptable",
+    "other",
+]
 
 Feedback = Literal["correct", "incorrect", "irrelevant", "incomplete"]
 
@@ -73,7 +89,46 @@ SOURCE_TIER_MEANING: Dict[int, str] = {
 }
 
 
-class Source(BaseModel):
+def _admits_none(annotation: Any) -> bool:
+    """True when the field's type includes None, e.g. Optional[int]."""
+    return type(None) in get_args(annotation)
+
+
+class Parsed(BaseModel):
+    """
+    Base for every model built from an LLM response.
+
+    Treats an explicit null as an absent key, so the field's default applies.
+
+    A model handed a JSON template fills in every key it was shown, writing
+    `null` into the ones it cannot answer — that is it saying "not provided".
+    Pydantic reads an explicit null as a value, and `section: str = ""` rejects
+    it, where omitting the key entirely would have been fine. The two mean the
+    same thing coming from a model, and the distinction costs whole findings:
+    a single `"section": null` was enough to drop a finding, and a run where
+    every finding carried one took out two dimensions completely.
+
+    Fields that genuinely admit None — `page`, `confidence`, `delta` — keep
+    their nulls, because there the null is an answer rather than a blank.
+    Nulling a *required* field is still an error, as it should be: no default
+    exists to fall back on.
+    """
+
+    @model_validator(mode="before")
+    @classmethod
+    def _null_means_absent(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        return {
+            key: value
+            for key, value in data.items()
+            if value is not None
+            or key not in cls.model_fields
+            or _admits_none(cls.model_fields[key].annotation)
+        }
+
+
+class Source(Parsed):
     """
     Where in the uploaded documents the finding came from.
 
@@ -87,7 +142,7 @@ class Source(BaseModel):
     section: str = Field("", description="e.g. 'Section 4 — Technical Specifications'")
 
 
-class ComparedText(BaseModel):
+class ComparedText(Parsed):
     """
     One side of a cross-document comparison.
 
@@ -102,7 +157,7 @@ class ComparedText(BaseModel):
     quote: str = Field(..., description="Exact text as it appears in the document")
 
 
-class ExternalSource(BaseModel):
+class ExternalSource(Parsed):
     """
     A web page consulted during the review, as distinct from an uploaded
     document. Only dimensions that search externally populate this.
@@ -123,7 +178,7 @@ class ExternalSource(BaseModel):
     )
 
 
-class PolicyCitation(BaseModel):
+class PolicyCitation(Parsed):
     """
     A provision from the reference library that a finding rests on.
 
@@ -137,7 +192,7 @@ class PolicyCitation(BaseModel):
     quote: str = Field("", description="The provision as written")
 
 
-class ReviewFinding(BaseModel):
+class ReviewFinding(Parsed):
     """
     What a dimension analyzer produces.
 
@@ -208,11 +263,54 @@ class StoredFinding(ReviewFinding):
     decision: Optional[Decision] = None
     decided_by: Optional[str] = None
     decided_at: Optional[str] = None
+    #: Set only when decision is "rejected". A rejected finding is withheld
+    #: from the review list and from the final report, so the reason is the
+    #: only trace of it left in front of the committee.
+    rejection_reason: Optional[RejectionReason] = None
+    rejection_note: str = ""
     edited: bool = False
     ai_analysis: str = Field("", description="Original wording, kept when edited")
     ai_recommendation: str = ""
     comments: List[Comment] = Field(default_factory=list)
     feedback: Optional[Feedback] = None
+
+
+class DimensionSummary(Parsed):
+    """
+    What a dimension says about its own run, as distinct from its findings.
+
+    Exists because "I checked and found nothing" and "I had nothing to check"
+    render identically as an empty list, and the difference matters a great
+    deal to a committee deciding whether an area has been covered. The
+    assessment is where a dimension says which ground it actually walked.
+    """
+
+    assessment: str = Field(
+        "", description="Plain summary of what was reviewed and what was found"
+    )
+    documents_reviewed: List[str] = Field(
+        default_factory=list, description="File names this dimension actually read"
+    )
+    confidence: Optional[Confidence] = Field(
+        None, description="How sure the dimension is of the assessment overall"
+    )
+
+
+class DimensionOutput(Parsed):
+    """
+    The richer return shape available to a dimension analyzer.
+
+    `run` may return a bare list of findings — most do, and nothing forces a
+    change — or one of these when it also has an assessment or a gap to
+    report. The runner accepts either.
+    """
+
+    findings: List[ReviewFinding] = Field(default_factory=list)
+    summary: Optional[DimensionSummary] = None
+    research_gaps: List[str] = Field(
+        default_factory=list,
+        description="What the dimension could not resolve and why, in plain words",
+    )
 
 
 class DimensionResult(BaseModel):
@@ -222,6 +320,8 @@ class DimensionResult(BaseModel):
     label: str
     status: Literal["ok", "failed", "timeout"] = "ok"
     findings: List[ReviewFinding] = Field(default_factory=list)
+    summary: Optional[DimensionSummary] = None
+    research_gaps: List[str] = Field(default_factory=list)
     error: Optional[str] = None
     duration_ms: int = 0
 

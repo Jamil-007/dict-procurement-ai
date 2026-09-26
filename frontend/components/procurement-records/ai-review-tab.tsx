@@ -66,6 +66,7 @@ export function AiReviewTab({
   const [running, setRunning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [confirmRerun, setConfirmRerun] = useState(false);
+  const [showRejected, setShowRejected] = useState(false);
 
   // The dimension list comes from the backend registry, so a new dimension
   // appears here without a frontend change.
@@ -81,27 +82,40 @@ export function AiReviewTab({
       .finally(() => setLoading(false));
   }, [procurement.ref]);
 
+  /**
+   * A rejected finding is off the review: the committee has ruled it out, and
+   * it is dropped from the final report too. It stays retrievable behind the
+   * toggle below so a rejection made in error can be seen and undone, but it
+   * counts for nothing — tallies, chips and the legend are all over `live`.
+   */
+  const live = useMemo(
+    () => findings.filter((f) => f.decision !== "rejected"),
+    [findings]
+  );
+  const rejectedCount = findings.length - live.length;
+
   const counts = useMemo(() => {
     const out = Object.fromEntries(
       SEVERITY_KEYS.map((key) => [key, 0])
     ) as Record<Severity, number>;
-    findings.forEach((f) => (out[f.severity] += 1));
+    live.forEach((f) => (out[f.severity] += 1));
     return out;
-  }, [findings]);
+  }, [live]);
 
   const perDimension = useMemo(() => {
     const out: Record<string, number> = {};
-    findings.forEach((f) => (out[f.dimension] = (out[f.dimension] ?? 0) + 1));
+    live.forEach((f) => (out[f.dimension] = (out[f.dimension] ?? 0) + 1));
     return out;
-  }, [findings]);
+  }, [live]);
 
   const visible = useMemo(() => {
-    const list = active ? findings.filter((f) => f.dimension === active) : findings;
+    const pool = showRejected ? findings : live;
+    const list = active ? pool.filter((f) => f.dimension === active) : pool;
     return [...list].sort(
       (a, b) =>
         SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity)
     );
-  }, [findings, active]);
+  }, [findings, live, active, showRejected]);
 
   async function start() {
     if (procurement.documents.length === 0) {
@@ -151,7 +165,7 @@ export function AiReviewTab({
   }, [runRequest]);
 
   const unavailable = outcomes.filter((o) => o.status !== "ok");
-  const decided = findings.filter((f) => f.decision).length;
+  const decided = live.filter((f) => f.decision).length;
   const activeDimension = dimensions.find((d) => d.key === active);
 
   // Findings carry a dimension key; the card shows the registry's label for it.
@@ -211,7 +225,7 @@ export function AiReviewTab({
             AI Review
           </p>
           <h2 className="mt-1 text-[26px] font-bold leading-tight tracking-tight text-navy">
-            {findings.length} finding{findings.length === 1 ? "" : "s"} identified
+            {live.length} finding{live.length === 1 ? "" : "s"} identified
           </h2>
           <p className="mt-1.5 text-[13px] text-subtle">
             Issues, risks, and areas for improvement identified across your
@@ -220,7 +234,7 @@ export function AiReviewTab({
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-3 pt-5">
           <span className="text-[13px] text-subtle">
-            {decided} of {findings.length} acted on
+            {decided} of {live.length} acted on
           </span>
           <button
             onClick={handleRun}
@@ -234,6 +248,8 @@ export function AiReviewTab({
 
       {unavailable.length > 0 && <UnavailableNotice outcomes={unavailable} />}
 
+      <CoverageNotes outcomes={outcomes} />
+
       <div className="flex items-start gap-3 rounded-xl border border-line bg-sky/60 px-4 py-4">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white">
           <Sparkles className="h-4 w-4 text-brand" aria-hidden />
@@ -244,9 +260,9 @@ export function AiReviewTab({
           </p>
           <p className="mt-0.5 text-[12.5px] leading-relaxed text-brand">
             They flag potential issues, compliance gaps and recommendations
-            against RA 12009, its IRR and related issuances. Every finding can be
-            edited, commented on, accepted, modified or rejected — the BAC
-            decides.
+            against RA 12009, its IRR and related issuances. Every finding can
+            be edited, commented on, accepted or rejected — the BAC decides. A
+            rejected finding is withheld from the final report.
           </p>
         </div>
       </div>
@@ -293,10 +309,27 @@ export function AiReviewTab({
         <p className="text-[12.5px] text-subtle">{activeDimension.blurb}</p>
       )}
 
+      {rejectedCount > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-subtle">
+          <span>
+            {rejectedCount} finding{rejectedCount === 1 ? " was" : "s were"}{" "}
+            rejected and left out of the report.
+          </span>
+          <button
+            onClick={() => setShowRejected((on) => !on)}
+            className="font-semibold text-brand transition-colors hover:text-navy"
+          >
+            {showRejected ? "Hide rejected" : "Show rejected"}
+          </button>
+        </div>
+      )}
+
       {visible.length === 0 && (
         <p className="rounded-xl border border-line bg-white px-6 py-10 text-center text-[13px] text-subtle">
-          {findings.length === 0
-            ? "The review completed without raising anything for the committee to verify."
+          {live.length === 0
+            ? rejectedCount > 0
+              ? "Every finding raised by the review has been rejected."
+              : "The review completed without raising anything for the committee to verify."
             : "Nothing raised under this dimension."}
         </p>
       )}
@@ -374,6 +407,60 @@ function DimensionChip({
         ({count})
       </span>
     </button>
+  );
+}
+
+/**
+ * What each area says it reviewed.
+ *
+ * Exists because a dimension reporting zero findings is ambiguous on its own:
+ * it reads identically whether the area was checked and came back clean or was
+ * never covered at all. A committee signing off on a procurement needs to know
+ * which of the two it is looking at, so the assessment is shown alongside the
+ * findings rather than folded into them.
+ */
+function CoverageNotes({ outcomes }: { outcomes: DimensionOutcome[] }) {
+  const covered = outcomes.filter((o) => o.status === "ok" && o.summary);
+  if (covered.length === 0) return null;
+
+  return (
+    <details className="group rounded-xl border border-line bg-white px-4 py-3">
+      <summary className="cursor-pointer list-none text-[13px] font-semibold text-navy marker:hidden">
+        What each area reviewed
+        <span className="ml-1.5 font-normal text-subtle group-open:hidden">
+          — show
+        </span>
+      </summary>
+
+      <ul className="mt-3 space-y-3.5">
+        {covered.map((outcome) => (
+          <li key={outcome.key}>
+            <p className="text-[12.5px] font-semibold text-ink">
+              {outcome.label}
+            </p>
+            <p className="mt-0.5 text-[12.5px] leading-relaxed text-subtle">
+              {outcome.summary?.assessment}
+            </p>
+
+            {(outcome.summary?.documents_reviewed?.length ?? 0) > 0 && (
+              <p className="mt-1 text-[12px] text-subtle">
+                Read: {outcome.summary?.documents_reviewed.join(", ")}
+              </p>
+            )}
+
+            {outcome.research_gaps.length > 0 && (
+              <ul className="mt-1.5 space-y-0.5">
+                {outcome.research_gaps.map((gap, i) => (
+                  <li key={i} className="text-[12px] leading-relaxed text-warning">
+                    Could not resolve: {gap}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 

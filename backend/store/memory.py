@@ -178,3 +178,11 @@ class MemoryStore(Store):
             if entry.id == entry_id:
                 return entry
         return None
+
+    def save_knowledge(self, entry: KnowledgeEntry) -> KnowledgeEntry:
+        for index, existing in enumerate(self._knowledge):
+            if existing.id == entry.id:
+                self._knowledge[index] = entry
+                return entry
+        self._knowledge.append(entry)
+        return entry

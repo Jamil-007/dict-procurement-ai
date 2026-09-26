@@ -33,6 +33,30 @@ def count_pages(data: bytes) -> int:
         return 0
 
 
+def extract_text(data: bytes, max_pages: int = 0, markers: bool = True) -> str:
+    """
+    Text of a PDF, empty string if it cannot be read.
+
+    `markers` inserts a [page N] line before each page so a finding can cite a
+    page instead of guessing at one — the review needs this. Pass max_pages to
+    read only the front of a long document, which is all the classifier needs.
+    """
+    try:
+        import fitz
+
+        with fitz.open(stream=data, filetype="pdf") as document:
+            pages = []
+            for number, page in enumerate(document, start=1):
+                if max_pages and number > max_pages:
+                    break
+                text = page.get_text()
+                pages.append(f"[page {number}]\n{text}" if markers else text)
+            return "\n".join(pages)
+    except Exception:  # noqa: BLE001 - an unreadable file is handled by callers
+        logger.warning("Could not extract text", exc_info=True)
+        return ""
+
+
 def save_document(ref: str, filename: str, data: bytes) -> Tuple[str, int]:
     """
     Store one document and return (path, page_count).
@@ -54,6 +78,19 @@ def save_document(ref: str, filename: str, data: bytes) -> Tuple[str, int]:
     path = _local_path(ref, filename)
     path.write_bytes(data)
     return str(path), pages
+
+
+def document_exists(path: str) -> bool:
+    """Whether the stored file is actually retrievable."""
+    if not path:
+        return False
+    if path.startswith("gs://"):
+        from google.cloud import storage
+
+        bucket_name, _, blob_name = path[5:].partition("/")
+        client = storage.Client(project=settings.GOOGLE_CLOUD_PROJECT or None)
+        return client.bucket(bucket_name).blob(blob_name).exists()
+    return Path(path).is_file()
 
 
 def read_document(path: str) -> bytes:

@@ -8,11 +8,42 @@ Treat this file as frozen once agreed. Changing a field here means every
 dimension owner and the frontend card have to change with it.
 """
 
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-Severity = Literal["critical", "warning", "compliant"]
+Severity = Literal["critical", "medium", "low", "info", "compliant"]
+
+#: Highest concern first. Drives sort order, the legend, and the count summary.
+SEVERITY_ORDER: List[Severity] = ["critical", "medium", "low", "info", "compliant"]
+
+#: What each level means, so the prompt and the UI tooltip say the same thing.
+SEVERITY_MEANING: Dict[Severity, str] = {
+    "critical": "Potentially material issue requiring prompt BAC attention",
+    "medium": "Meaningful issue but generally does not by itself prevent continuation",
+    "low": "Minor quality or completeness issue",
+    "info": "Observation rather than an identified deficiency",
+    "compliant": "Checked and no issue found",
+}
+
+#: Findings written under the earlier three-level scale. Coerced on load so
+#: procurements reviewed before the scale changed still render.
+LEGACY_SEVERITY: Dict[str, Severity] = {"warning": "medium", "high": "critical"}
+
+
+def empty_counts() -> Dict[str, int]:
+    """A zeroed count for every level, in display order."""
+    return {level: 0 for level in SEVERITY_ORDER}
+
+
+def normalize_counts(counts: Optional[Dict[str, int]]) -> Dict[str, int]:
+    """Fold a stored count onto the current scale, dropping unknown keys."""
+    out = empty_counts()
+    for key, value in (counts or {}).items():
+        level = LEGACY_SEVERITY.get(key, key)
+        if level in out:
+            out[level] += int(value or 0)
+    return out
 
 Decision = Literal["accepted", "modified", "further", "rejected"]
 
@@ -72,6 +103,15 @@ class ReviewFinding(BaseModel):
         None, description="Plain summary of the discrepancy, e.g. 'Differs by ₱600,000.00'"
     )
 
+    @field_validator("severity", mode="before")
+    @classmethod
+    def _accept_legacy_severity(cls, value: Any) -> Any:
+        """Map a severity written under the earlier scale onto the current one."""
+        if isinstance(value, str):
+            level = value.strip().lower()
+            return LEGACY_SEVERITY.get(level, level)
+        return value
+
 
 class Comment(BaseModel):
     """A note left by the BAC on a finding."""
@@ -115,7 +155,7 @@ class ReviewResult(BaseModel):
 
     @property
     def counts(self) -> dict:
-        out = {"critical": 0, "warning": 0, "compliant": 0}
+        out = empty_counts()
         for finding in self.findings:
             out[finding.severity] += 1
         return out

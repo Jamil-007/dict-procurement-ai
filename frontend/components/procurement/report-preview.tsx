@@ -10,7 +10,6 @@ import { Separator } from '@/components/ui/separator';
 import { ReportSkeleton } from './report-skeleton';
 import { VerdictData } from '@/types/procurement';
 import { cn } from '@/lib/utils';
-import { jsPDF } from 'jspdf';
 
 // Format text with bold markdown
 const formatText = (text: string) => {
@@ -37,9 +36,12 @@ interface ReportPreviewProps {
 export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateReport, onDeclineReport, isGenerating, showCTA, onReset }: ReportPreviewProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!verdictData) return;
 
+    // Loaded on demand — jsPDF is ~500KB and only needed when someone
+    // actually clicks Download, not on every page that renders this card.
+    const { jsPDF } = await import('jspdf');
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 20;

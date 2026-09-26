@@ -3,6 +3,8 @@
 .env.*
 !.env.example
 env.yaml
+# env.md is a .env in disguise — real keys, just a different extension.
+env.md
 
 # Python virtual environment
 venv/

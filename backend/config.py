@@ -1,3 +1,4 @@
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
 from typing import Literal
@@ -38,6 +39,12 @@ class Settings(BaseSettings):
     # on Cloud Run.
     STORE_BACKEND: Literal["memory", "firestore"] = "memory"
     FIRESTORE_PREFIX: str = ""  # e.g. "staging_" to share a database
+    FIRESTORE_DATABASE: str = ""  # named database id; empty means "(default)"
+
+    # Point the Firestore client at a local emulator, e.g. "127.0.0.1:8098".
+    # Declared here only so it can be set in .env; the client library reads it
+    # from the real process environment, so __init__ exports it. See below.
+    FIRESTORE_EMULATOR_HOST: str = ""
 
     # Uploaded document storage. Empty bucket name keeps files on local disk.
     GCS_BUCKET: str = ""
@@ -57,6 +64,22 @@ class Settings(BaseSettings):
         super().__init__(**kwargs)
         # Create upload directory if it doesn't exist
         Path(self.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
+
+        # pydantic-settings reads .env into this object, not into os.environ.
+        # google-cloud-firestore only looks at os.environ, so without this an
+        # emulator host set in .env is silently ignored and the client connects
+        # to the real database instead. Export it before any client is built.
+        # A value already in the real environment wins, so
+        #   FIRESTORE_EMULATOR_HOST=... uvicorn server:app
+        # still overrides .env.
+        if self.FIRESTORE_EMULATOR_HOST:
+            os.environ.setdefault(
+                "FIRESTORE_EMULATOR_HOST", self.FIRESTORE_EMULATOR_HOST
+            )
+        else:
+            self.FIRESTORE_EMULATOR_HOST = os.environ.get(
+                "FIRESTORE_EMULATOR_HOST", ""
+            )
 
 
 # Global settings instance

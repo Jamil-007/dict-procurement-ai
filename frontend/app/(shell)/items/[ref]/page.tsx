@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
-import { StatusPill } from "@/components/shell/status-pill";
+import { StatusPill, totalFindings } from "@/components/shell/status-pill";
 import { OverviewTab } from "@/components/procurement-records/overview-tab";
 import { DocumentsTab } from "@/components/procurement-records/documents-tab";
 import { AiReviewTab } from "@/components/procurement-records/ai-review-tab";
@@ -54,7 +54,7 @@ export default function WorkspacePage() {
       <div className="px-7 py-10">
         <p className="text-[14px] text-critical">{error}</p>
         <Link href="/items" className="mt-2 inline-block text-[13px] text-brand underline">
-          Back to All Items
+          Back to Procurements
         </Link>
       </div>
     );
@@ -64,20 +64,17 @@ export default function WorkspacePage() {
     return <p className="px-7 py-10 text-[13px] text-subtle">Loading…</p>;
   }
 
-  const findingTotal =
-    procurement.finding_counts.critical +
-    procurement.finding_counts.warning +
-    procurement.finding_counts.compliant;
+  const findingTotal = totalFindings(procurement.finding_counts);
 
   return (
     <div className="max-w-[1160px] px-7 py-6 print:px-0 print:py-0">
-      <div className="print:hidden">
+      <div className="sticky top-0 z-10 -mx-7 -mt-6 bg-page px-7 pt-6 print:hidden">
         <Link
           href="/items"
           className="mb-4 inline-flex items-center gap-1.5 text-[12px] font-medium text-subtle hover:text-brand"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          All Items
+          Procurements
         </Link>
 
         <div className="text-[12px] font-semibold tracking-wide text-brand">

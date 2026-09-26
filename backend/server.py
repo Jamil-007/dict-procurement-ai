@@ -7,6 +7,7 @@ import asyncio
 import json
 import time
 import uuid
+from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, List
 from fastapi import FastAPI, UploadFile, HTTPException, File, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,10 +27,27 @@ from config import settings
 from routers import knowledge, procurements, review_api
 
 
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # MemoryStore loads the Knowledge Hub when it is constructed; Firestore
+    # needs it written once. Doing it here means switching STORE_BACKEND is
+    # the only change required to move onto a real database.
+    from store import get_store
+
+    try:
+        written = get_store().seed_knowledge()
+        if written:
+            print(f"Knowledge Hub: seeded {written} entries")
+    except Exception as exc:  # noqa: BLE001 — never block startup on the seed
+        print(f"Knowledge Hub: could not seed ({exc})")
+    yield
+
+
 app = FastAPI(
     title="Procurement Analysis API",
     description="AI-powered procurement document analysis for Philippine Government Procurement (RA 12009)",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Configure CORS for frontend

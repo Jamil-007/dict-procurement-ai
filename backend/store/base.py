@@ -85,3 +85,17 @@ class Store(ABC):
 
     @abstractmethod
     def get_knowledge(self, entry_id: str) -> Optional[KnowledgeEntry]: ...
+
+    @abstractmethod
+    def save_knowledge(self, entry: KnowledgeEntry) -> KnowledgeEntry:
+        """Create or overwrite one reference entry."""
+
+    # --- setup ---
+
+    def seed_knowledge(self, overwrite: bool = False) -> int:
+        """
+        Load the Knowledge Hub reference entries, returning how many were
+        written. Called once at startup. A backend that seeds itself on
+        construction — MemoryStore does — needs to write nothing.
+        """
+        return 0

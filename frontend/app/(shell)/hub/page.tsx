@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { PageHeader, btnGhost, btnPrimary } from "@/components/shell/page-header";
 import { Modal } from "@/components/shell/modal";
-import { listKnowledge } from "@/lib/records-client";
+import { knowledgeUrl, listKnowledge } from "@/lib/records-client";
 import type { KnowledgeEntry } from "@/types/records";
 import { cn } from "@/lib/utils";
 
@@ -217,28 +217,47 @@ export default function KnowledgeHubPage() {
                 {preview.excerpt}
               </p>
 
-              <div className="mt-4 rounded-lg border border-line bg-page px-4 py-8 text-center">
-                <FileText className="mx-auto h-6 w-6 text-line" />
-                <p className="mt-2 text-[12.5px] text-subtle">
-                  A document viewer is not available yet.
-                </p>
-              </div>
+              {preview.gcs_path ? (
+                <iframe
+                  src={knowledgeUrl(preview.id, true)}
+                  title={preview.title}
+                  className="mt-4 h-[55vh] w-full rounded-lg border border-line bg-page"
+                />
+              ) : (
+                <div className="mt-4 rounded-lg border border-line bg-page px-4 py-8 text-center">
+                  <FileText className="mx-auto h-6 w-6 text-line" />
+                  <p className="mt-2 text-[12.5px] text-subtle">
+                    The full text of this reference has not been added to the
+                    library yet.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-2 rounded-b-xl border-t border-line bg-page px-6 py-4">
               <button onClick={() => setPreview(null)} className={btnGhost}>
                 Close
               </button>
-              <button
-                onClick={() =>
-                  toast.info("Download not available yet", {
-                    description: `${preview.title}.pdf`,
-                  })
-                }
-                className={btnPrimary}
-              >
-                Download
-              </button>
+              {preview.gcs_path ? (
+                <a
+                  href={knowledgeUrl(preview.id)}
+                  download={`${preview.id}.pdf`}
+                  className={btnPrimary}
+                >
+                  Download
+                </a>
+              ) : (
+                <button
+                  onClick={() =>
+                    toast.info("Not in the library yet", {
+                      description: `${preview.title} has no document attached.`,
+                    })
+                  }
+                  className={btnPrimary}
+                >
+                  Download
+                </button>
+              )}
             </div>
           </>
         )}

@@ -4,17 +4,20 @@ import { useRef, useState } from "react";
 import { Check, FileText, Plus, UploadCloud, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { Modal, ModalFooter, inputCls } from "@/components/shell/modal";
-import { btnGhost, btnPrimary } from "@/components/shell/page-header";
-import { deleteDocument, uploadDocuments } from "@/lib/records-client";
+import { Modal, ModalFooter } from "@/components/shell/modal";
+import { btnPrimary } from "@/components/shell/page-header";
+import {
+  deleteDocument,
+  documentUrl,
+  setDocumentType,
+  uploadDocuments,
+} from "@/lib/records-client";
 import { formatDate } from "@/lib/format";
 import {
   DOC_TYPES,
   type Procurement,
   type ProcurementDocument,
 } from "@/types/records";
-
-type Staged = { file: File; type: string };
 
 export function DocumentsTab({
   procurement,
@@ -27,9 +30,8 @@ export function DocumentsTab({
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [staged, setStaged] = useState<Staged[]>([]);
+  const [staged, setStaged] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
-  const [preview, setPreview] = useState<ProcurementDocument | null>(null);
   const [removing, setRemoving] = useState<ProcurementDocument | null>(null);
 
   const finalized = procurement.status === "finalized";
@@ -49,23 +51,14 @@ export function DocumentsTab({
     if (pdfs.length !== files.length) {
       toast.error("Only PDF files can be attached");
     }
-    setStaged((prev) => [
-      ...prev,
-      ...pdfs.map((file) => ({ file, type: "Other" })),
-    ]);
+    setStaged((prev) => [...prev, ...pdfs]);
   }
 
   async function commitUpload() {
     if (staged.length === 0) return;
     setBusy(true);
     try {
-      onChange(
-        await uploadDocuments(
-          procurement.ref,
-          staged.map((item) => item.file),
-          staged.map((item) => item.type)
-        )
-      );
+      onChange(await uploadDocuments(procurement.ref, staged));
       const count = staged.length;
       setStaged([]);
       setUploadOpen(false);
@@ -76,6 +69,15 @@ export function DocumentsTab({
       toast.error(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function changeType(doc: ProcurementDocument, docType: string) {
+    if (docType === doc.doc_type) return;
+    try {
+      onChange(await setDocumentType(procurement.ref, doc.id, docType));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not change the type");
     }
   }
 
@@ -105,13 +107,22 @@ export function DocumentsTab({
           </p>
         </div>
         {!finalized && (
-          <button
-            onClick={openUpload}
-            className={`${btnPrimary} ml-auto flex items-center gap-2`}
-          >
-            <Plus className="h-4 w-4" />
-            Upload Documents
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={openUpload}
+              className={`${btnPrimary} flex items-center gap-2`}
+            >
+              <Plus className="h-4 w-4" />
+              Upload Documents
+            </button>
+            {documents.length > 0 && (
+              <button onClick={onRunReview} className={btnPrimary}>
+                {procurement.review_status === "done"
+                  ? "Run AI Review again"
+                  : "Run AI Review"}
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -119,7 +130,7 @@ export function DocumentsTab({
         {documents.length > 0 ? (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[780px] text-left">
+              <table className="w-full min-w-[920px] text-left">
                 <thead>
                   <tr className="border-b border-line bg-page text-[11px] font-semibold text-subtle">
                     <th className="px-5 py-3">Document Name</th>
@@ -146,8 +157,27 @@ export function DocumentsTab({
                           </span>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-[12.5px] text-subtle">
-                        {doc.doc_type}
+                      <td className="px-5 py-3.5">
+                        {finalized ? (
+                          <span className="text-[12.5px] text-subtle">
+                            {doc.doc_type}
+                          </span>
+                        ) : (
+                          <select
+                            value={doc.doc_type}
+                            onChange={(event) =>
+                              changeType(doc, event.target.value)
+                            }
+                            aria-label={`Type of ${doc.name}`}
+                            className="w-[210px] rounded-md border border-line bg-white px-2 py-1.5 text-[12.5px] focus:border-brand focus:outline-none"
+                          >
+                            {DOC_TYPES.map((type) => (
+                              <option key={type} value={type}>
+                                {type}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </td>
                       <td className="whitespace-nowrap px-5 py-3.5 text-[12.5px] text-subtle">
                         {doc.pages} pages
@@ -162,12 +192,13 @@ export function DocumentsTab({
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-5 py-3.5 text-right">
-                        <button
-                          onClick={() => setPreview(doc)}
+                        <a
+                          href={documentUrl(procurement.ref, doc.id)}
+                          download={doc.name}
                           className="text-[12px] font-semibold text-brand hover:text-navy"
                         >
-                          Preview
-                        </button>
+                          Download
+                        </a>
                         {!finalized && (
                           <>
                             <span className="mx-2 text-line">·</span>
@@ -191,13 +222,6 @@ export function DocumentsTab({
                 {documents.length} document{documents.length === 1 ? "" : "s"} ·{" "}
                 {pageTotal} pages total
               </p>
-              {!finalized && (
-                <button onClick={onRunReview} className={`${btnPrimary} ml-auto`}>
-                  {procurement.review_status === "done"
-                    ? "Run AI Review again"
-                    : "Run AI Review"}
-                </button>
-              )}
             </div>
           </>
         ) : (
@@ -258,7 +282,7 @@ export function DocumentsTab({
               <div className="text-[11px] font-semibold text-subtle">
                 {staged.length} file{staged.length === 1 ? "" : "s"} selected
               </div>
-              {staged.map((item, index) => (
+              {staged.map((file, index) => (
                 <div
                   key={index}
                   className="flex items-center gap-3 rounded-md border border-line px-3 py-2"
@@ -266,34 +290,17 @@ export function DocumentsTab({
                   <FileText className="h-4 w-4 shrink-0 text-brand" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[13px] font-medium">
-                      {item.file.name}
+                      {file.name}
                     </div>
                     <div className="text-[11px] text-subtle">
-                      {Math.round(item.file.size / 1024)} KB
+                      {Math.round(file.size / 1024)} KB
                     </div>
                   </div>
-                  <select
-                    value={item.type}
-                    onChange={(event) =>
-                      setStaged((prev) =>
-                        prev.map((entry, i) =>
-                          i === index
-                            ? { ...entry, type: event.target.value }
-                            : entry
-                        )
-                      )
-                    }
-                    className={`${inputCls} w-auto px-2 py-1 text-[12px]`}
-                  >
-                    {DOC_TYPES.map((type) => (
-                      <option key={type}>{type}</option>
-                    ))}
-                  </select>
                   <button
                     onClick={() =>
                       setStaged((prev) => prev.filter((_, i) => i !== index))
                     }
-                    aria-label={`Remove ${item.file.name}`}
+                    aria-label={`Remove ${file.name}`}
                     className="text-subtle hover:text-critical"
                   >
                     <X className="h-4 w-4" />
@@ -316,32 +323,6 @@ export function DocumentsTab({
           onCancel={() => setUploadOpen(false)}
           onSubmit={commitUpload}
         />
-      </Modal>
-
-      {/* --- preview --- */}
-      <Modal
-        open={preview !== null}
-        onClose={() => setPreview(null)}
-        title={preview?.name ?? ""}
-        description={
-          preview
-            ? `${preview.doc_type} · ${preview.pages} pages · uploaded ${formatDate(preview.uploaded)}`
-            : undefined
-        }
-      >
-        <div className="px-6 py-5">
-          <div className="rounded-lg border border-line bg-page px-4 py-16 text-center">
-            <FileText className="mx-auto h-7 w-7 text-line" />
-            <p className="mt-2 text-[12.5px] text-subtle">
-              A document viewer is not available yet.
-            </p>
-          </div>
-        </div>
-        <div className="flex justify-end rounded-b-xl border-t border-line bg-page px-6 py-4">
-          <button onClick={() => setPreview(null)} className={btnGhost}>
-            Close
-          </button>
-        </div>
       </Modal>
 
       {/* --- remove --- */}

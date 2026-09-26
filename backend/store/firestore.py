@@ -6,14 +6,19 @@ Collections (prefix configurable so staging and prod can share a database):
     {prefix}findings/{ref}__{finding_id}
     {prefix}knowledge/{id}
 
-Not exercised locally — there are no credentials on a dev laptop. Run against
-the emulator with FIRESTORE_EMULATOR_HOST, or deploy to staging.
+The client picks up FIRESTORE_EMULATOR_HOST on its own, so this same class
+runs against the emulator locally and the real database on Cloud Run with no
+code difference. Verify either with scripts/check_store.py.
 """
 
+import random
 import re
-import threading
+import time
 from datetime import date
 from typing import List, Optional
+
+from google.api_core.exceptions import Aborted
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from domain import (
     KnowledgeEntry,
@@ -27,14 +32,22 @@ from review.schema import Comment, StoredFinding
 from store.base import Store
 from store.memory import load_knowledge_seed
 
+# How many times to re-enter the reference-number transaction before giving up.
+_REF_RETRIES = 8
+
 
 class FirestoreStore(Store):
-    def __init__(self, project: str = "", prefix: str = "") -> None:
+    def __init__(self, project: str = "", prefix: str = "", database: str = "") -> None:
         from google.cloud import firestore  # imported lazily: prod-only dependency
 
-        self._db = firestore.Client(project=project) if project else firestore.Client()
+        # ai-innov-474401 gives each application its own named database rather
+        # than sharing (default), so the database id has to be explicit.
+        # Empty means (default), which is what the emulator uses.
+        self._db = firestore.Client(
+            project=project or None,
+            database=database or None,
+        )
         self._prefix = prefix
-        self._ref_lock = threading.Lock()
 
     def _col(self, name: str):
         return self._db.collection(f"{self._prefix}{name}")
@@ -54,20 +67,56 @@ class FirestoreStore(Store):
         snapshot = self._col("procurements").document(ref).get()
         return Procurement(**snapshot.to_dict()) if snapshot.exists else None
 
-    def next_ref(self) -> str:
-        """
-        Sequential per year. Firestore has no autoincrement, so this scans the
-        year's refs under a lock. Fine at BAC volumes; revisit if two people
-        ever create a procurement in the same second.
-        """
-        prefix = f"PROC-{date.today().year}-"
-        with self._ref_lock:
-            used = [
+    def _highest_existing(self, prefix: str) -> int:
+        """Largest sequence number already used this year, 0 if none."""
+        return max(
+            (
                 int(m.group(1))
                 for doc in self._col("procurements").stream()
-                if (m := re.fullmatch(rf"{prefix}(\d+)", doc.id))
-            ]
-            return f"{prefix}{max(used, default=0) + 1:03d}"
+                if (m := re.fullmatch(rf"{re.escape(prefix)}(\d+)", doc.id))
+            ),
+            default=0,
+        )
+
+    def next_ref(self) -> str:
+        """
+        Sequential per year, allocated through a transactional counter at
+        {prefix}counters/{year} so two Cloud Run instances cannot hand out the
+        same reference. Numbers are never reused: deleting PROC-2026-003 does
+        not free it, which is what you want for a government record.
+        """
+        from google.cloud import firestore
+
+        year = date.today().year
+        ref_prefix = f"PROC-{year}-"
+        counter = self._col("counters").document(str(year))
+        # Bootstrap value for a database that already holds records from
+        # before the counter existed. Read outside the transaction: it is only
+        # consulted the first time the counter is written.
+        bootstrap = self._highest_existing(ref_prefix)
+
+        @firestore.transactional
+        def allocate(transaction) -> int:
+            snapshot = counter.get(transaction=transaction)
+            last = int(snapshot.get("last") or 0) if snapshot.exists else bootstrap
+            transaction.set(counter, {"last": last + 1})
+            return last + 1
+
+        # Every create contends on this one counter document. Real traffic is
+        # a few records a day, so contention is rare — but a burst must queue
+        # rather than 500, and the emulator's pessimistic locking makes it
+        # abort far more readily than production Firestore does.
+        last_error: Optional[Exception] = None
+        for attempt in range(_REF_RETRIES):
+            try:
+                sequence = allocate(self._db.transaction(max_attempts=5))
+                return f"{ref_prefix}{sequence:03d}"
+            except (Aborted, ValueError) as exc:
+                last_error = exc
+                time.sleep(0.15 * (attempt + 1) + random.uniform(0, 0.15))
+        raise RuntimeError(
+            f"Could not allocate a reference number for {year}: {last_error}"
+        )
 
     def create_procurement(self, data: ProcurementCreate) -> Procurement:
         procurement = Procurement(ref=self.next_ref(), **data.model_dump())
@@ -100,7 +149,7 @@ class FirestoreStore(Store):
 
         batch = self._db.batch()
         for finding in (
-            self._col("findings").where("procurement_ref", "==", ref).stream()
+            self._col("findings").where(filter=FieldFilter("procurement_ref", "==", ref)).stream()
         ):
             batch.delete(finding.reference)
         batch.delete(doc)
@@ -129,7 +178,7 @@ class FirestoreStore(Store):
 
     def list_findings(self, ref: str) -> List[StoredFinding]:
         docs = (
-            self._col("findings").where("procurement_ref", "==", ref).stream()
+            self._col("findings").where(filter=FieldFilter("procurement_ref", "==", ref)).stream()
         )
         rows = [StoredFinding(**doc.to_dict()) for doc in docs]
         return sorted(rows, key=lambda f: f.id)
@@ -138,7 +187,7 @@ class FirestoreStore(Store):
         self, ref: str, findings: List[StoredFinding]
     ) -> List[StoredFinding]:
         batch = self._db.batch()
-        for doc in self._col("findings").where("procurement_ref", "==", ref).stream():
+        for doc in self._col("findings").where(filter=FieldFilter("procurement_ref", "==", ref)).stream():
             batch.delete(doc.reference)
         for finding in findings:
             key = self._finding_key(ref, finding.id)
@@ -173,7 +222,7 @@ class FirestoreStore(Store):
     ) -> List[KnowledgeEntry]:
         query = self._col("knowledge")
         if category and category != "all":
-            query = query.where("category", "==", category)
+            query = query.where(filter=FieldFilter("category", "==", category))
         rows = [KnowledgeEntry(**doc.to_dict()) for doc in query.stream()]
         if search:
             # Firestore has no substring search; the Hub is small enough to
@@ -189,6 +238,10 @@ class FirestoreStore(Store):
     def get_knowledge(self, entry_id: str) -> Optional[KnowledgeEntry]:
         snapshot = self._col("knowledge").document(entry_id).get()
         return KnowledgeEntry(**snapshot.to_dict()) if snapshot.exists else None
+
+    def save_knowledge(self, entry: KnowledgeEntry) -> KnowledgeEntry:
+        self._col("knowledge").document(entry.id).set(entry.model_dump())
+        return entry
 
     # --- setup ---
 

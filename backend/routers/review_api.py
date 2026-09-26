@@ -9,14 +9,14 @@ import logging
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from domain import Procurement
 from review import ReviewContext, ReviewDocument, all_dimensions, run_review
 from review.schema import Comment, Decision, Feedback, Severity, StoredFinding
 from store import get_store
-from store.files import read_document
+from store.files import extract_text, read_document
 
 logger = logging.getLogger(__name__)
 
@@ -36,20 +36,6 @@ def _require(ref: str) -> Procurement:
     return procurement
 
 
-def _extract_text(data: bytes) -> str:
-    """
-    Text with [page N] markers, so findings can cite a page rather than
-    guessing at one.
-    """
-    import fitz
-
-    with fitz.open(stream=data, filetype="pdf") as document:
-        return "\n".join(
-            f"[page {number}]\n{page.get_text()}"
-            for number, page in enumerate(document, start=1)
-        )
-
-
 def _build_context(procurement: Procurement) -> ReviewContext:
     documents: List[ReviewDocument] = []
 
@@ -57,9 +43,13 @@ def _build_context(procurement: Procurement) -> ReviewContext:
         if not doc.gcs_path:
             continue
         try:
-            text = _extract_text(read_document(doc.gcs_path))
+            # Markers on: findings cite a page rather than guessing at one.
+            text = extract_text(read_document(doc.gcs_path))
         except Exception:  # noqa: BLE001 - one unreadable file must not stop the review
             logger.warning("Could not read %s", doc.name, exc_info=True)
+            continue
+        if not text.strip():
+            logger.warning("No readable text in %s", doc.name)
             continue
         documents.append(
             ReviewDocument(
@@ -117,12 +107,20 @@ class RunReviewResponse(BaseModel):
 
 
 @router.post("/procurements/{ref}/review", response_model=RunReviewResponse)
-async def run_procurement_review(ref: str, keys: Optional[List[str]] = None):
+async def run_procurement_review(
+    ref: str,
+    keys: Optional[List[str]] = Query(
+        None, description="Run only these dimensions. Repeat the parameter."
+    ),
+):
     """
     Review every document attached to this procurement.
 
     Re-running discards the previous findings, including any BAC decisions
     recorded against them.
+
+    `Query(...)` is load-bearing: FastAPI reads a bare `List[str]` parameter
+    as a request body, which silently ignored ?keys= and ran all five.
     """
     procurement = _require(ref)
     if not procurement.documents:

@@ -11,20 +11,40 @@ from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from review.schema import empty_counts
+
 ProcurementStatus = Literal["ongoing", "finalized"]
 ReviewStatus = Literal["none", "processing", "done"]
 
+# Pre-award documents, in process order. Post-award records (contracts,
+# payment documents) are deliberately absent — this system reviews a
+# procurement before award.
+#
+# Kept in step with frontend/types/records.ts DOC_TYPES. The classifier in
+# utils/doc_classifier.py picks from this list, so adding a type here is
+# enough to make it selectable and inferable.
 DOC_TYPES = [
+    # Planning
+    "Annual Procurement Plan (APP)",
+    "Project Procurement Management Plan (PPMP)",
     "Market Study",
-    "TOR",
-    "Technical Specifications",
-    "DCB",
-    "Bidding Documents",
-    "BAC Resolution",
-    "Purchase Request",
-    "Contract",
+    # Price canvassing evidence gathered for the market study and the ABC, so
+    # this is a planning input, not a bid received after posting.
     "Supplier Quotation",
-    "Payment Document",
+    "Purchase Request",
+    "Certificate of Availability of Funds",
+    # Requirements
+    "Terms of Reference (TOR)",
+    "Technical Specifications",
+    "Detailed Cost Breakdown",
+    # Bidding
+    "Bidding Documents",
+    "Invitation to Bid",
+    "Abstract of Bids",
+    # BAC action
+    "BAC Resolution",
+    "Minutes of BAC Meeting",
+    "Post-Qualification Report",
     "Other",
 ]
 
@@ -61,9 +81,7 @@ class Procurement(BaseModel):
     finalized_by: Optional[str] = None
     # Filled in by the API so the list page can summarise a record without
     # fetching every finding. Not persisted — derived from the findings store.
-    finding_counts: Dict[str, int] = Field(
-        default_factory=lambda: {"critical": 0, "warning": 0, "compliant": 0}
-    )
+    finding_counts: Dict[str, int] = Field(default_factory=empty_counts)
     # How many findings the BAC has recorded an action against. Also derived.
     decided_count: int = 0
 

@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile
 from pydantic import BaseModel
 
 from domain import (
@@ -17,8 +17,15 @@ from domain import (
     ProcurementPatch,
     today,
 )
+from review.schema import empty_counts
 from store import get_store
-from store.files import delete_document, save_document
+from store.files import (
+    delete_document,
+    extract_text,
+    read_document,
+    save_document,
+)
+from utils.doc_classifier import CLASSIFY_PAGES, classify_many
 
 router = APIRouter(prefix="/procurements", tags=["procurements"])
 
@@ -39,6 +46,10 @@ def _require(ref: str) -> Procurement:
     return procurement
 
 
+class DocumentPatch(BaseModel):
+    doc_type: str
+
+
 class FinalizeResponse(BaseModel):
     ref: str
     status: str
@@ -53,7 +64,7 @@ def _with_counts(procurement: Procurement) -> Procurement:
     Always recomputed on read, so a stale copy written to the store is never
     what the client sees.
     """
-    counts = {"critical": 0, "warning": 0, "compliant": 0}
+    counts = empty_counts()
     decided = 0
     for finding in get_store().list_findings(procurement.ref):
         if finding.severity in counts:
@@ -109,8 +120,10 @@ async def upload_documents(
     """
     Attach one or more PDFs.
 
-    `doc_types` is positional against `files`; anything missing or unrecognised
-    falls back to "Other" rather than rejecting the upload.
+    The type of each document is inferred from its opening pages — the BAC no
+    longer picks one on upload — and can be corrected afterwards from the
+    documents table. `doc_types` is still honoured, positional against `files`,
+    so a caller that already knows the type skips the inference.
     """
     procurement = _require(ref)
     if procurement.status == "finalized":
@@ -120,6 +133,8 @@ async def upload_documents(
 
     types = doc_types or []
     documents: List[ProcurementDocument] = []
+    # Index in `documents` -> excerpt, for the ones nobody told us the type of.
+    to_classify: dict[int, str] = {}
 
     for index, upload in enumerate(files):
         data = await upload.read()
@@ -133,13 +148,18 @@ async def upload_documents(
 
         filename = upload.filename or f"document-{index + 1}.pdf"
         path, pages = save_document(ref, filename, data)
-        doc_type = types[index] if index < len(types) else "Other"
+
+        given = types[index] if index < len(types) else ""
+        if given not in DOC_TYPES:
+            to_classify[len(documents)] = extract_text(
+                data, max_pages=CLASSIFY_PAGES, markers=False
+            )
 
         documents.append(
             ProcurementDocument(
                 id=str(uuid.uuid4()),
                 name=filename,
-                doc_type=doc_type if doc_type in DOC_TYPES else "Other",
+                doc_type=given if given in DOC_TYPES else "Other",
                 pages=pages,
                 uploaded=today(),
                 gcs_path=path,
@@ -149,7 +169,67 @@ async def upload_documents(
     if not documents:
         raise HTTPException(status_code=400, detail="No readable files were uploaded")
 
+    if to_classify:
+        positions = list(to_classify)
+        inferred = await classify_many(
+            [(documents[i].name, to_classify[i]) for i in positions]
+        )
+        for position, doc_type in zip(positions, inferred):
+            documents[position].doc_type = doc_type
+
     return get_store().add_documents(ref, documents)
+
+
+@router.get("/{ref}/documents/{document_id}/download")
+def download_document(ref: str, document_id: str, inline: bool = False):
+    """
+    Serve an attached PDF, from the bucket or local disk depending on config.
+
+    `inline=true` renders in the browser instead of prompting a save, which is
+    what the Preview modal needs.
+    """
+    procurement = _require(ref)
+    target = next((d for d in procurement.documents if d.id == document_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Unknown document")
+
+    try:
+        data = read_document(target.gcs_path)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(
+            status_code=404, detail="The file is no longer available"
+        ) from exc
+
+    disposition = "inline" if inline else "attachment"
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'{disposition}; filename="{target.name}"'
+        },
+    )
+
+
+@router.patch("/{ref}/documents/{document_id}", response_model=Procurement)
+def retype_document(ref: str, document_id: str, body: DocumentPatch):
+    """
+    Correct an inferred document type.
+
+    The type steers which documents each review dimension reads, so getting it
+    wrong is worth one click to fix rather than a re-upload.
+    """
+    procurement = _require(ref)
+    target = next((d for d in procurement.documents if d.id == document_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Unknown document")
+    if body.doc_type not in DOC_TYPES:
+        raise HTTPException(
+            status_code=422, detail=f"Unknown document type: {body.doc_type}"
+        )
+
+    target.doc_type = body.doc_type
+    procurement.updated = today()
+    return get_store().save_procurement(procurement)
 
 
 @router.delete("/{ref}/documents/{document_id}", response_model=Procurement)

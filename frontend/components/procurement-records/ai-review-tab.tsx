@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircle, Check, RefreshCw } from "lucide-react";
+import { AlertCircle, Check, RefreshCw, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { FindingCard } from "./finding-card";
 import { Modal, ModalFooter } from "@/components/shell/modal";
 import { btnGhost, btnPrimary } from "@/components/shell/page-header";
-import { severityLabel } from "@/components/shell/status-pill";
+import {
+  SEVERITY_BAR,
+  SEVERITY_KEYS,
+  severityLabel,
+  severityMeaning,
+} from "@/components/shell/status-pill";
 import { listDimensions, listFindings, runReview } from "@/lib/records-client";
 import type {
   Dimension,
@@ -18,7 +23,7 @@ import type {
 } from "@/types/records";
 import { cn } from "@/lib/utils";
 
-const SEVERITY_ORDER: Severity[] = ["critical", "warning", "compliant"];
+const SEVERITY_ORDER = SEVERITY_KEYS;
 
 /** Roughly how long each step is left on screen while the run is in flight. */
 const STEP_MS = 620;
@@ -75,7 +80,9 @@ export function AiReviewTab({
   }, [running, steps.length]);
 
   const counts = useMemo(() => {
-    const out: Record<Severity, number> = { critical: 0, warning: 0, compliant: 0 };
+    const out = Object.fromEntries(
+      SEVERITY_KEYS.map((key) => [key, 0])
+    ) as Record<Severity, number>;
     findings.forEach((f) => (out[f.severity] += 1));
     return out;
   }, [findings]);
@@ -144,6 +151,11 @@ export function AiReviewTab({
 
   const unavailable = outcomes.filter((o) => o.status !== "ok");
   const decided = findings.filter((f) => f.decision).length;
+  const activeDimension = dimensions.find((d) => d.key === active);
+
+  // Findings carry a dimension key; the card shows the registry's label for it.
+  const labelFor = (key: string) =>
+    dimensions.find((d) => d.key === key)?.label ?? key.replace(/_/g, " ");
 
   if (loading) {
     return <p className="text-[13px] text-subtle">Loading review…</p>;
@@ -232,16 +244,8 @@ export function AiReviewTab({
       <div className="flex flex-wrap items-end gap-4">
         <div>
           <h2 className="text-[16px] font-semibold text-navy">AI Review</h2>
-          <p className="mt-1 text-[13px] text-subtle">
-            <span className="font-semibold text-ink">
-              {findings.length} finding{findings.length === 1 ? "" : "s"} identified
-            </span>
-            {SEVERITY_ORDER.filter((key) => counts[key]).map((key) => (
-              <span key={key}>
-                {" · "}
-                {counts[key]} {severityLabel(key).toLowerCase()}
-              </span>
-            ))}
+          <p className="mt-1 text-[13px] font-semibold text-ink">
+            {findings.length} finding{findings.length === 1 ? "" : "s"} identified
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -259,6 +263,31 @@ export function AiReviewTab({
       </div>
 
       {unavailable.length > 0 && <UnavailableNotice outcomes={unavailable} />}
+
+      <div className="flex items-start gap-2.5 rounded-lg border border-line bg-sky px-4 py-3">
+        <UserCheck className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden />
+        <p className="text-[12.5px] leading-relaxed text-navy">
+          Findings and recommendations are AI-generated and require BAC review.
+          Every analysis can be edited, commented on, accepted, modified, or
+          rejected. The BAC remains the decision-maker.
+        </p>
+      </div>
+
+      {/* Severity legend. The dot colour here is the same fill as the bar down
+          the left edge of each card, so the two read as one scale. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {SEVERITY_KEYS.map((key) => (
+          <span
+            key={key}
+            title={severityMeaning(key)}
+            className="inline-flex items-center gap-1.5 text-[11.5px] text-subtle"
+          >
+            <span className={cn("h-2 w-2 rounded-full", SEVERITY_BAR[key])} />
+            <span className="font-semibold text-ink">{severityLabel(key)}</span>
+            {counts[key]}
+          </span>
+        ))}
+      </div>
 
       {dimensions.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -281,6 +310,10 @@ export function AiReviewTab({
         </div>
       )}
 
+      {activeDimension && (
+        <p className="text-[12.5px] text-subtle">{activeDimension.blurb}</p>
+      )}
+
       {visible.length === 0 && (
         <p className="rounded-xl border border-line bg-white px-6 py-10 text-center text-[13px] text-subtle">
           {findings.length === 0
@@ -294,6 +327,7 @@ export function AiReviewTab({
           <FindingCard
             key={finding.id}
             finding={finding}
+            dimensionLabel={labelFor(finding.dimension)}
             onChange={(updated) =>
               setFindings((prev) =>
                 prev.map((f) => (f.id === updated.id ? updated : f))

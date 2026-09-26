@@ -74,20 +74,22 @@ export async function deleteProcurement(ref: string) {
   }
 }
 
-export function uploadDocuments(
-  ref: string,
-  files: File[],
-  docTypes: string[]
-) {
+export function uploadDocuments(ref: string, files: File[]) {
   const form = new FormData();
   files.forEach((file) => form.append("files", file));
-  // Positional against `files` — the backend falls back to "Other".
-  docTypes.forEach((type) => form.append("doc_types", type));
+  // No doc_types sent — the backend works out the type of each document and
+  // setDocumentType corrects it if the inference is wrong.
   return request<Procurement>(`/procurements/${ref}/documents`, {
     method: "POST",
     body: form,
   });
 }
+
+export const setDocumentType = (ref: string, documentId: string, docType: string) =>
+  request<Procurement>(`/procurements/${ref}/documents/${documentId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ doc_type: docType }),
+  });
 
 export const deleteDocument = (ref: string, documentId: string) =>
   request<Procurement>(`/procurements/${ref}/documents/${documentId}`, {
@@ -138,3 +140,16 @@ export function listKnowledge(params: { category?: string; search?: string } = {
 
 export const getKnowledgeEntry = (entryId: string) =>
   request<KnowledgeEntry>(`/knowledge/${entryId}`);
+
+/**
+ * Direct URLs to the stored PDFs. These are plain <a href> and <iframe src>
+ * targets rather than fetches, so the browser handles the download and the
+ * built-in viewer. `inline` renders in place instead of prompting a save.
+ */
+export const documentUrl = (ref: string, documentId: string, inline = false) =>
+  `${API_BASE_URL}/procurements/${ref}/documents/${documentId}/download${
+    inline ? "?inline=true" : ""
+  }`;
+
+export const knowledgeUrl = (entryId: string, inline = false) =>
+  `${API_BASE_URL}/knowledge/${entryId}/download${inline ? "?inline=true" : ""}`;

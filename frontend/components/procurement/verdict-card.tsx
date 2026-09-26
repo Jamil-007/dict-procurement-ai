@@ -22,7 +22,6 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { VerdictData, FindingSeverity } from '@/types/procurement';
 import { cn } from '@/lib/utils';
-import { jsPDF } from 'jspdf';
 
 // Format text with bold markdown
 const formatText = (text: string) => {
@@ -98,7 +97,10 @@ export function VerdictCard({
 }: VerdictCardProps) {
   const isPassing = verdict.status === 'PASS';
 
-  const handleDownloadReport = () => {
+  const handleDownloadReport = async () => {
+    // Loaded on demand — jsPDF is ~500KB and only needed when someone
+    // actually clicks Download, not on every page that renders this card.
+    const { jsPDF } = await import('jspdf');
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 20;

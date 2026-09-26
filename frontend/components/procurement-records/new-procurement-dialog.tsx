@@ -9,7 +9,11 @@ import {
   areaCls,
   inputCls,
 } from "@/components/shell/page-header";
-import { PROCUREMENT_MODES, type ProcurementCreate } from "@/types/records";
+import {
+  PROCUREMENT_MODES,
+  PROCUREMENT_TYPES,
+  type ProcurementCreate,
+} from "@/types/records";
 
 const FUNDS = ["GAA", "Trust Fund", "Special Account", "Continuing Appropriation"];
 
@@ -18,7 +22,7 @@ const EMPTY: ProcurementCreate = {
   abc: 0,
   mode: PROCUREMENT_MODES[0],
   fund: FUNDS[0],
-  category: "",
+  category: PROCUREMENT_TYPES[0],
   end_user: "",
 };
 
@@ -53,7 +57,7 @@ export function NewProcurementDialog({
         title: form.title.trim(),
         // Accept "17,339,609.00" as typed.
         abc: Number(abc.replace(/[^\d.]/g, "")) || 0,
-        category: form.category?.trim() || "ICT",
+        category: form.category,
         end_user: form.end_user?.trim() || "Not specified",
       });
       setForm(EMPTY);
@@ -131,13 +135,16 @@ export function NewProcurementDialog({
               </select>
             </Field>
 
-            <Field label="Procurement Category">
-              <input
+            <Field label="Procurement Type">
+              <select
                 className={inputCls}
                 value={form.category}
                 onChange={(e) => set("category", e.target.value)}
-                placeholder="ICT / Software Subscription"
-              />
+              >
+                {PROCUREMENT_TYPES.map((type) => (
+                  <option key={type}>{type}</option>
+                ))}
+              </select>
             </Field>
           </div>
 

@@ -49,7 +49,7 @@ export interface ProcurementCreate {
   end_user?: string;
 }
 
-export type Severity = "critical" | "warning" | "compliant";
+export type Severity = "critical" | "medium" | "low" | "info" | "compliant";
 export type Decision = "accepted" | "modified" | "further" | "rejected";
 export type FindingFeedback = "correct" | "incorrect" | "irrelevant" | "incomplete";
 
@@ -137,25 +137,48 @@ export interface KnowledgeResponse {
   entries: KnowledgeEntry[];
 }
 
+/** Must stay in step with backend/domain.py DOC_TYPES. */
 export const DOC_TYPES = [
+  // Planning
+  "Annual Procurement Plan (APP)",
+  "Project Procurement Management Plan (PPMP)",
   "Market Study",
-  "TOR",
-  "Technical Specifications",
-  "DCB",
-  "Bidding Documents",
-  "BAC Resolution",
-  "Purchase Request",
-  "Contract",
+  // Price canvassing evidence gathered for the market study and the ABC, so
+  // this is a planning input, not a bid received after posting.
   "Supplier Quotation",
-  "Payment Document",
+  "Purchase Request",
+  "Certificate of Availability of Funds",
+  // Requirements
+  "Terms of Reference (TOR)",
+  "Technical Specifications",
+  "Detailed Cost Breakdown",
+  // Bidding
+  "Bidding Documents",
+  "Invitation to Bid",
+  "Abstract of Bids",
+  // BAC action
+  "BAC Resolution",
+  "Minutes of BAC Meeting",
+  "Post-Qualification Report",
   "Other",
 ] as const;
 
 export const PROCUREMENT_MODES = [
   "Competitive Bidding",
+  "Limited Source Bidding",
+  "Competitive Dialogue",
+  "Unsolicited Offer with Bid Matching",
   "Direct Contracting",
+  "Direct Acquisition",
+  "Repeat Order",
   "Small Value Procurement",
   "Negotiated Procurement",
-  "Repeat Order",
-  "Shopping",
+  "Direct Sales",
+  "Direct Procurement for Science, Technology and Innovation",
+] as const;
+
+export const PROCUREMENT_TYPES = [
+  "Goods",
+  "Infrastructure",
+  "Consulting Services",
 ] as const;

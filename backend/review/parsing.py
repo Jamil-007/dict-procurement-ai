@@ -24,10 +24,10 @@ Return ONLY a JSON array. Each element is one finding:
 
 [
   {
-    "severity": "critical" | "warning" | "compliant",
+    "severity": "critical" | "medium" | "low" | "info" | "compliant",
     "title": "One sentence naming the issue, neutrally phrased",
     "analysis": "What you observed in the documents and why it matters",
-    "recommendation": "What the BAC should do. Omit for compliant findings.",
+    "recommendation": "What the BAC should do. Omit for info and compliant findings.",
     "source": {"doc": "TOR.pdf", "page": 11, "section": "Section 4"},
     "policy_basis": "RA 12009 IRR",
     "quote": "Exact text from the document, copied verbatim",
@@ -38,6 +38,13 @@ Return ONLY a JSON array. Each element is one finding:
     "delta": "5 seats unaccounted for"
   }
 ]
+
+Severity — pick the one that fits, and do not inflate:
+- "critical": potentially material issue requiring prompt BAC attention.
+- "medium": meaningful issue, but it does not by itself prevent continuation.
+- "low": minor quality or completeness issue.
+- "info": an observation, not an identified deficiency.
+- "compliant": you checked this point and found no issue. Worth recording.
 
 Rules:
 - Document text carries [page N] markers. Use the marker preceding a passage

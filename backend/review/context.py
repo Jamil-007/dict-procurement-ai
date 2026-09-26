@@ -40,6 +40,18 @@ class ReviewContext:
         """All documents of a given type, e.g. 'BAC Resolution'."""
         return [d for d in self.documents if d.doc_type == doc_type]
 
+    def of_types(self, *doc_types: str) -> List[ReviewDocument]:
+        """
+        All documents matching any of the given types.
+
+        Types are inferred on upload and correctable by hand, so a document
+        the BAC has not retyped may sit under "Other". Dimensions that would
+        otherwise find nothing should fall back to everything and say in the
+        finding which documents they actually read.
+        """
+        wanted = set(doc_types)
+        return [d for d in self.documents if d.doc_type in wanted]
+
     @property
     def combined_text(self) -> str:
         """
@@ -49,7 +61,12 @@ class ReviewContext:
         that compare specific documents should pull them with `document()`
         so the prompt stays small.
         """
-        return "\n\n".join(
-            f"===== {d.name} ({d.doc_type}, {d.pages} pages) =====\n{d.text}"
-            for d in self.documents
-        )
+        return render(self.documents)
+
+
+def render(documents: List[ReviewDocument]) -> str:
+    """A subset of documents as prompt text, one header per file."""
+    return "\n\n".join(
+        f"===== {d.name} ({d.doc_type}, {d.pages} pages) =====\n{d.text}"
+        for d in documents
+    )

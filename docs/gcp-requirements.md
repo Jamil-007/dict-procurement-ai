@@ -38,45 +38,51 @@ The code to use Firestore and Cloud Storage is already written and merged behind
 |---|---|
 | Mode | **Native mode** (not Datastore mode) |
 | Location | `asia-southeast1` |
-| Database ID | `(default)` |
+| Database ID | **`ai-procurement-db`** — a named database, not `(default)` |
 | Delete protection | Recommended ON for production |
 
 ```bash
 gcloud firestore databases create \
   --project=ai-innov-474401 \
+  --database=ai-procurement-db \
   --location=asia-southeast1 \
   --type=firestore-native
 ```
 
-> **Note:** a Firestore location is permanent — it cannot be changed after creation. Please confirm `asia-southeast1` before running this.
+> **Note:** mode and location are permanent — neither can be changed after creation. Please confirm `asia-southeast1` and Native mode before running this.
 
-**One database serves both environments.** Staging writes are namespaced by a collection prefix (`staging_`), so the two never touch each other's records. If you would rather have hard separation, a second database named `staging` also works — tell us and we will point the staging service at it.
+**Why a named database.** This project already runs 26 Firestore databases and gives each application its own; `(default)` is shared by others. We are asking for the same pattern rather than adding our collections to `(default)`. Firestore bills per operation and per byte stored, not per database, so an extra database costs nothing.
+
+We do **not** have a database today. `procurement-agent-db` already exists in this project but belongs to another team — we are not using it.
+
+The application now refuses to start if `FIRESTORE_DATABASE` is unset, specifically so a misconfiguration cannot write into `(default)` or anyone else's data.
+
+**One database serves both environments.** Staging writes are namespaced by a collection prefix (`staging_`), so the two never touch each other's records. If you would rather have hard separation, a second database named `ai-procurement-db-staging` also works — tell us and we will point the staging service at it.
 
 No composite indexes are needed. All queries are single-field equality filters, which Firestore indexes automatically.
 
-### 3.2 Cloud Storage bucket — **required**
+### 3.2 Cloud Storage bucket — **DONE**
 
-| Setting | Value |
-|---|---|
-| Name | `ai-innov-procurement-docs` (or your naming convention — just tell us the final name) |
-| Location | `asia-southeast1`, Region (not multi-region) |
-| Storage class | Standard |
-| Access control | **Uniform bucket-level access** |
-| Public access | **Prevented** — enforced |
-| Object versioning | Recommended ON |
-| Soft delete | Recommended, 30 days |
-| Lifecycle rule | **None.** See retention note in §5. |
+Created 2026-09-25 in `ai-innov-474401`. Verified settings:
+
+| Setting | Required | Actual |
+|---|---|---|
+| Name | — | `ai-procurement` ✅ |
+| Location | `asia-southeast1`, Region | `ASIA-SOUTHEAST1`, region ✅ |
+| Storage class | Standard | `STANDARD` ✅ |
+| Access control | **Uniform bucket-level access** | enabled ✅ |
+| Public access | **Prevented** — enforced | `enforced` ✅ |
+| Soft delete | Recommended, 30 days | 7 days (default) — acceptable |
+| Lifecycle rule | **None.** See retention note in §5. | none ✅ |
+| Object versioning | Recommended ON | **OFF — still to do** ⚠️ |
+
+Remaining on the bucket:
 
 ```bash
-gcloud storage buckets create gs://ai-innov-procurement-docs \
-  --project=ai-innov-474401 \
-  --location=asia-southeast1 \
-  --default-storage-class=STANDARD \
-  --uniform-bucket-level-access \
-  --public-access-prevention
-
-gcloud storage buckets update gs://ai-innov-procurement-docs --versioning
+gcloud storage buckets update gs://ai-procurement --versioning
 ```
+
+Console equivalent: bucket → **Protection** tab → **Object versioning** → Edit → Enable.
 
 One bucket is enough for both environments — staging objects can go under a `staging/` prefix. A second bucket is also fine if you prefer.
 
@@ -87,33 +93,38 @@ gcloud services enable firestore.googleapis.com storage.googleapis.com \
   --project=ai-innov-474401
 ```
 
-### 3.4 IAM
+### 3.4 IAM — **BLOCKED, needs an admin**
 
-The Cloud Run services do **not** specify `--service-account`, so they run as the **default compute service account**:
+The Cloud Run services do **not** specify `--service-account`, so they run as the **default compute service account**. Project number confirmed as `623960795683`, so the account is:
 
 ```
-<PROJECT_NUMBER>-compute@developer.gserviceaccount.com
+623960795683-compute@developer.gserviceaccount.com
 ```
-
-Find the project number with `gcloud projects describe ai-innov-474401 --format='value(projectNumber)'`.
 
 Grant it:
 
 | Role | Scope | Why |
 |---|---|---|
-| `roles/datastore.user` | project | read/write procurement records and findings |
+| `roles/datastore.user` | project | read/write procurement records and findings — needed by the runtime service account **and** by `mark.porazo@dict.gov.ph` for development |
 | `roles/storage.objectAdmin` | **bucket only**, not project | upload, read and delete procurement PDFs |
 
 ```bash
-PROJECT_NUMBER=$(gcloud projects describe ai-innov-474401 --format='value(projectNumber)')
-SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+SA="623960795683-compute@developer.gserviceaccount.com"
 
 gcloud projects add-iam-policy-binding ai-innov-474401 \
   --member="serviceAccount:${SA}" --role="roles/datastore.user"
 
-gcloud storage buckets add-iam-policy-binding gs://ai-innov-procurement-docs \
+# Developer access, so the database can be verified and worked against locally.
+# mark.porazo@dict.gov.ph currently gets 403 Missing or insufficient permissions
+# on every database in this project.
+gcloud projects add-iam-policy-binding ai-innov-474401 \
+  --member="user:mark.porazo@dict.gov.ph" --role="roles/datastore.user"
+
+gcloud storage buckets add-iam-policy-binding gs://ai-procurement \
   --member="serviceAccount:${SA}" --role="roles/storage.objectAdmin"
 ```
+
+`mark.porazo@dict.gov.ph` lacks `storage.buckets.getIamPolicy` on the bucket, so this grant cannot be made or verified from the dev account — it needs someone with Storage Admin. **Until it is done, the application cannot read or write the bucket, and setting `GCS_BUCKET` on Cloud Run would break uploads rather than fix them.**
 
 If your policy forbids using the default compute service account, create a dedicated one (e.g. `procurement-ai-runtime@`) with the same two roles plus `roles/aiplatform.user` for Vertex AI, and we will add `--service-account` to the deploy workflows.
 
@@ -123,9 +134,43 @@ Set by us in the GitHub Actions workflows once the resources exist — listed he
 
 ```
 STORE_BACKEND=firestore
-GCS_BUCKET=ai-innov-procurement-docs
+FIRESTORE_DATABASE=ai-procurement-db
+GCS_BUCKET=ai-procurement
 FIRESTORE_PREFIX=staging_     # staging service only; empty on prod
 ```
+
+There is no code change involved. `STORE_BACKEND` selects the implementation at startup and the app seeds the Knowledge Hub itself on first boot.
+
+### 3.6 Firestore code — **verified against the emulator, 2026-09-25**
+
+The Firestore store had never actually been executed. It has now been run end to end against the Firestore emulator — the same code path Cloud Run will use, since the client library switches to the emulator purely on `FIRESTORE_EMULATOR_HOST`.
+
+`backend/scripts/check_store.py` exercises all 36 behaviours of the storage contract and passes identically on both backends:
+
+```bash
+# emulator — no credentials, no GCP resources
+gcloud emulators firestore start --host-port=127.0.0.1:8098
+cd backend
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8098 STORE_BACKEND=firestore \
+GOOGLE_CLOUD_PROJECT=demo-local python scripts/check_store.py
+
+# the real database, once it exists — writes under a throwaway collection
+# prefix and deletes everything it created, so it is safe to run against prod
+STORE_BACKEND=firestore GOOGLE_CLOUD_PROJECT=ai-innov-474401 \
+FIRESTORE_PREFIX=smoketest_ python scripts/check_store.py
+```
+
+**Please run the second command once after creating the database.** It is the confirmation that item 1 in §7 actually works, and it leaves no data behind.
+
+Three defects were found and fixed in the process:
+
+- Reference numbers were allocated by scanning the collection under a thread lock, which would have handed the same `PROC-2026-00N` to two Cloud Run instances. Now allocated through a transaction against a counter document at `{prefix}counters/{year}`. Verified: 12 concurrent creates produce 12 unique sequential references.
+- The Knowledge Hub would have come up **empty** on Firestore — nothing ever called the seeding routine. It now runs at application startup.
+- Queries used a deprecated positional filter form.
+
+This adds a fourth collection to those listed in §4.1:
+
+**`counters`** — one tiny document per year, holding the last reference number issued. No procurement data.
 
 ---
 
@@ -148,7 +193,7 @@ Volume is small: a few kilobytes per document, well inside the Firestore free ti
 ### 4.2 Cloud Storage — the uploaded PDFs
 
 Path: `procurements/{reference}/{filename}` — for example
-`gs://ai-innov-procurement-docs/procurements/PROC-2026-001/TOR.pdf`
+`gs://ai-procurement/procurements/PROC-2026-001/TOR.pdf`
 
 These are the actual procurement documents the committee uploads: Terms of Reference, technical specifications, market studies, purchase requests, BAC resolutions, supplier quotations, bidding documents. Capped at 25 MB per file in the application.
 
@@ -182,8 +227,8 @@ At pilot volume — tens of procurements, a few hundred documents — this sits 
 
 ## 7. What we need back from you
 
-1. Confirmation that Firestore was created in `asia-southeast1` in **Native mode**
-2. The **final bucket name**, if different from `ai-innov-procurement-docs`
+1. Confirmation that **`ai-procurement-db`** was created in `asia-southeast1` in **Native mode**, and its exact database id
+2. The **final bucket name**, if different from `ai-procurement`
 3. Confirmation the runtime service account has both roles — and its **email address**, if it is not the default compute account
 4. The applicable **retention period** for procurement records
 5. Whether you want staging on a **collection prefix** (our default) or a separate database and bucket

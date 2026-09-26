@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useState, useRef } from 'react';
-import { FileText, Upload } from 'lucide-react';
+import { FolderOpen, UploadCloud } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FileUploadProps {
@@ -61,15 +61,14 @@ export function FileUpload({ onFilesSelect, disabled }: FileUploadProps) {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={cn(
-        'relative border-2 border-dashed rounded-xl p-12 smooth-transition cursor-pointer',
-        'flex flex-col items-center justify-center gap-4',
-        isDragging
-          ? 'border-black bg-gray-50 scale-105'
-          : 'border-gray-300 hover:border-gray-500 hover:bg-gray-50',
-        disabled && 'opacity-50 cursor-not-allowed'
-      )}
       onClick={handleClick}
+      className={cn(
+        'relative flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-12 text-center transition-colors',
+        isDragging
+          ? 'border-brand bg-sky scale-[1.01]'
+          : 'border-line bg-sky/40 hover:border-brand/40 hover:bg-sky',
+        disabled && 'cursor-not-allowed opacity-50'
+      )}
     >
       <input
         ref={fileInputRef}
@@ -81,22 +80,30 @@ export function FileUpload({ onFilesSelect, disabled }: FileUploadProps) {
         multiple
       />
 
-      <div className={cn(
-        'rounded-full p-4 smooth-transition pointer-events-none',
-        isDragging ? 'bg-gray-200' : 'bg-gray-100'
-      )}>
-        {isDragging ? (
-          <Upload className="h-8 w-8 text-black" />
-        ) : (
-          <FileText className="h-8 w-8 text-gray-600" />
-        )}
+      <div className="grid h-14 w-14 place-items-center rounded-full bg-white pointer-events-none">
+        <UploadCloud className="h-6 w-6 text-brand" />
       </div>
 
-      <div className="text-center pointer-events-none">
-        <p className="text-sm font-medium text-black mb-1">
-          {isDragging ? 'Drop your Procurement PDF here' : 'Drop Procurement PDF here or click to browse'}
+      <div className="pointer-events-none">
+        <p className="text-[15px] font-semibold text-navy">
+          {isDragging ? 'Drop your PDF here' : 'Drag and drop a PDF file here'}
         </p>
+        <p className="mt-1 text-[13px] text-subtle">or click to browse</p>
       </div>
+
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={disabled}
+        className="pointer-events-none mt-1 flex items-center gap-2 rounded-md bg-brand px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-navy disabled:opacity-60"
+      >
+        <FolderOpen className="h-4 w-4" />
+        Browse Files
+      </button>
+
+      <p className="pointer-events-none mt-1 text-[12px] text-subtle">
+        Only PDF files are supported (max 50 MB)
+      </p>
     </div>
   );
 }

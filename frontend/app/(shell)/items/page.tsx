@@ -6,6 +6,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader, btnPrimary } from "@/components/shell/page-header";
+import { totalFindings } from "@/components/shell/status-pill";
 import { NewProcurementDialog } from "@/components/procurement-records/new-procurement-dialog";
 import { DeleteProcurementDialog } from "@/components/procurement-records/delete-procurement-dialog";
 import { createProcurement, listProcurements } from "@/lib/records-client";
@@ -18,7 +19,7 @@ const statusChip = (status: Procurement["status"]) =>
     ? "bg-green-50 text-green-700 border-green-200"
     : "bg-sky text-brand border-line";
 
-/** "ICT / Software · 4 documents · 14 findings (2 critical · 7 warnings)" */
+/** "ICT / Software · 4 documents · 14 findings (2 critical · 7 medium)" */
 function metaLine(item: Procurement) {
   const parts = [
     item.category || "Uncategorised",
@@ -26,10 +27,10 @@ function metaLine(item: Procurement) {
   ];
 
   if (item.review_status === "done") {
-    const { critical, warning } = item.finding_counts;
-    const total = critical + warning + item.finding_counts.compliant;
+    const { critical, medium } = item.finding_counts;
+    const total = totalFindings(item.finding_counts);
     parts.push(
-      `${total} finding${total === 1 ? "" : "s"} (${critical} critical · ${warning} warning${warning === 1 ? "" : "s"})`
+      `${total} finding${total === 1 ? "" : "s"} (${critical} critical · ${medium} medium)`
     );
   } else if (item.review_status === "processing") {
     parts.push("review in progress");
@@ -74,7 +75,7 @@ export default function AllItemsPage() {
   return (
     <div className="max-w-[1160px] px-7 py-6">
       <PageHeader
-        title="All Items"
+        title="Procurements"
         subtitle="Manage procurement records and review their documents using AI."
       >
         <button

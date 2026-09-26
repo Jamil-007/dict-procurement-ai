@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Modal, ModalFooter } from "@/components/shell/modal";
+import { totalFindings } from "@/components/shell/status-pill";
 import { deleteProcurement } from "@/lib/records-client";
 import type { Procurement } from "@/types/records";
 
@@ -21,10 +22,7 @@ export function DeleteProcurementDialog({
   if (!procurement) return null;
 
   const documentCount = procurement.documents.length;
-  const findingCount =
-    procurement.finding_counts.critical +
-    procurement.finding_counts.warning +
-    procurement.finding_counts.compliant;
+  const findingCount = totalFindings(procurement.finding_counts);
 
   async function handleDelete() {
     if (!procurement) return;

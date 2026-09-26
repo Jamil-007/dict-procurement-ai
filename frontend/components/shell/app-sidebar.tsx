@@ -7,8 +7,8 @@ import { LayoutList, Library, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/items", label: "All Items", icon: LayoutList },
-  { href: "/analyst", label: "Procurement Analyst", icon: MessageSquare },
+  { href: "/items", label: "Procurements", icon: LayoutList },
+  { href: "/analyst", label: "ProcAI", icon: MessageSquare },
   { href: "/hub", label: "Knowledge Hub", icon: Library },
 ];
 
@@ -25,13 +25,10 @@ export function AppSidebar() {
           height={28}
           className="rounded"
         />
-        <span>
-          <span className="block text-[15px] font-bold tracking-wide">
-            AI Analyst
-          </span>
-          <span className="block text-[12px] text-white/55 leading-tight mt-0.5">
-            DICT Procurement
-          </span>
+        <span className="block text-[13.5px] font-bold leading-tight tracking-wide">
+          Procurement
+          <br />
+          Intelligence Platform
         </span>
       </Link>
 
@@ -50,7 +47,7 @@ export function AppSidebar() {
                 "flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] transition-colors",
                 active
                   ? "bg-white/15 font-semibold text-white"
-                  : "text-white/70 hover:bg-white/10"
+                  : "text-white/70 hover:bg-white/10",
               )}
             >
               <Icon className="h-4 w-4" />

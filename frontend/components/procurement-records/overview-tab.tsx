@@ -10,10 +10,15 @@ import {
   SEVERITY_BAR,
   SEVERITY_KEYS,
   severityLabel,
+  totalFindings,
 } from "@/components/shell/status-pill";
 import { patchProcurement } from "@/lib/records-client";
 import { formatDate, formatPeso } from "@/lib/format";
-import { PROCUREMENT_MODES, type Procurement } from "@/types/records";
+import {
+  PROCUREMENT_MODES,
+  PROCUREMENT_TYPES,
+  type Procurement,
+} from "@/types/records";
 
 export function OverviewTab({
   procurement,
@@ -33,7 +38,7 @@ export function OverviewTab({
   const finalized = procurement.status === "finalized";
   const reviewed = procurement.review_status === "done";
   const counts = procurement.finding_counts;
-  const total = counts.critical + counts.warning + counts.compliant;
+  const total = totalFindings(counts);
 
   async function save() {
     setSaving(true);
@@ -63,7 +68,7 @@ export function OverviewTab({
     { label: "ABC", value: formatPeso(procurement.abc) },
     { label: "Procurement Mode", value: procurement.mode },
     { label: "Source of Fund", value: procurement.fund || "—" },
-    { label: "Procurement Category", value: procurement.category || "—" },
+    { label: "Procurement Type", value: procurement.category || "—" },
     { label: "End-User", value: procurement.end_user || "—" },
     { label: "Created", value: formatDate(procurement.created) },
     { label: "Last Updated", value: formatDate(procurement.updated) },
@@ -125,12 +130,16 @@ export function OverviewTab({
                   onChange={(e) => setForm({ ...form, fund: e.target.value })}
                 />
               </Field>
-              <Field label="Procurement Category">
-                <input
+              <Field label="Procurement Type">
+                <select
                   className={inputCls}
                   value={form.category}
                   onChange={(e) => setForm({ ...form, category: e.target.value })}
-                />
+                >
+                  {PROCUREMENT_TYPES.map((type) => (
+                    <option key={type}>{type}</option>
+                  ))}
+                </select>
               </Field>
             </div>
             <Field label="End-User">

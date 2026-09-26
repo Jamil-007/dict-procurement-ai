@@ -29,6 +29,18 @@ const config: Config = {
         critical: "#B42318",
         warning: "#B54708",
         compliant: "#067647",
+        // Finding severity. One value per level, used at full strength for the
+        // card's left bar and legend dot and at /10 and /20 for chip fills and
+        // borders, so the accent stays the same hue wherever a level appears.
+        // Every value clears 4.5:1 on white, which is why medium is a deep
+        // yellow rather than a bright one.
+        sev: {
+          critical: "#B42318",
+          medium: "#A16207",
+          low: "#1E5AA8",
+          info: "#64748B",
+          compliant: "#067647",
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

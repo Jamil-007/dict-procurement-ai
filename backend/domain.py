@@ -131,5 +131,6 @@ KNOWLEDGE_CATEGORIES = [
     "COA Issuances",
     "DICT Policies",
     "Standard Forms",
+    "Manuals",
     "Jurisprudence & Cases",
 ]

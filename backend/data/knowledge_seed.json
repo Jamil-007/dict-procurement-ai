@@ -1,152 +1,156 @@
 [
   {
-    "id": "ra-12009",
-    "title": "RA 12009",
-    "subtitle": "New Government Procurement Act",
-    "category": "Laws & Regulations",
-    "doc_type": "Republic Act",
-    "date": "2024-07-20",
-    "pages": 96,
-    "excerpt": "An act providing for the modernisation, standardisation and regulation of the procurement activities of the government, repealing Republic Act No. 9184."
-  },
-  {
     "id": "ra-12009-irr",
-    "title": "RA 12009 IRR",
-    "subtitle": "Implementing Rules and Regulations",
+    "title": "IRR of RA 12009",
+    "subtitle": "",
     "category": "Laws & Regulations",
     "doc_type": "IRR",
-    "date": "2025-02-28",
-    "pages": 214,
-    "excerpt": "Rules implementing the New Government Procurement Act, covering procurement planning, modalities, bidding procedures, and contract implementation."
+    "date": "",
+    "pages": 193,
+    "excerpt": "1 THE IMPLEMENTING RULES AND REGULATIONS OF REPUBLIC ACT NO. 12009 OR THE NEW GOVERNMENT PROCUREMENT ACT RULE I GENERAL PROVISIONS Section 1. Short Title and Purpose This Implementing Rules and Regulations, hereinafter called the IRR, is issued pursuant to Section 112 of Republic",
+    "gcs_path": "gs://ai-procurement/knowledge/ra-12009-irr.pdf"
   },
   {
-    "id": "ra-9184",
-    "title": "RA 9184",
-    "subtitle": "Government Procurement Reform Act (superseded)",
-    "category": "Laws & Regulations",
-    "doc_type": "Republic Act",
-    "date": "2003-01-10",
-    "pages": 64,
-    "excerpt": "Retained for reference in reviewing procurement commenced prior to the effectivity of RA 12009."
-  },
-  {
-    "id": "gppb-res-12-2025",
-    "title": "GPPB Resolution No. 12-2025",
-    "subtitle": "Guidelines on the determination of the ABC",
-    "category": "GPPB Issuances",
-    "doc_type": "Resolution",
-    "date": "2025-03-14",
-    "pages": 18,
-    "excerpt": "Prescribes the basis and supporting documentation for determining the approved budget for the contract for goods, infrastructure and consulting services."
-  },
-  {
-    "id": "gppb-circ-04-2025",
-    "title": "GPPB Circular No. 04-2025",
-    "subtitle": "Use of non-restrictive technical specifications",
+    "id": "gppb-circ-06-2026",
+    "title": "GPPB Circular No. 06-2026",
+    "subtitle": "",
     "category": "GPPB Issuances",
     "doc_type": "Circular",
-    "date": "2025-06-02",
-    "pages": 11,
-    "excerpt": "Reminds procuring entities to express requirements in performance terms and to avoid references to brand names without an equivalence clause."
+    "date": "",
+    "pages": 8,
+    "excerpt": "Annex “A” of GPPB Resolution No. 10-2026 dated 03 February 2026 Page 1 of 8 CIRCULAR NO. 06-2026 To : Heads of Departments, Bureaus, Offices, Agencies of the National Government; State Universities and Colleges; Government-Owned or -Controlled Corporations; Government Financial I",
+    "gcs_path": "gs://ai-procurement/knowledge/gppb-circ-06-2026.pdf"
   },
   {
-    "id": "gppb-res-07-2025",
-    "title": "GPPB Resolution No. 07-2025",
-    "subtitle": "Framework agreements for recurring ICT subscriptions",
+    "id": "gppb-res-12-2026",
+    "title": "GPPB Resolution No. 12-2026",
+    "subtitle": "",
     "category": "GPPB Issuances",
     "doc_type": "Resolution",
-    "date": "2025-05-09",
+    "date": "",
     "pages": 22,
-    "excerpt": "Guidance on the use of framework agreements for requirements that recur within a fiscal year."
+    "excerpt": "Annex “A” of GPPB Resolution No. 12-2026 dated 23 July 2026 Page 1 of 12 CIRCULAR NO. 07-2026 1.0 POLICY STATEMENT 1.1. Public Procurement shall, in all cases, be governed by the principle of proportionality, among others. This ensures that the conditions and parameters in the de",
+    "gcs_path": "gs://ai-procurement/knowledge/gppb-res-12-2026.pdf"
+  },
+  {
+    "id": "gppb-circ-bid-docs-fees",
+    "title": "GPPB Circular on Bidding Document Fees",
+    "subtitle": "",
+    "category": "GPPB Issuances",
+    "doc_type": "Circular",
+    "date": "",
+    "pages": 3,
+    "excerpt": "Annex “A” of GPPB Resolution No. 08-2026 dated 19 February 2026 Page 1 of 3 CIRCULAR NO. 02-2026 To : Heads of Departments, Bureaus, Offices, Agencies of the National Government; State Universities and Colleges; Government-Owned or -Controlled Corporations; Government Financial I",
+    "gcs_path": "gs://ai-procurement/knowledge/gppb-circ-bid-docs-fees.pdf"
+  },
+  {
+    "id": "gppb-res-08-2026",
+    "title": "GPPB Resolution No. 08-2026",
+    "subtitle": "",
+    "category": "GPPB Issuances",
+    "doc_type": "Resolution",
+    "date": "",
+    "pages": 16,
+    "excerpt": "GPPB Resolution No. 08-2026 dated 19 February 2026 Page 1 of 2 RESOLUTION NO. 08-2026 ADOPTING GUIDELINES ON COLLECTION OF BIDDING DOCUMENTS FEES, PROCUREMENT OF PRINTING SERVICES, TIE-BREAKING METHOD, AND LEGAL ASSISTANCE AND INDEMNIFICATION PACKAGE FOR BIDS AND AWARDS COMMITTEE",
+    "gcs_path": "gs://ai-procurement/knowledge/gppb-res-08-2026.pdf"
+  },
+  {
+    "id": "gppb-circ-01-2026",
+    "title": "GPPB Circular No. 01-2026",
+    "subtitle": "",
+    "category": "GPPB Issuances",
+    "doc_type": "Circular",
+    "date": "",
+    "pages": 12,
+    "excerpt": "Annex “A” of GPPB Resolution No. 04-2026, dated 15 January 2026 Page 1 of 12 CIRCULAR NO. 01-2026 To : Heads of Departments, Bureaus, Offices, Agencies of the National Government; State Universities and Colleges; Government-Owned or -Controlled Corporations; Government Financial ",
+    "gcs_path": "gs://ai-procurement/knowledge/gppb-circ-01-2026.pdf"
+  },
+  {
+    "id": "coa-circ-2009-001",
+    "title": "COA Circular No. 2009-001",
+    "subtitle": "",
+    "category": "COA Issuances",
+    "doc_type": "Circular",
+    "date": "",
+    "pages": 28,
+    "excerpt": "No. : 2009-001 Date: February 12, 2009 CIRCULAR T O : All Heads of Departments, Bureaus, Offices, Agencies and Instrumentalities of the National Government, Heads of Local Government Units, Managing Heads of Government-Owned and/or Controlled Corporations and their Subsidiaries, ",
+    "gcs_path": "gs://ai-procurement/knowledge/coa-circ-2009-001.pdf"
   },
   {
     "id": "coa-circ-2023-004",
     "title": "COA Circular No. 2023-004",
-    "subtitle": "Documentary requirements for common government transactions",
+    "subtitle": "",
     "category": "COA Issuances",
     "doc_type": "Circular",
-    "date": "2023-08-17",
-    "pages": 78,
-    "excerpt": "Enumerates the documents required to support disbursements, including procurement of goods and services."
-  },
-  {
-    "id": "coa-circ-2024-002",
-    "title": "COA Circular No. 2024-002",
-    "subtitle": "Audit of ICT subscription and cloud service contracts",
-    "category": "COA Issuances",
-    "doc_type": "Circular",
-    "date": "2024-04-05",
-    "pages": 26,
-    "excerpt": "Audit guidance on recurring subscription contracts, including acceptance and continuity of service documentation."
-  },
-  {
-    "id": "dict-procurement-manual",
-    "title": "DICT Procurement Manual",
-    "subtitle": "Department procurement procedures, 2026 edition",
-    "category": "DICT Policies",
-    "doc_type": "Manual",
-    "date": "2026-01-15",
-    "pages": 148,
-    "excerpt": "Internal procedures covering procurement planning, BAC operations, document routing and review responsibilities within the Department."
-  },
-  {
-    "id": "dict-mc-03-2026",
-    "title": "DICT Memorandum Circular No. 03-2026",
-    "subtitle": "Review of ICT technical specifications",
-    "category": "DICT Policies",
-    "doc_type": "Memorandum",
-    "date": "2026-02-20",
-    "pages": 9,
-    "excerpt": "Requires technical specifications for ICT procurement to be reviewed for openness and interoperability prior to endorsement to the BAC."
-  },
-  {
-    "id": "gppb-standard-forms-goods",
-    "title": "GPPB Standard Procurement Forms",
-    "subtitle": "Goods — Philippine Bidding Documents, 7th edition",
-    "category": "Standard Forms",
-    "doc_type": "Form set",
-    "date": "2025-01-08",
-    "pages": 180,
-    "excerpt": "Standard bidding documents for the procurement of goods, including the invitation to bid, instructions to bidders and contract forms."
-  },
-  {
-    "id": "bac-resolution-template",
-    "title": "BAC Resolution Template",
-    "subtitle": "Standard format for BAC resolutions",
-    "category": "Standard Forms",
-    "doc_type": "Template",
-    "date": "2025-01-08",
-    "pages": 4,
-    "excerpt": "Prescribed format for resolutions recommending award, declaring failure of bidding, or adopting alternative modes of procurement."
-  },
-  {
-    "id": "post-qualification-checklist",
-    "title": "Post-Qualification Checklist",
-    "subtitle": "Goods and services",
-    "category": "Standard Forms",
-    "doc_type": "Checklist",
-    "date": "2025-03-03",
-    "pages": 6,
-    "excerpt": "Checklist of legal, technical and financial documents examined during post-qualification."
-  },
-  {
-    "id": "coa-decision-2024-118",
-    "title": "COA Decision No. 2024-118",
-    "subtitle": "Disallowance — unsupported variation in contract price",
-    "category": "Jurisprudence & Cases",
-    "doc_type": "Decision",
-    "date": "2024-09-12",
-    "pages": 15,
-    "excerpt": "Discusses the documentation required where the amount paid differs from the contract price stated in the signed agreement."
-  },
-  {
-    "id": "sc-gr-245678",
-    "title": "Supreme Court G.R. No. 245678",
-    "subtitle": "On restrictive technical specifications",
-    "category": "Jurisprudence & Cases",
-    "doc_type": "Decision",
-    "date": "2022-11-23",
+    "date": "",
     "pages": 32,
-    "excerpt": "Holds that specifications tailored to a single product without justification defeat the purpose of competitive bidding."
+    "excerpt": "CIRCULAR REPUBLIC OF THE PHILIPPINES COMMISSION ON AUDIT COMMONWEALTH AVENUE, QUEZON CITY No. Date 'JUN 1 4 2023 TO SUBJECT All Heads of the National Government Agencies (NGAs) including State Universities and Colleges (SUCs); Heads of Government Corporations (GCs) classified as ",
+    "gcs_path": "gs://ai-procurement/knowledge/coa-circ-2023-004.pdf"
+  },
+  {
+    "id": "gppb-res-17-2026",
+    "title": "GPPB Resolution No. 17-2026",
+    "subtitle": "",
+    "category": "GPPB Issuances",
+    "doc_type": "Resolution",
+    "date": "",
+    "pages": 38,
+    "excerpt": "GPPB Resolution No. 17-2026 dated 14 August 2026 Page 1 of 10 RESOLUTION NO. 17-2026 APPROVING THE GUIDELINES ON THE PROCUREMENT FOR DISASTER PREPAREDNESS, ANTICIPATORY MEASURES, AND DISASTER-RELATED MITIGATION RESPONSE, RELIEF, RECOVERY, REHABILITATION, RECONSTRUCTION AND OTHER ",
+    "gcs_path": "gs://ai-procurement/knowledge/gppb-res-17-2026.pdf"
+  },
+  {
+    "id": "ngpa-market-scoping-form",
+    "title": "NGPA Market Scoping Form",
+    "subtitle": "",
+    "category": "Standard Forms",
+    "doc_type": "Form",
+    "date": "",
+    "pages": 3,
+    "excerpt": "Agency Letterhead with Logo MARKET SCOPING CHECKLIST 1. AGENCY INFORMATION Name of Procuring Entity End-User/Implementing Unit Name & Designation of Representative 2. PROJECT OVERVIEW Project Name Estimated Budget Period of Market Scoping [From (mm/yyyy) To (mm/yyyy)] Expected Da",
+    "gcs_path": "gs://ai-procurement/knowledge/ngpa-market-scoping-form.pdf"
+  },
+  {
+    "id": "manual-vol-1",
+    "title": "Procurement Manual Volume 1 — Procurement Systems and Organizations",
+    "subtitle": "",
+    "category": "Manuals",
+    "doc_type": "Manual",
+    "date": "",
+    "pages": 120,
+    "excerpt": "VOLUME 1 Guidelines on the Establishment of Procurement Systems and Organizations 2 Guidelines on Establishing Procurement Systems and Organizations",
+    "gcs_path": "gs://ai-procurement/knowledge/manual-vol-1.pdf"
+  },
+  {
+    "id": "manual-vol-2",
+    "title": "Procurement Manual Volume 2 — Procurement of Goods and Services",
+    "subtitle": "",
+    "category": "Manuals",
+    "doc_type": "Manual",
+    "date": "",
+    "pages": 152,
+    "excerpt": "VOLUME 2 Manual of Procedures for the Procurement of Goods",
+    "gcs_path": "gs://ai-procurement/knowledge/manual-vol-2.pdf"
+  },
+  {
+    "id": "manual-vol-3",
+    "title": "Procurement Manual Volume 3 — Procurement of Infrastructure Projects",
+    "subtitle": "",
+    "category": "Manuals",
+    "doc_type": "Manual",
+    "date": "",
+    "pages": 121,
+    "excerpt": "VOLUME 3 Manual of Procedures for the Procurement of Infrastructure Projects",
+    "gcs_path": "gs://ai-procurement/knowledge/manual-vol-3.pdf"
+  },
+  {
+    "id": "manual-vol-4",
+    "title": "Procurement Manual Volume 4 — Procurement of Consulting Services",
+    "subtitle": "",
+    "category": "Manuals",
+    "doc_type": "Manual",
+    "date": "",
+    "pages": 123,
+    "excerpt": "VOLUME 4 Manual of Procedures for the Procurement of Consulting Services",
+    "gcs_path": "gs://ai-procurement/knowledge/manual-vol-4.pdf"
   }
 ]

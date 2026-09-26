@@ -112,6 +112,24 @@ the issue would be if true. A critical finding may be held at low confidence.
 Set it on every finding that involves a figure, a price or a comparison.
 """
 
+# Paste this right after a dimension's "PROCUREMENT RECORD" block. Title, ABC,
+# mode, fund and end-user there are what the BAC typed into the case when it
+# was created — often before every document was even attached — not something
+# verified against the documents. A dimension that treats it as ground truth
+# inherits every typo and every field left at its default, and judges real
+# documents against a number nobody checked. The documents are the evidence;
+# the record is a label for the case.
+RECORD_IS_NOT_EVIDENCE = """
+The PROCUREMENT RECORD above is what the BAC typed in when the case was
+created. Treat it as a label for the case, not as a verified fact, and never
+use it to override what a document states. Determine every fact you report
+on — budget, quantities, mode, dates, specifications — from the documents
+themselves. Where a document disagrees with the record, that disagreement may
+be worth a finding, but only if it also falls inside what this dimension
+covers; do not let the record's figure change your assessment of what the
+documents show.
+"""
+
 # Paste this in ADDITION to the two blocks above, and only in a dimension that
 # actually retrieves web pages. Kept separate deliberately: telling a dimension
 # that never searches that it may cite URLs is an open invitation to invent them.
@@ -151,6 +169,12 @@ def extract_json(content: str) -> Any:
     """
     Pull JSON out of a model response, tolerating markdown fences and prose
     either side of it. Raises ValueError if nothing parses.
+
+    Logs the raw reply before raising — this is the only place that ever sees
+    it. Without that, a failure here shows up as a bare "No JSON found in
+    response" with the actual model output gone, and there is no way to tell
+    a safety refusal from an auth error surfaced as text from a model that
+    genuinely answered in prose.
     """
     if not content or not content.strip():
         raise ValueError("Empty response")
@@ -176,6 +200,7 @@ def extract_json(content: str) -> Any:
             except json.JSONDecodeError:
                 continue
 
+    logger.warning("No JSON in model response, first 2000 chars:\n%s", content[:2000])
     raise ValueError("No JSON found in response")
 
 

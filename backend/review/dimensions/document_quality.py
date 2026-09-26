@@ -25,6 +25,7 @@ from review.llm import analyze_with_summary
 from review.parsing import (
     CONFIDENCE_CONTRACT,
     FINDING_JSON_CONTRACT,
+    RECORD_IS_NOT_EVIDENCE,
     SUMMARY_CONTRACT,
 )
 from review.registry import register
@@ -58,7 +59,7 @@ Your single question, asked separately of each document below, is:
 PROCUREMENT RECORD
 Title: {title}
 Reference: {ref}
-
+{record_caveat}
 SIX DIMENSIONS OF QUALITY
 Completeness — are the expected sections, fields, tables and information there?
 Clarity — can the intended reader tell what is being stated or required?
@@ -182,6 +183,7 @@ def run(ctx: ReviewContext) -> DimensionOutput:
         ra_12009_directive=RA_12009_DIRECTIVE,
         title=ctx.meta.get("title", ""),
         ref=ctx.procurement_ref,
+        record_caveat=RECORD_IS_NOT_EVIDENCE,
         json_contract=FINDING_JSON_CONTRACT,
         confidence_contract=CONFIDENCE_CONTRACT,
         summary_contract=SUMMARY_CONTRACT,

@@ -60,12 +60,18 @@ Worked example. A 5-year on-site warranty is specified:
 - *Document Quality:* whether "on-site" is defined anywhere.
 - *Compliance:* whether the warranty requirement is permitted to be set this way.
 
-## 3. The ABC comes from the record, not the documents
+## 3. The ABC comes from the documents, not the record
 
-Use `ctx.meta["abc"]`. That is the figure on the procurement record and it is
-authoritative. Do not extract an ABC from the documents and reason about it —
-if a document states a different figure, that is a cross-document
-inconsistency and belongs to another dimension.
+`ctx.meta["abc"]` is what the BAC typed into the case when it was created —
+not a verified figure, and not what this dimension reasons about. Establish
+the actual ABC from the documents on file (PPMP, Purchase Request, Detailed
+Cost Breakdown) and judge the market evidence against that. If a document
+disagrees with `ctx.meta["abc"]`, or documents disagree with each other, that
+is a cross-document inconsistency and belongs to Document Consistency — this
+dimension still needs a number to reason about, so use whichever figure the
+documents themselves support. `RECORD_IS_NOT_EVIDENCE` in `review/parsing.py`
+carries this instruction into the prompt; every dimension that shows the model
+`ctx.meta` pastes it in.
 
 ## 4. Documents read
 

@@ -10,18 +10,18 @@ import { OverviewTab } from "@/components/procurement-records/overview-tab";
 import { DocumentsTab } from "@/components/procurement-records/documents-tab";
 import { AiReviewTab } from "@/components/procurement-records/ai-review-tab";
 import { FinalReportTab } from "@/components/procurement-records/final-report-tab";
-import { FormsTab } from "@/components/procurement-records/forms-tab";
 import { getProcurement } from "@/lib/records-client";
 import { formatPeso } from "@/lib/format";
 import type { Procurement } from "@/types/records";
 import { cn } from "@/lib/utils";
 
+// "Form Generator" is hidden for now — see README's "Hidden for now" note.
+// The tab and its component (forms-tab.tsx) are untouched, just unreachable.
 const TABS = [
   "Overview",
   "Documents",
   "AI Review",
   "Final Report",
-  "Form Generator",
 ] as const;
 export type WorkspaceTab = (typeof TABS)[number];
 
@@ -146,7 +146,6 @@ export default function WorkspacePage() {
             onGoToReview={() => setTab("AI Review")}
           />
         )}
-        {tab === "Form Generator" && <FormsTab procurement={procurement} />}
       </div>
     </div>
   );

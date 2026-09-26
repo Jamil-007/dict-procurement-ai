@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     # Storage Configuration
     UPLOAD_DIR: str = "./uploads"
 
+    # Path to the tesseract binary, for OCR on scanned PDFs (no embedded text
+    # layer). Empty means "on PATH", which is true in the Docker image but
+    # rarely true on Windows — set this to the .exe path after installing
+    # Tesseract locally.
+    TESSERACT_CMD: str = ""
+
     # State Persistence (LangGraph checkpointer — currently MemorySaver only;
     # the sqlite/postgres options are not implemented)
     STATE_STORAGE: Literal["memory", "sqlite", "postgres"] = "memory"

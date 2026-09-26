@@ -57,7 +57,7 @@ export function InputArea({
       <div className="max-w-3xl mx-auto">
         <form onSubmit={handleSubmit} className="relative">
           {/* Input Area */}
-          <div className="flex items-center gap-2 bg-white rounded-full border-2 border-gray-300 hover:border-gray-400 focus-within:border-black smooth-transition p-3 px-4">
+          <div className="flex items-center gap-2 bg-white rounded-full border-2 border-line hover:border-brand/50 focus-within:border-brand smooth-transition p-3 px-4">
             {fileOnly && (
               <>
                 <Button
@@ -125,7 +125,7 @@ export function InputArea({
               type="submit"
               size="icon"
               disabled={disabled || (!message.trim() && selectedFiles.length === 0)}
-              className="shrink-0 rounded-full bg-black hover:bg-gray-800 smooth-transition"
+              className="shrink-0 rounded-full bg-navy hover:bg-brand smooth-transition"
             >
               <ArrowUp className="h-5 w-5" />
             </Button>

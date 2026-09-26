@@ -30,6 +30,7 @@ from review.parsing import (
     CONFIDENCE_CONTRACT,
     EXTERNAL_EVIDENCE_CONTRACT,
     FINDING_JSON_CONTRACT,
+    RECORD_IS_NOT_EVIDENCE,
     extract_json,
     strip_unretrieved_sources,
 )
@@ -103,16 +104,20 @@ Title: {title}
 Approved Budget for the Contract: {abc}
 Mode: {mode}
 Category: {category}
-
-The ABC above is the figure on the procurement record and is authoritative.
-Do not substitute an ABC extracted from the documents. If a document states a
-different figure, that is a cross-document inconsistency and another reviewer
-covers it.
+{record_caveat}
+The figure above is what was typed into the case, not a verified budget.
+Establish the actual ABC from the documents on file — the PPMP, the Purchase
+Request, the Detailed Cost Breakdown — and judge the market evidence against
+that documented figure, not the one above. If the documents disagree with each
+other, or with the figure above, that disagreement is a cross-document
+inconsistency and another reviewer covers it — use whichever figure the
+documents themselves support for your own assessment below.
 
 ASSESS THESE SIX AREAS
-1. Project cost estimate — is the ABC supported by the market evidence on file?
-   Is there a traceable basis for it? Are the supplier quotations numerous and
-   varied enough to establish a market price, or too few and too alike?
+1. Project cost estimate — is the documented ABC supported by the market
+   evidence on file? Is there a traceable basis for it? Are the supplier
+   quotations numerous and varied enough to establish a market price, or too
+   few and too alike?
 2. Design and specifications — is the specification open enough to attract more
    than one offer? Name the parameters that narrow the field.
 3. Technical criteria — are eligibility and technical requirements proportionate
@@ -285,6 +290,7 @@ def run(ctx: ReviewContext) -> List[ReviewFinding]:
         abc=_peso(ctx.meta.get("abc")),
         mode=ctx.meta.get("mode", "") or "not stated",
         category=ctx.meta.get("category", "") or "not stated",
+        record_caveat=RECORD_IS_NOT_EVIDENCE,
         provisions=retrieval.render(),
         provisions_note=(
             f"\nNote: {retrieval.note}\n" if retrieval.note else ""

@@ -28,6 +28,7 @@ from review.llm import analyze_with_summary
 from review.parsing import (
     CONFIDENCE_CONTRACT,
     FINDING_JSON_CONTRACT,
+    RECORD_IS_NOT_EVIDENCE,
     SUMMARY_CONTRACT,
 )
 from review.registry import register
@@ -63,7 +64,7 @@ Title: {title}
 Approved Budget for the Contract: {abc}
 Category: {category}
 Reference: {ref}
-
+{record_caveat}
 HOW TO REASON
 Work forward, in this order:
   What is this procurement actually for?
@@ -234,6 +235,7 @@ def run(ctx: ReviewContext) -> DimensionOutput:
         abc=_peso(ctx.meta.get("abc")),
         category=ctx.meta.get("category", "") or "not stated",
         ref=ctx.procurement_ref,
+        record_caveat=RECORD_IS_NOT_EVIDENCE,
         json_contract=FINDING_JSON_CONTRACT,
         confidence_contract=CONFIDENCE_CONTRACT,
         summary_contract=SUMMARY_CONTRACT,

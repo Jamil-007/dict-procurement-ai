@@ -26,7 +26,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "AI Analyst — DICT",
+  title: "Procurement Intelligence Platform",
   description: "Procurement document review for the Bids and Awards Committee",
   icons: {
     icon: [{ url: "/dict-logo.png" }],

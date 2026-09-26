@@ -16,6 +16,12 @@ decides. Every finding is phrased so a human makes the call.
 > root is the long-form technical document — read it before changing a screen or
 > writing a dimension. `docs/` holds the per-dimension briefs.
 
+> **Hidden for now:** the **Form Generator** workspace tab. The component
+> (`frontend/components/procurement-records/forms-tab.tsx`) and its route are
+> untouched — the tab is just removed from `TABS` in
+> `frontend/app/(shell)/items/[ref]/page.tsx`, so it is unreachable rather than
+> deleted. Re-add the string to `TABS` and its render branch to bring it back.
+
 ---
 
 ## Contents
@@ -62,6 +68,20 @@ cannot call a model.
 `--reload` watches the source but **not** `.env`. Change a setting and you must
 restart the process; a stale worker is the usual reason an edit appears to have
 had no effect.
+
+**OCR needs Tesseract installed separately — `pip install` alone is not enough.**
+`store/files.py`'s `extract_text()` falls back to OCR for any page with no
+embedded text layer (a scan, or a print-to-PDF export that never wrote real
+text), but `pytesseract` only calls out to a `tesseract` binary — it does not
+ship one. On Windows, install it from the
+[UB-Mannheim build](https://github.com/UB-Mannheim/tesseract/wiki) and either
+put it on `PATH` or set `TESSERACT_CMD` in `.env` to the installed
+`tesseract.exe` path; on macOS/Linux, `brew install tesseract` or
+`apt install tesseract-ocr` puts it on `PATH` directly. The Cloud Run image
+installs it via `apt-get` in the `Dockerfile`, so production needs nothing
+extra. Without it, a scanned document's pages come back as empty text and a
+dimension has nothing to review — this fails soft (empty text, not a crash),
+so the symptom is a dimension reporting "no discernible content," not an error.
 
 ### Frontend
 
@@ -165,6 +185,17 @@ obvious:
 - A missing requirement is only Compliance when a retrieved provision requires
   it. Otherwise it is a requirement gap, not a rule breach.
 
+**The procurement record (title, ABC, mode, fund, category) is not evidence.**
+It is what the BAC typed into the case when it was created, often before every
+document was attached, and no dimension is allowed to treat it as ground truth
+or judge a document against it. Every fact a dimension reports — including the
+ABC that Procurement & Market reasons about — is established from the
+documents themselves; the record is shown to the model only for orientation,
+and a mismatch between it and the documents is Document Consistency's finding
+to make, not a reason for another dimension to prefer the record's number.
+`RECORD_IS_NOT_EVIDENCE` in `review/parsing.py` is the shared instruction that
+enforces this — every dimension that shows the model `ctx.meta` pastes it in.
+
 Three are worth reading before the others:
 
 - **`document_quality`** is the shape everything else follows: build a prompt,
@@ -265,6 +296,48 @@ python scripts/build_knowledge_index.py --no-embeddings   # chunks only, for tes
 The source PDFs are **not** in the repo (`Reference/` is gitignored) — they live in
 the bucket under `knowledge/`. `data/knowledge_sources.json` lists what belongs
 there. Commit the rebuilt index files.
+
+### The Knowledge Hub is a separate thing from this index
+
+The frontend's Knowledge Hub — the browsable, downloadable list at `/hub` — is
+**not** this index. It reads `data/knowledge_seed.json`, a different manifest,
+and a document's Download button only works once its entry has a `gcs_path`
+pointing at a real object in the bucket. Adding a doc_id to
+`knowledge_sources.json` makes the RAG index pick it up; it does nothing for
+the Hub, and the two manifests drifting apart is exactly how the Hub ended up
+seeded with fifteen fabricated placeholder entries — invented page counts, a
+fictional Supreme Court citation, even RA 9184 — that never matched a real
+file and could never be downloaded.
+
+**Adding a reference**, so both stay in sync:
+
+```bash
+cd backend
+
+# 1. Drop the PDF in ../Reference, named after its id: gppb-res-99-2026.pdf
+
+# 2. Add one entry to data/knowledge_sources.json:
+#    { "doc_id": "gppb-res-99-2026", "filename": "gppb-res-99-2026.pdf",
+#      "title": "GPPB Resolution No. 99-2026", "category": "GPPB Issuances" }
+
+# 3. Parse it into the RAG index
+python scripts/build_knowledge_index.py --source ../Reference
+
+# 4. Add it to the Hub's list (only adds — never touches an existing entry)
+python scripts/sync_knowledge_seed.py --source ../Reference
+
+# 5. Get it into the bucket and link gcs_path, committing the result so
+#    Download works for every developer who pulls the branch, not just you
+python scripts/upload_knowledge.py ../Reference --write-seed
+```
+
+Step 5 assumes you have bucket write access and want the script to upload for
+you. If you uploaded the PDFs some other way (console, `gsutil`), use
+`--link-only` instead of the folder argument — it checks what's already in the
+bucket rather than uploading. `--write-seed` is what makes the result durable:
+without it, `gcs_path` only lands in whatever store this process happens to be
+pointed at, which for `STORE_BACKEND=memory` is gone the moment the process
+restarts.
 
 ---
 

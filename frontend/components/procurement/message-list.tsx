@@ -197,7 +197,7 @@ export function MessageList({ messages, chatMessages = [], children, isChatLoadi
           className={cn(
             'rounded-3xl px-4 py-2 smooth-transition overflow-hidden',
             message.type === 'user'
-              ? 'bg-black text-white'
+              ? 'bg-navy text-white'
               : 'bg-gray-100 text-black'
           )}
         >

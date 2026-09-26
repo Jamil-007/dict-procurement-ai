@@ -27,6 +27,7 @@ from review.llm import analyze_with_summary
 from review.parsing import (
     CONFIDENCE_CONTRACT,
     FINDING_JSON_CONTRACT,
+    RECORD_IS_NOT_EVIDENCE,
     SUMMARY_CONTRACT,
 )
 from review.policy import POLICY_CONTRACT, ground_policy_basis, provisions_for_queries
@@ -76,7 +77,7 @@ Approved Budget for the Contract: {abc}
 Mode: {mode}
 Category: {category}
 Reference: {ref}
-
+{record_caveat}
 DOCUMENTS ATTACHED TO THIS PROCUREMENT
 {manifest}
 
@@ -244,6 +245,7 @@ def run(ctx: ReviewContext) -> DimensionOutput:
         mode=ctx.meta.get("mode", "") or "not stated",
         category=ctx.meta.get("category", "") or "not stated",
         ref=ctx.procurement_ref,
+        record_caveat=RECORD_IS_NOT_EVIDENCE,
         manifest=manifest(ctx),
         provisions=retrieval.render(),
         provisions_note=f"\nNote: {retrieval.note}\n" if retrieval.note else "",

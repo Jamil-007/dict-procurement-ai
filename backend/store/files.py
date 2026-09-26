@@ -33,9 +33,42 @@ def count_pages(data: bytes) -> int:
         return 0
 
 
+def _ocr_page(page, dpi: int = 300) -> str:
+    """
+    Render a page to an image and read it with Tesseract.
+
+    The fallback for a page with no embedded text layer — a scan, or a
+    print-to-PDF export that never wrote real text. get_text() returns ""
+    for those, silently, so a whole document can go through the review as if
+    it were blank unless something else looks at the pixels.
+    """
+    try:
+        import pytesseract
+        from PIL import Image
+    except ImportError:
+        logger.warning("OCR skipped: pytesseract/Pillow not installed")
+        return ""
+
+    if settings.TESSERACT_CMD:
+        pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_CMD
+
+    try:
+        pixmap = page.get_pixmap(dpi=dpi)
+        image = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
+        return pytesseract.image_to_string(image)
+    except Exception:  # noqa: BLE001 - a bad scan must not fail the whole document
+        logger.warning("OCR failed on a page", exc_info=True)
+        return ""
+
+
 def extract_text(data: bytes, max_pages: int = 0, markers: bool = True) -> str:
     """
     Text of a PDF, empty string if it cannot be read.
+
+    Falls back to OCR on any page whose text layer is blank. A scanned
+    procurement document has no text for PyMuPDF to read at all — without
+    this, every page comes back empty and a dimension has nothing to work
+    with even though the document plainly has content.
 
     `markers` inserts a [page N] line before each page so a finding can cite a
     page instead of guessing at one — the review needs this. Pass max_pages to
@@ -50,6 +83,8 @@ def extract_text(data: bytes, max_pages: int = 0, markers: bool = True) -> str:
                 if max_pages and number > max_pages:
                     break
                 text = page.get_text()
+                if not text.strip():
+                    text = _ocr_page(page)
                 pages.append(f"[page {number}]\n{text}" if markers else text)
             return "\n".join(pages)
     except Exception:  # noqa: BLE001 - an unreadable file is handled by callers

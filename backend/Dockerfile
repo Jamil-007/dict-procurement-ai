@@ -5,9 +5,12 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install system dependencies
+# tesseract-ocr backs the OCR fallback in store/files.py, for PDFs that have
+# no embedded text layer (scans, print-to-PDF exports).
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
+    tesseract-ocr \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching

@@ -4,7 +4,7 @@ from typing import Callable
 from pydantic import BaseModel
 
 from forms.schemas import PPMPData, MarketScopingData, APPData, ContractData
-from forms.fillers.docx_filler import render_docx
+from forms.fillers.docx_filler import render_docx, fill_market, GROUP_A_DISCLAIMER
 from forms.fillers.xlsx_filler import fill_ppmp, fill_app
 from forms.classifier import DOC_FORM_MAP
 
@@ -40,10 +40,10 @@ def _build_app_context(data: APPData) -> dict:
 
 # Wrapper for docx Group A forms
 def _docx_filler_market(template_path: Path, data: MarketScopingData) -> bytes:
-    return render_docx(template_path, _build_market_context(data))
+    return fill_market(template_path, data)
 
 def _docx_filler_contract(template_path: Path, data: ContractData) -> bytes:
-    return render_docx(template_path, _build_contract_context(data))
+    return render_docx(template_path, _build_contract_context(data), disclaimer=GROUP_A_DISCLAIMER)
 
 # Wrapper for Group B docx forms
 def _docx_filler_group_b(template_path: Path, context: dict) -> bytes:

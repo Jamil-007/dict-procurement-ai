@@ -78,3 +78,52 @@ def test_generate_market_malformed_override_no_500(monkeypatch, tmp_path):
         tid, ["market"], overrides={"market": {"activity_flags": "[object Object]"}}
     )
     assert len(out) == 1 and out[0][1][:2] == b"PK"
+
+
+def test_detect_per_file_documents(monkeypatch):
+    # Each uploaded PDF is classified separately; documents[] has one entry per file.
+    docs = [
+        {"filename": "TOR.pdf", "text": "terms of reference body"},
+        {"filename": "Market.pdf", "text": "market study body"},
+    ]
+    monkeypatch.setattr("forms.service.get_source_documents", lambda tid: docs)
+
+    def fake_classify(text):
+        if "terms of reference" in text:
+            return ["Terms of Reference"]
+        if "market study" in text:
+            return ["Market Study"]
+        return ["Other"]
+
+    monkeypatch.setattr("forms.service.classify_documents", fake_classify)
+
+    out = service.detect("any-thread")
+
+    assert "documents" in out
+    assert out["documents"] == [
+        {"filename": "TOR.pdf", "doc_types": ["Terms of Reference"]},
+        {"filename": "Market.pdf", "doc_types": ["Market Study"]},
+    ]
+    # doc_types is the ordered union across files (backward compatible key).
+    assert out["doc_types"] == ["Terms of Reference", "Market Study"]
+    assert "forms" in out and out["forms"]["ppmp"]["recommended"] is True
+
+
+def test_detect_empty_session(monkeypatch):
+    monkeypatch.setattr("forms.service.get_source_documents", lambda tid: [])
+    out = service.detect("any-thread")
+    assert out["documents"] == []
+    assert out["doc_types"] == []
+    assert "forms" in out
+
+
+def test_detect_blank_text_file_has_no_types(monkeypatch):
+    docs = [{"filename": "blank.pdf", "text": "   "}]
+    monkeypatch.setattr("forms.service.get_source_documents", lambda tid: docs)
+    monkeypatch.setattr(
+        "forms.service.classify_documents",
+        lambda text: (_ for _ in ()).throw(AssertionError("should not classify blank")),
+    )
+    out = service.detect("any-thread")
+    assert out["documents"] == [{"filename": "blank.pdf", "doc_types": []}]
+    assert out["doc_types"] == []

@@ -2,7 +2,11 @@ import logging
 
 from pydantic import ValidationError
 
-from forms.text_source import get_source_text, has_source_documents
+from forms.text_source import (
+    get_source_text,
+    has_source_documents,
+    get_source_documents,
+)
 from forms.classifier import classify_documents, recommendations
 from forms.extractor import extract_fields, extract_header, HEADER_KEYS
 from forms.registry import FORM_REGISTRY, GROUP_B_DISCLAIMER
@@ -17,18 +21,34 @@ class FormGenerationError(Exception):
 
 def detect(thread_id: str) -> dict:
     """
-    Detect document types and return form recommendations.
+    Detect document types per uploaded file and return form recommendations.
+
+    Classifies EACH file separately (more accurate than concatenated text) and
+    returns a per-file breakdown alongside the backward-compatible ``doc_types``
+    (ordered union across all files) and ``forms`` keys.
 
     Returns:
-        {doc_types: [...], forms: {key: {available, recommended, reason}}}
+        {
+          documents: [{filename, doc_types: [...]}],
+          doc_types: [...],           # ordered union across all files
+          forms: {key: {available, recommended, reason}},
+        }
     """
-    text = get_source_text(thread_id)
-    doc_types = classify_documents(text) if text.strip() else []
-    form_recs = recommendations(doc_types)
+    docs = get_source_documents(thread_id)
+
+    documents = []
+    all_types: list[str] = []
+    for doc in docs:
+        types = classify_documents(doc["text"]) if doc["text"].strip() else []
+        documents.append({"filename": doc["filename"], "doc_types": types})
+        for t in types:
+            if t not in all_types:
+                all_types.append(t)
 
     return {
-        "doc_types": doc_types,
-        "forms": form_recs,
+        "documents": documents,
+        "doc_types": all_types,
+        "forms": recommendations(all_types),
     }
 
 

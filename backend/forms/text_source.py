@@ -21,3 +21,20 @@ def get_source_text(thread_id: str) -> str:
         except Exception:
             continue
     return "\n\n".join(parts)
+
+def get_source_documents(thread_id: str) -> list[dict]:
+    """Return per-file extracted text for each PDF in the thread directory.
+
+    Same sorted order as ``_pdfs``. On extract error, ``text`` is "".
+
+    Returns:
+        [{"filename": <saved pdf name>, "text": <extracted text>}]
+    """
+    docs = []
+    for p in _pdfs(thread_id):
+        try:
+            text = extract_text_from_pdf(p)
+        except Exception:
+            text = ""
+        docs.append({"filename": p.name, "text": text})
+    return docs

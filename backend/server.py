@@ -585,6 +585,8 @@ async def forms_upload(files: Optional[List[UploadFile]] = File(None)):
             raise HTTPException(status_code=400, detail="Invalid file content type")
 
     try:
+        from pathlib import Path
+
         thread_id = generate_thread_id()
         if files:
             file_payloads = []
@@ -592,11 +594,17 @@ async def forms_upload(files: Optional[List[UploadFile]] = File(None)):
                 file_payloads.append(
                     (uploaded_file.filename, await uploaded_file.read())
                 )
-            await save_uploaded_files(file_payloads, thread_id)
+            saved_paths = await save_uploaded_files(file_payloads, thread_id)
+            filenames = sorted(Path(p).name for p in saved_paths)
         else:
             get_thread_upload_dir(thread_id).mkdir(parents=True, exist_ok=True)
+            filenames = []
 
-        return {"thread_id": thread_id, "has_docs": bool(files)}
+        return {
+            "thread_id": thread_id,
+            "has_docs": bool(files),
+            "filenames": filenames,
+        }
 
     except ValueError as e:
         error_msg = str(e)

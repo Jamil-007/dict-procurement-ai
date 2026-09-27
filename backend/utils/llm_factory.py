@@ -50,7 +50,7 @@ def get_llm(temperature: float | None = None) -> BaseChatModel:
         return ChatGoogleGenerativeAI(
             model=settings.GEMINI_MODEL_NAME,
             google_api_key=settings.GOOGLE_API_KEY,
-            temperature=settings.TEMPERATURE,
+            temperature=temp,
         )
 
     elif settings.LLM_PROVIDER == "anthropic":

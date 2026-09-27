@@ -209,7 +209,7 @@ constantly. §5 explains why, and it is Dev D's job to reconcile them.
 | Documents | `documents-tab.tsx` | Upload, inferred type (editable), download, remove |
 | AI Review | `ai-review-tab.tsx`, `finding-card.tsx` | Findings; BAC accept/modify/reject/further; comments |
 | Final Report | `final-report-tab.tsx` | Consolidated findings + decisions; print |
-| Form Generator | `forms-tab.tsx` | **Shell only — no backend exists** |
+| Form Generator | `forms-tab.tsx` | **Backend complete** (`/forms/*` + `agents/doc_generation/`); tab currently hidden from `TABS`. Also available standalone at `/forms`. |
 
 ---
 
@@ -388,8 +388,11 @@ def run(ctx: ReviewContext) -> list[ReviewFinding]:
     return analyze(prompt, DIMENSION)
 ```
 
-`review/dimensions/document_quality.py` is the worked example and the only
-implemented dimension. Copy its shape.
+`review/dimensions/document_quality.py` is the worked example — copy its shape.
+
+> **Update (2026-09):** all five dimensions are now implemented —
+> `compliance`, `document_consistency`, `document_quality`, `procurement_market`,
+> and `requirements_risk`. `document_quality` remains the clearest template to copy.
 
 ### 6.3 The contract — `review/schema.py`
 

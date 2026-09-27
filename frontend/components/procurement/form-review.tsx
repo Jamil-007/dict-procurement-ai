@@ -83,9 +83,10 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
       });
       Object.entries(ratings[key] || {}).forEach(([field, r]) => {
         if (r.rating) {
+          const ai = extracted[field] == null ? '' : String(extracted[field]);
           items.push({ feature: 'forms', context_key: key, field_path: field,
             thread_id: threadId, signal_type: 'explicit', rating: r.rating,
-            note: r.note || null, ai_value: (edited[field] ?? '') as string });
+            note: r.note || null, ai_value: ai });
         }
       });
     });

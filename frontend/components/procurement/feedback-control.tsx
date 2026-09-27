@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 
 interface FeedbackControlProps {
   rating: 'up' | 'down' | null;
@@ -9,31 +9,36 @@ interface FeedbackControlProps {
 }
 
 export function FeedbackControl({ rating, note, onRate, onNote }: FeedbackControlProps) {
-  const open = rating !== null;
+  const [expanded, setExpanded] = useState(false);
+  const shown = rating !== null || expanded;
   return (
     <div className="relative">
-      <div className={`items-center gap-1 ${open ? 'flex' : 'hidden group-hover:flex group-focus-within:flex'}`}>
+      <div className="flex items-center gap-1">
         <button
           type="button"
-          aria-label="Correct"
-          onClick={() => onRate(rating === 'up' ? null : 'up')}
-          className={`w-7 h-6 grid place-items-center rounded-md border text-xs transition ${
-            rating === 'up' ? 'bg-green-50 border-green-600 text-green-700' : 'bg-white border-zinc-200 text-zinc-400 hover:border-zinc-400'
-          }`}
-        >👍</button>
-        <button
-          type="button"
-          aria-label="Wrong"
-          onClick={() => onRate(rating === 'down' ? null : 'down')}
-          className={`w-7 h-6 grid place-items-center rounded-md border text-xs transition ${
-            rating === 'down' ? 'bg-amber-50 border-amber-600 text-amber-700' : 'bg-white border-zinc-200 text-zinc-400 hover:border-zinc-400'
-          }`}
-        >👎</button>
+          aria-label="Feedback"
+          onClick={() => setExpanded(true)}
+          className={`${shown ? 'hidden' : 'block group-hover:hidden group-focus-within:hidden'} text-zinc-300 hover:text-zinc-500 px-1.5 leading-none rounded-md`}
+        >⋯</button>
+        <div className={`items-center gap-1 ${shown ? 'flex' : 'hidden group-hover:flex group-focus-within:flex'}`}>
+          <button
+            type="button"
+            aria-label="Correct"
+            onClick={() => onRate(rating === 'up' ? null : 'up')}
+            className={`w-7 h-6 grid place-items-center rounded-md border text-xs transition ${
+              rating === 'up' ? 'bg-green-50 border-green-600 text-green-700' : 'bg-white border-zinc-200 text-zinc-400 hover:border-zinc-400'
+            }`}
+          >👍</button>
+          <button
+            type="button"
+            aria-label="Wrong"
+            onClick={() => onRate(rating === 'down' ? null : 'down')}
+            className={`w-7 h-6 grid place-items-center rounded-md border text-xs transition ${
+              rating === 'down' ? 'bg-amber-50 border-amber-600 text-amber-700' : 'bg-white border-zinc-200 text-zinc-400 hover:border-zinc-400'
+            }`}
+          >👎</button>
+        </div>
       </div>
-      {!open && (
-        <button type="button" aria-label="Feedback"
-          className="hidden group-hover:block group-focus-within:block text-zinc-400 hover:text-zinc-600 px-2 rounded-md">⋯</button>
-      )}
       {rating === 'down' && (
         <textarea
           value={note}

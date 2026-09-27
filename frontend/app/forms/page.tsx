@@ -97,18 +97,24 @@ export default function FormsPage() {
   const step1Done = Boolean(detectResult) && !detecting;
 
   return (
-    <main className="mx-auto max-w-[1400px] px-8 pt-20 pb-24">
-      <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
-        Generate procurement forms
-      </h1>
-      <p className="mt-2 text-sm text-zinc-500">
-        Upload your procurement documents to auto-fill the matching GPPB forms — or
-        pick a form on the right to fill in manually.
-      </p>
+    <div>
+      {/* Header row — title sits inline with the fixed BETA pill (left) and nav pills (right) */}
+      <div className="border-b border-zinc-200 bg-white">
+        <div className="mx-auto max-w-[1400px] py-4 pl-28 pr-8">
+          <h1 className="text-base font-semibold tracking-tight text-zinc-900">
+            Generate procurement forms
+          </h1>
+          <p className="mt-0.5 max-w-xl text-xs text-zinc-600">
+            Upload your procurement documents to auto-fill the matching GPPB forms — or
+            pick a form on the right to fill in manually.
+          </p>
+        </div>
+      </div>
 
-      <div className="mt-8 grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(340px,1fr)_1.15fr]">
-      {/* Left: upload / detection */}
-      <section className="rounded-2xl border border-zinc-200 bg-white p-7 lg:sticky lg:top-6">
+      <div className="mx-auto max-w-[1400px] px-8 py-8 pb-24">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(340px,1fr)_1.15fr]">
+        {/* Left: upload / detection */}
+        <section className="rounded-2xl border border-zinc-200 bg-white p-7 lg:sticky lg:top-24">
         <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
           <span
             className={cn(
@@ -207,7 +213,8 @@ export default function FormsPage() {
           onSelectionChange={setSelectedCount}
         />
       </section>
+        </div>
       </div>
-    </main>
+    </div>
   );
 }

@@ -156,24 +156,23 @@ at *build* time by reading the deployed backend's URL, so the backend must alrea
 (`.github/workflows/deploy-staging.yml`, only the changed side). **Prod** is manual
 (`deploy-prod.yml`, `workflow_dispatch`). CI (`ci.yml`) runs pytest + `npm run build` on PRs.
 
-### ⚠️ Before you deploy — one infra prerequisite remains
+### Deploying — no infra provisioning needed
 The deploy scripts have been **reconciled into a single `backend/deploy.sh`** (the old
-`deploy-backend.sh` and broken `deploy-backend-simple.sh` were removed). The new script
-sets the correct combined config — Firestore-persisted records **and** the feedback bank,
-correct env-var names, single instance — and has a **preflight that refuses to deploy** if a
-required database is missing.
+`deploy-backend.sh` and broken `deploy-backend-simple.sh` were removed). It sets the correct
+combined config — Firestore-persisted records **and** the feedback bank, correct env-var names,
+single instance — and has a **preflight that refuses to deploy** if a required database is missing.
 
-**The one thing still needed:** the records database **`ai-procurement-db` does not exist yet.**
-Create it once, then deploy:
-```bash
-gcloud firestore databases create --database=ai-procurement-db \
-  --location=asia-southeast1 --type=firestore-native --project=ai-innov-474401
-```
-Until it exists, `backend/deploy.sh` will stop with instructions rather than deploy a broken
-service. `proc-feedback-bank` (feedback) already exists and is ready.
+**Both required databases already exist** (verified): `procurement-agent-db` (records / Knowledge
+Hub, as named in `config.py`) and `proc-feedback-bank` (feedback). So you can deploy straight away —
+nothing to create.
+
+> Note: `procurement-agent-db` also holds an unrelated `line-items` collection from another DICT
+> procurement tool. That's safe — this app uses its own collections (`procurements`, `findings`,
+> `counters`, `knowledge`), only ever adds missing knowledge docs on startup (idempotent, no deletes),
+> and never touches `line-items`.
 
 **What the new `backend/deploy.sh` fixes vs the old live deployment:**
-- Records/Hub now persist (`STORE_BACKEND=firestore`, `FIRESTORE_DATABASE=ai-procurement-db`) instead of in-memory.
+- Records/Hub now persist (`STORE_BACKEND=firestore`, `FIRESTORE_DATABASE=procurement-agent-db`) instead of in-memory.
 - Pinned to `min=1,max=1` (was `max=10`) — required while LangGraph state + uploads are in-process/local-disk.
 - Feedback DB uses the correct var `FEEDBACK_FIRESTORE_DATABASE=proc-feedback-bank` (the live service wrongly set `FIRESTORE_DATABASE`, so it was silently using `(default)`).
 
@@ -219,8 +218,8 @@ Project `ai-innov-474401`, region `asia-southeast1`. ✅ = ready, ⛔ = must pro
 - ✅ **Secret Manager:** `TAVILY_API_KEY`, `GAMMA_API_KEY` (deploys read `:latest`).
 - ✅ **Firestore `proc-feedback-bank`** (feedback bank) — exists. Needs a **vector index** on
   `embedding` (COSINE) for `find_nearest`; verify it's present before enabling feedback in anger.
-- ⛔ **Firestore `ai-procurement-db`** (records / Knowledge Hub) — **does NOT exist yet.** Create it
-  before deploying (command in the deploy section above). The `backend/deploy.sh` preflight enforces this.
+- ✅ **Firestore `procurement-agent-db`** (records / Knowledge Hub) — exists (this is the name in
+  `config.py`). Shared with an unrelated `line-items` collection; safe to use (see deploy note above).
 - ✅ **GCS bucket `ai-procurement`** — exists, **but** the runtime SA has **no access** ⛔. Uploaded
   files stay on local disk until you grant `roles/storage.objectAdmin` and set `GCS_BUCKET`.
 - ✅ **Runtime SA IAM:** `roles/datastore.user` + `roles/aiplatform.user` present.
@@ -240,8 +239,8 @@ Project `ai-innov-474401`, region `asia-southeast1`. ✅ = ready, ⛔ = must pro
    only by unguessable UUIDs. Pilot data only. (`System Overview.md §7`.)
 3. **Re-running a review discards prior findings *and* their BAC decisions** — finding IDs
    are reassigned each run. Known behavior; flag before relying on it. (Not yet fixed.)
-4. ~~Records not persisted~~ — **fixed in `backend/deploy.sh`** (Firestore + single instance);
-   just create `ai-procurement-db` first (see deploy section).
+4. ~~Records not persisted~~ — **fixed in `backend/deploy.sh`** (Firestore `procurement-agent-db`
+   + single instance). Both required DBs already exist; no provisioning needed.
 5. ~~Docs drift in `System Overview.md`~~ — **fixed**: the Form Generator "no backend" line and
    the "only `document_quality` implemented" line have been corrected.
 

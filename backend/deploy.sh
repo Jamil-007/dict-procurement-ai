@@ -17,7 +17,7 @@ SERVICE_NAME="procurement-ai-backend"
 # --- Databases -------------------------------------------------------------
 # Records / Knowledge Hub live in their own Firestore Native DB; the feedback
 # bank lives in a SEPARATE one so the two subsystems never share data.
-RECORDS_DB="ai-procurement-db"      # STORE_BACKEND=firestore reads FIRESTORE_DATABASE
+RECORDS_DB="procurement-agent-db"   # STORE_BACKEND=firestore reads FIRESTORE_DATABASE (see config.py)
 FEEDBACK_DB="proc-feedback-bank"    # feedback bank reads FEEDBACK_FIRESTORE_DATABASE
 
 # --- Uploaded document storage --------------------------------------------

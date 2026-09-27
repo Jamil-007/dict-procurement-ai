@@ -76,13 +76,6 @@ export function FormGenerator({ threadId, hasDocs, onGenerate }: FormGeneratorPr
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-3">
-        <span className="text-xs font-medium text-zinc-500">Step 1 of 2</span>
-      </div>
-      <div className="h-[3px] bg-zinc-100 rounded-full overflow-hidden mb-6">
-        <span className="block h-full bg-black rounded-full transition-all duration-400" style={{ width: '50%' }} />
-      </div>
-
       <div className="text-[19px] font-semibold tracking-tight flex items-center mb-6">
         Which forms do you want to generate?
         <TooltipProvider delayDuration={200}>

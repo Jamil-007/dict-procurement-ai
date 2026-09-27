@@ -30,14 +30,24 @@ export default function FormsPage() {
     }
   };
 
-  const handleGenerate = (selectedKeys: FormKey[]) => {
-    if (!threadId) {
-      toast.error('No session available');
-      return;
+  const handleGenerate = async (selectedKeys: FormKey[]) => {
+    if (selectedKeys.length === 0) return;
+    try {
+      // If the officer didn't upload anything, create an empty session so the
+      // selected forms can be generated blank and filled in on the review page.
+      let tid = threadId;
+      if (!tid) {
+        setBusy(true);
+        const res = await apiClient.uploadForms([]);
+        tid = res.thread_id;
+        setThreadId(tid);
+      }
+      router.push(`/forms/review?session=${tid}&forms=${selectedKeys.join(',')}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not start generation');
+    } finally {
+      setBusy(false);
     }
-    router.push(
-      `/forms/review?session=${threadId}&forms=${selectedKeys.join(',')}`
-    );
   };
 
   const reset = () => {
@@ -52,7 +62,8 @@ export default function FormsPage() {
         Generate procurement forms
       </h1>
       <p className="mt-2 text-sm text-zinc-500">
-        Upload your procurement documents to auto-fill the matching GPPB forms.
+        Upload your procurement documents to auto-fill the matching GPPB forms — or
+        pick a form below to fill in manually.
       </p>
 
       {/* Step 1: upload / start session */}
@@ -88,16 +99,20 @@ export default function FormsPage() {
         )}
       </section>
 
-      {/* Step 2: choose + generate */}
-      {threadId && (
-        <section className="mt-5">
-          <FormGenerator
-            threadId={threadId}
-            hasDocs={hasDocs}
-            onGenerate={handleGenerate}
-          />
-        </section>
-      )}
+      {/* Step 2: choose + generate — always available */}
+      <section className="mt-5 rounded-2xl border border-zinc-200 bg-white p-7">
+        <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-zinc-100 text-[11px] font-bold text-zinc-700">
+            2
+          </span>
+          Choose forms to generate
+        </div>
+        <FormGenerator
+          threadId={threadId}
+          hasDocs={hasDocs}
+          onGenerate={handleGenerate}
+        />
+      </section>
     </main>
   );
 }

@@ -56,6 +56,14 @@ export function FileUpload({ onFilesSelect, disabled }: FileUploadProps) {
     }
   }, [disabled]);
 
+  const handleBrowseClick = useCallback((e: React.MouseEvent) => {
+    // Stop propagation so the container's onClick doesn't also fire (double-open).
+    e.stopPropagation();
+    if (!disabled && fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  }, [disabled]);
+
   return (
     <div
       onDragOver={handleDragOver}
@@ -94,9 +102,22 @@ export function FileUpload({ onFilesSelect, disabled }: FileUploadProps) {
 
       <div className="text-center pointer-events-none">
         <p className="text-sm font-medium text-black mb-1">
-          {isDragging ? 'Drop your Procurement PDF here' : 'Drop Procurement PDF here or click to browse'}
+          {isDragging ? 'Drop your Procurement PDF here' : 'Drag & drop your Procurement PDF here'}
         </p>
+        <p className="text-xs text-gray-500">PDF only · up to 3 files</p>
       </div>
+
+      <button
+        type="button"
+        onClick={handleBrowseClick}
+        disabled={disabled}
+        className={cn(
+          'mt-1 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white smooth-transition',
+          'hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed'
+        )}
+      >
+        Browse files
+      </button>
     </div>
   );
 }

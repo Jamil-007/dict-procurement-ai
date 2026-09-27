@@ -1,3 +1,5 @@
+import re
+
 from utils.json_extract import extract_json_object
 from utils.llm_factory import get_llm
 
@@ -98,20 +100,51 @@ def classify_documents(parsed_text: str) -> list[str]:
     except Exception:
         pass
 
-    # Keyword-based fallback
+    # Keyword-based fallback.
+    # Acronym markers (TOR, DCE) are matched case-sensitively with word
+    # boundaries on the ORIGINAL text so that substrings inside ordinary words
+    # (e.g. "contractor", "factor", "sector", "monitor") do NOT match.
     text_lower = parsed_text.lower()
     types = []
 
-    if "terms of reference" in text_lower or "tor" in text_lower[:500]:
+    # --- Terms of Reference ---
+    # Bug #1 fix: require the full phrase or a standalone uppercase "TOR"
+    # acronym, never a bare "tor" substring.
+    if "terms of reference" in text_lower or re.search(r"\bTOR\b", parsed_text):
         types.append("Terms of Reference")
-    if "market study" in text_lower or "market scoping" in text_lower or "market research" in text_lower:
+
+    # --- Market Study ---
+    if (
+        "market study" in text_lower
+        or "market scoping" in text_lower
+        or "market research" in text_lower
+    ):
         types.append("Market Study")
-    if "cost breakdown" in text_lower or "detailed cost estimate" in text_lower or "dce" in text_lower:
+
+    # --- Cost Breakdown ---
+    if (
+        "cost breakdown" in text_lower
+        or "detailed cost estimate" in text_lower
+        or re.search(r"\bDCE\b", parsed_text)
+    ):
         types.append("Cost Breakdown")
-    if "contract" in text_lower and "agreement" in text_lower:
+
+    # --- Contract ---
+    # Bug #2 fix: only classify as a Contract when an actual contract
+    # instrument marker is present. Merely mentioning the words "contract"
+    # and "agreement" (as a TOR often does) must NOT trigger this.
+    contract_markers = (
+        "contract agreement",
+        "by and between",
+        "hereinafter referred to as",
+        "hereinafter called",
+        "this contract",
+        "this agreement",
+    )
+    if any(marker in text_lower for marker in contract_markers):
         types.append("Contract")
 
-    return types if types else ["Other"]
+    return _constrain(types) if types else ["Other"]
 
 def recommendations(doc_types: list[str]) -> dict[str, dict]:
     """

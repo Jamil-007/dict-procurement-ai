@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { apiClient, triggerDownload, ExtractResponse } from '@/lib/api-client';
-import type { FormKey } from '@/types/forms';
+import type { FormKey, FeedbackItem } from '@/types/forms';
+import { FeedbackControl } from './feedback-control';
 
 interface FormReviewProps {
   threadId: string;
@@ -16,6 +17,7 @@ const ANNEX_DISCLAIMER =
 export function FormReview({ threadId, formKeys }: FormReviewProps) {
   const [extractedData, setExtractedData] = useState<ExtractResponse | null>(null);
   const [editedFields, setEditedFields] = useState<Record<FormKey, Record<string, string>>>({} as any);
+  const [ratings, setRatings] = useState<Record<string, Record<string, { rating: 'up'|'down'|null; note: string }>>>({});
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<FormKey | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -67,6 +69,29 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
     }));
   };
 
+  const captureFeedback = (keys: FormKey[]) => {
+    const items: FeedbackItem[] = [];
+    keys.forEach((key) => {
+      const extracted = extractedData?.[key]?.fields || {};
+      const edited = editedFields[key] || {};
+      Object.entries(edited).forEach(([field, value]) => {
+        const ai = extracted[field] == null ? '' : String(extracted[field]);
+        if (value && value !== '[TBD]' && value !== ai) {
+          items.push({ feature: 'forms', context_key: key, field_path: field,
+            thread_id: threadId, signal_type: 'implicit', ai_value: ai, corrected_value: value });
+        }
+      });
+      Object.entries(ratings[key] || {}).forEach(([field, r]) => {
+        if (r.rating) {
+          items.push({ feature: 'forms', context_key: key, field_path: field,
+            thread_id: threadId, signal_type: 'explicit', rating: r.rating,
+            note: r.note || null, ai_value: (edited[field] ?? '') as string });
+        }
+      });
+    });
+    if (items.length) void apiClient.submitFeedback(items); // fire-and-forget
+  };
+
   const downloadForm = async (formKey: FormKey) => {
     try {
       setDownloading(true);
@@ -74,6 +99,7 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
         [formKey]: editedFields[formKey],
       };
       const result = await apiClient.generateForms(threadId, [formKey], overrides as any);
+      captureFeedback([formKey]);
       triggerDownload(result.blob, result.filename);
     } catch (error) {
       console.error('Failed to download form:', error);
@@ -90,6 +116,7 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
         overrides[key] = editedFields[key];
       });
       const result = await apiClient.generateForms(threadId, formKeys, overrides);
+      captureFeedback(formKeys);
       triggerDownload(result.blob, result.filename);
     } catch (error) {
       console.error('Failed to download all forms:', error);
@@ -158,10 +185,40 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
                 {fields && Object.keys(fields).length > 0 ? (
                   <div className="flex flex-col">
                     {Object.entries(fields).map(([fieldName, value]) => (
-                      <div key={fieldName} className="mb-4">
-                        <label className="block text-[11px] font-semibold text-zinc-600 mb-2 tracking-wide">
-                          {formatFieldName(fieldName)}
-                        </label>
+                      <div key={fieldName} className="group mb-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <label className="block text-[11px] font-semibold text-zinc-600 tracking-wide">
+                            {formatFieldName(fieldName)}
+                          </label>
+                          <FeedbackControl
+                            rating={ratings[key]?.[fieldName]?.rating || null}
+                            note={ratings[key]?.[fieldName]?.note || ''}
+                            onRate={(r) => {
+                              setRatings((prev) => ({
+                                ...prev,
+                                [key]: {
+                                  ...prev[key],
+                                  [fieldName]: {
+                                    rating: r,
+                                    note: prev[key]?.[fieldName]?.note || '',
+                                  },
+                                },
+                              }));
+                            }}
+                            onNote={(n) => {
+                              setRatings((prev) => ({
+                                ...prev,
+                                [key]: {
+                                  ...prev[key],
+                                  [fieldName]: {
+                                    rating: prev[key]?.[fieldName]?.rating || null,
+                                    note: n,
+                                  },
+                                },
+                              }));
+                            }}
+                          />
+                        </div>
                         <input
                           type="text"
                           value={value || ''}

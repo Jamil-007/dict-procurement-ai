@@ -377,6 +377,20 @@ class APIClient {
     return this.handleResponse<FormCatalogItem[]>(response);
   }
 
+  async uploadForms(
+    files: File[]
+  ): Promise<{ thread_id: string; has_docs: boolean }> {
+    const formData = new FormData();
+    files.forEach((file) => formData.append('files', file));
+
+    const response = await fetch(`${this.baseUrl}/forms/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    return this.handleResponse<{ thread_id: string; has_docs: boolean }>(response);
+  }
+
   async detectForms(threadId: string): Promise<DetectResult> {
     const response = await fetch(`${this.baseUrl}/forms/detect`, {
       method: 'POST',

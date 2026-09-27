@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { BetaBadge } from "@/components/beta-badge";
+import { TopNav } from "@/components/top-nav";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -38,6 +39,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <BetaBadge />
+          <TopNav />
           {children}
           <Toaster />
         </ThemeProvider>

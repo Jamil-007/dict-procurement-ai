@@ -8,7 +8,7 @@ import json
 import logging
 import time
 import uuid
-from typing import Any, AsyncGenerator, List
+from typing import Any, AsyncGenerator, List, Optional
 from fastapi import FastAPI, UploadFile, HTTPException, File, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,7 +23,12 @@ from models import (
     FormExtractRequest,
     FormGenerateRequest,
 )
-from utils.storage import save_uploaded_files, generate_thread_id, file_exists
+from utils.storage import (
+    save_uploaded_files,
+    generate_thread_id,
+    file_exists,
+    get_thread_upload_dir,
+)
 from utils.llm_factory import get_llm, get_llm_info
 from graph import graph, create_initial_state
 from prompts import CHAT_PROMPT, RA_12009_DIRECTIVE
@@ -548,6 +553,53 @@ async def get_forms_catalog():
     """
     from forms.registry import catalog
     return catalog()
+
+
+@app.post("/forms/upload")
+async def forms_upload(files: Optional[List[UploadFile]] = File(None)):
+    """
+    Create a forms session without running the analysis pipeline.
+
+    Saves any uploaded PDFs (zero allowed) under uploads/{thread_id}/ and
+    returns the thread_id for use with the /forms/detect, /extract, /generate
+    endpoints. Passing no files creates an empty session for manual form filling.
+    """
+    files = files or []
+
+    if len(files) > 3:
+        raise HTTPException(status_code=400, detail="Maximum of 3 PDF files allowed")
+
+    for uploaded_file in files:
+        if not uploaded_file.filename or not uploaded_file.filename.lower().endswith(
+            ".pdf"
+        ):
+            raise HTTPException(status_code=400, detail="Only PDF files are supported")
+        content_type = uploaded_file.content_type or ""
+        if content_type and not content_type.startswith("application/pdf"):
+            raise HTTPException(status_code=400, detail="Invalid file content type")
+
+    try:
+        thread_id = generate_thread_id()
+        if files:
+            file_payloads = []
+            for uploaded_file in files:
+                file_payloads.append(
+                    (uploaded_file.filename, await uploaded_file.read())
+                )
+            await save_uploaded_files(file_payloads, thread_id)
+        else:
+            get_thread_upload_dir(thread_id).mkdir(parents=True, exist_ok=True)
+
+        return {"thread_id": thread_id, "has_docs": bool(files)}
+
+    except ValueError as e:
+        error_msg = str(e)
+        if "path" in error_msg.lower() or "/" in error_msg or "\\" in error_msg:
+            error_msg = "Invalid file format or size"
+        raise HTTPException(status_code=400, detail=error_msg)
+    except Exception as e:
+        print(f"Forms upload error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Upload failed. Please try again.")
 
 
 @app.post("/forms/detect")

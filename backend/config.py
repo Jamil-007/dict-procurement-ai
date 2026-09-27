@@ -7,12 +7,15 @@ class Settings(BaseSettings):
     """Application configuration loaded from environment variables."""
 
     # LLM Provider
-    LLM_PROVIDER: Literal["vertex_ai", "anthropic"] = "anthropic"
+    LLM_PROVIDER: Literal["vertex_ai", "google_genai", "anthropic"] = "anthropic"
 
     # Vertex AI Configuration
     GOOGLE_CLOUD_PROJECT: str = ""
     GOOGLE_CLOUD_LOCATION: str = "us-central1"
     GOOGLE_APPLICATION_CREDENTIALS: str = ""
+
+    # Google AI Studio (Gemini API key) Configuration
+    GOOGLE_API_KEY: str = ""
 
     # Anthropic Configuration
     ANTHROPIC_API_KEY: str = ""
@@ -31,6 +34,7 @@ class Settings(BaseSettings):
 
     # Model Configuration
     VERTEX_MODEL_NAME: str = "gemini-2.0-flash-exp"  # Options: gemini-2.0-flash-exp, gemini-1.5-pro-002, gemini-1.5-flash-002
+    GEMINI_MODEL_NAME: str = "gemini-2.0-flash"
     ANTHROPIC_MODEL_NAME: str = "claude-3-5-sonnet-20241022"
     TEMPERATURE: float = 0.7
     CHAT_PARSED_TEXT_LIMIT: int = 150000

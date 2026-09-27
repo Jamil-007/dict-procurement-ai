@@ -36,6 +36,18 @@ def get_llm() -> BaseChatModel:
                 temperature=settings.TEMPERATURE,
             )
 
+    elif settings.LLM_PROVIDER == "google_genai":
+        if not settings.GOOGLE_API_KEY:
+            raise ValueError("GOOGLE_API_KEY must be set for Google AI Studio provider")
+
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        return ChatGoogleGenerativeAI(
+            model=settings.GEMINI_MODEL_NAME,
+            google_api_key=settings.GOOGLE_API_KEY,
+            temperature=settings.TEMPERATURE,
+        )
+
     elif settings.LLM_PROVIDER == "anthropic":
         if not settings.ANTHROPIC_API_KEY:
             raise ValueError("ANTHROPIC_API_KEY must be set for Anthropic provider")
@@ -56,8 +68,9 @@ def get_llm_info() -> dict:
     """Returns information about the configured LLM provider."""
     return {
         "provider": settings.LLM_PROVIDER,
-        "model": settings.VERTEX_MODEL_NAME
-        if settings.LLM_PROVIDER == "vertex_ai"
-        else settings.ANTHROPIC_MODEL_NAME,
+        "model": {
+            "vertex_ai": settings.VERTEX_MODEL_NAME,
+            "google_genai": settings.GEMINI_MODEL_NAME,
+        }.get(settings.LLM_PROVIDER, settings.ANTHROPIC_MODEL_NAME),
         "temperature": settings.TEMPERATURE,
     }

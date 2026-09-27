@@ -108,7 +108,7 @@ app.add_middleware(
     ],
     # Allow any localhost/127.0.0.1 dev port (Next.js picks 3000/3001/3002/... when a port is taken),
     # plus this project's procurement-ai* Cloud Run frontends (either run.app URL format).
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+|https://procurement-ai[a-z0-9-]*\.(asia-southeast1\.run\.app|as\.a\.run\.app)",
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+|https://procurement-ai[a-z0-9-]*\.(asia-southeast1\.run\.app|a\.run\.app)",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],

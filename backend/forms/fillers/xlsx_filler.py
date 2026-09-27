@@ -39,8 +39,12 @@ _APP_COL_BUDGET = 13         # M7: "Estimated Budget / Approved Budget for the C
 def fill_app(template_path: Path, data: APPData) -> bytes:
     wb = openpyxl.load_workbook(str(template_path))
     ws = wb["APP "]  # trailing space is intentional
-    ws["C3"] = f"ANNUAL PROCUREMENT PLAN FOR FY {_v(data.fiscal_year)}"
-    ws["C4"] = _v(data.variant)
+    # C3 holds the official title "ANNUAL PROCUREMENT PLAN FOR FY ______". Only overwrite
+    # it when a fiscal year is supplied; otherwise preserve the official blank ("______").
+    if data.fiscal_year:
+        ws["C3"] = f"ANNUAL PROCUREMENT PLAN FOR FY {data.fiscal_year}"
+    # C4 holds the official 'INDICATIVE / FINAL / UPDATED [Version No. _____]' selection
+    # line, which the officer marks by hand. Do NOT overwrite it.
     row = _APP_SECTION_ROW.get(data.category or "General Requirements", 11)
     # Clear the template's sample PAP example (PAP code / object code) for this row so the
     # generated project does not collide with the sample line. Note: openpyxl treats

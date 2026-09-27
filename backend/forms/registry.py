@@ -33,7 +33,15 @@ def _build_market_context(data: MarketScopingData) -> dict:
     return data.model_dump()
 
 def _build_contract_context(data: ContractData) -> dict:
-    return data.model_dump()
+    # Pass only the vars the rebuilt contract.docx declares (disclaimer is added by
+    # render_docx). Older vars like contract_date/scope caused the signature block to
+    # drop, so they are intentionally no longer templatized or passed.
+    return {
+        "project_title": data.project_title,
+        "procuring_entity": data.procuring_entity,
+        "supplier_name": data.supplier_name,
+        "contract_price": data.contract_price,
+    }
 
 def _build_app_context(data: APPData) -> dict:
     return data.model_dump()

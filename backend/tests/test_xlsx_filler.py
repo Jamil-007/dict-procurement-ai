@@ -53,3 +53,30 @@ def test_app_writes_to_correct_columns():
     assert ws.cell(row, enduser_col).value != "Competitive Bidding"
     # Sample PAP example row cleared
     assert ws.cell(11, 1).value in (None, "")
+
+
+def test_app_preserves_title_and_variant_cells_when_year_blank():
+    data = APPData(
+        project_title="GECS Laptop Procurement",
+        mode_of_procurement="Competitive Bidding",
+        estimated_budget="Php 5,000,000.00",
+        category="General Requirements",
+        fiscal_year=None,
+    )
+    out = fill_app(APP_TPL, data)
+    ws = openpyxl.load_workbook(io.BytesIO(out))["APP "]
+    # C3 keeps the official title (blank "______" preserved, no [TBD] written)
+    assert str(ws["C3"].value).startswith("ANNUAL PROCUREMENT PLAN FOR FY")
+    assert "[TBD]" not in str(ws["C3"].value)
+    # C4 keeps the official variant selection line intact
+    assert "INDICATIVE" in str(ws["C4"].value)
+    assert "UPDATED" in str(ws["C4"].value)
+
+
+def test_app_writes_fiscal_year_into_title():
+    data = APPData(fiscal_year="2026", category="General Requirements")
+    out = fill_app(APP_TPL, data)
+    ws = openpyxl.load_workbook(io.BytesIO(out))["APP "]
+    assert "2026" in str(ws["C3"].value)
+    # C4 selection line still intact
+    assert "INDICATIVE" in str(ws["C4"].value)

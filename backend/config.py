@@ -39,6 +39,16 @@ class Settings(BaseSettings):
     TEMPERATURE: float = 0.7
     CHAT_PARSED_TEXT_LIMIT: int = 150000
 
+    # Feedback Bank
+    FEEDBACK_BANK_ENABLED: bool = False
+    FEEDBACK_BACKEND: Literal["firestore", "local"] = "local"
+    FIRESTORE_PROJECT: str = ""
+    FIRESTORE_COLLECTION: str = "feedback"
+    EMBEDDING_MODEL: str = "text-embedding-004"
+    FEEDBACK_TOP_K: int = 3
+    FEEDBACK_OVERSAMPLE: int = 4
+    FEEDBACK_LOCAL_DB: str = "./uploads/feedback.db"
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore"
     )

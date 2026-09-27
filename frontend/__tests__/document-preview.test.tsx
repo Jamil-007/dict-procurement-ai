@@ -15,7 +15,7 @@ const DOCX_MIME =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 // Real generated templates live in the backend; feeding them through the
-// component exercises the exact SheetJS / docx-preview code paths.
+// component exercises the exact grid / docx-preview code paths.
 function templateBlob(rel: string, type: string): Blob {
   const buf = readFileSync(
     path.resolve(process.cwd(), '../backend/templates/forms', rel)
@@ -28,7 +28,7 @@ describe('DocumentPreview', () => {
     vi.clearAllMocks();
   });
 
-  it('renders a real .xlsx template as an HTML table', async () => {
+  it('renders a real .xlsx template as a clean grid with A/B/C headers', async () => {
     const { apiClient } = await import('@/lib/api-client');
     vi.mocked(apiClient.generateForms).mockResolvedValue({
       blob: templateBlob('ppmp.xlsx', XLSX_MIME),
@@ -40,15 +40,16 @@ describe('DocumentPreview', () => {
         threadId="t1"
         formKey={'ppmp' as FormKey}
         ext="xlsx"
+        filename="PPMP.xlsx"
         overrides={{}}
+        active
       />
     );
 
     await waitFor(
       () => {
-        expect(
-          container.querySelector('.docx-preview-host .xlsx-sheet table')
-        ).toBeTruthy();
+        // The data-model grid renders column-letter headers.
+        expect(container.querySelector('table.xl .xl-colh')).toBeTruthy();
       },
       { timeout: 5000 }
     );
@@ -66,7 +67,9 @@ describe('DocumentPreview', () => {
         threadId="t2"
         formKey={'market' as FormKey}
         ext="docx"
+        filename="Market.docx"
         overrides={{}}
+        active
       />
     );
 
@@ -78,20 +81,39 @@ describe('DocumentPreview', () => {
     );
   });
 
-  it('shows the annex draft badge', async () => {
+  it('does not generate while inactive (retention: lazy build)', async () => {
     const { apiClient } = await import('@/lib/api-client');
-    vi.mocked(apiClient.generateForms).mockResolvedValue({
+    const gen = vi.mocked(apiClient.generateForms).mockResolvedValue({
       blob: templateBlob('market.docx', DOCX_MIME),
-      filename: 'oss.docx',
+      filename: 'market.docx',
     });
 
-    const { getByText } = render(
+    render(
       <DocumentPreview
         threadId="t3"
+        formKey={'market' as FormKey}
+        ext="docx"
+        filename="Market.docx"
+        overrides={{}}
+        active={false}
+      />
+    );
+
+    // Give any pending effects a chance to run.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(gen).not.toHaveBeenCalled();
+  });
+
+  it('shows the annex draft badge', () => {
+    const { getByText } = render(
+      <DocumentPreview
+        threadId="t4"
         formKey={'oss' as FormKey}
         ext="docx"
+        filename="Omnibus Sworn Statement.docx"
         overrides={{}}
         isAnnex
+        active
       />
     );
 

@@ -137,10 +137,6 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
     return <div className="text-zinc-500 text-sm py-4">No forms to review</div>;
   }
 
-  const currentFormData = activeTab && extractedData[activeTab];
-  const isAnnex = currentFormData?.group === 'B_annex';
-  const fields = activeTab && editedFields[activeTab];
-
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -170,8 +166,11 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
           ))}
         </TabsList>
 
-        {formKeys.map((key) => (
-          <TabsContent key={key} value={key}>
+        {formKeys.map((key) => {
+          const keyIsAnnex = extractedData[key]?.group === 'B_annex';
+          const keyFields = editedFields[key];
+          return (
+          <TabsContent key={key} value={key} forceMount className="data-[state=inactive]:hidden">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -183,15 +182,15 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
                   </div>
                 </div>
 
-                {isAnnex && (
+                {keyIsAnnex && (
                   <div className="text-xs text-zinc-600 bg-zinc-50 border border-zinc-200 border-l-[3px] border-l-zinc-400 rounded-lg p-3 mb-5">
                     {ANNEX_DISCLAIMER}
                   </div>
                 )}
 
-                {fields && Object.keys(fields).length > 0 ? (
+                {keyFields && Object.keys(keyFields).length > 0 ? (
                   <div className="flex flex-col">
-                    {Object.entries(fields).map(([fieldName, value]) => (
+                    {Object.entries(keyFields).map(([fieldName, value]) => (
                       <div key={fieldName} className="group mb-4">
                         <div className="flex items-start justify-between mb-2">
                           <label className="block text-[11px] font-semibold text-zinc-600 tracking-wide">
@@ -231,33 +230,26 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
                   <div className="text-[11px] font-semibold tracking-wider uppercase text-zinc-400">
                     Preview
                   </div>
-                  <button
-                    onClick={() => downloadForm(key)}
-                    disabled={downloading}
-                    className="px-3 py-1.5 text-xs font-medium rounded-md border border-zinc-300 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                  >
-                    Download this
-                  </button>
                 </div>
 
-                <div className="border border-zinc-200 rounded-xl overflow-hidden bg-zinc-50 sticky top-32">
-                  <div className="bg-white border-b border-zinc-200 px-4 py-3 text-xs font-medium flex items-center justify-between text-zinc-600">
-                    <span>{getFormDisplayName(key)}.{getFormExtension(key)}</span>
-                  </div>
-                  <div className="p-4 max-h-[520px] overflow-auto">
-                    <DocumentPreview
-                      threadId={threadId}
-                      formKey={key}
-                      ext={getFormExtension(key) as 'docx' | 'xlsx'}
-                      overrides={editedFields[key] || {}}
-                      isAnnex={extractedData[key]?.group === 'B_annex'}
-                    />
-                  </div>
+                <div className="sticky top-32">
+                  <DocumentPreview
+                    threadId={threadId}
+                    formKey={key}
+                    ext={getFormExtension(key) as 'docx' | 'xlsx'}
+                    filename={`${getFormDisplayName(key)}.${getFormExtension(key)}`}
+                    overrides={editedFields[key] || {}}
+                    isAnnex={keyIsAnnex}
+                    active={activeTab === key}
+                    onDownload={() => downloadForm(key)}
+                    downloading={downloading}
+                  />
                 </div>
               </div>
             </div>
           </TabsContent>
-        ))}
+          );
+        })}
       </Tabs>
     </div>
   );

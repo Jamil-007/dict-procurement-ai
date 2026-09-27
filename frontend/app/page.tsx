@@ -298,6 +298,22 @@ export default function ProcurementPage() {
             isGenerating={state === 'generating' || isGeneratingActionItems || (!showReportCTA && isChatLoading)}
             showCTA={showReportCTA}
             onReset={reset}
+            footer={
+              threadId ? (
+                <div className="border-t border-zinc-200 pt-6">
+                  <div className="text-xs font-semibold tracking-wider uppercase text-zinc-400 flex items-center gap-2 mb-5">
+                    <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-zinc-100 text-zinc-700 text-[11px] font-bold">
+                      2
+                    </span>
+                    Generate forms
+                  </div>
+                  <FormGenerator
+                    detectResult={formsDetection}
+                    onGenerate={handleFormGenerate}
+                  />
+                </div>
+              ) : null
+            }
           />
         </motion.div>
       </div>
@@ -335,23 +351,9 @@ export default function ProcurementPage() {
           </MessageList>
         )}
 
-        {/* Form Generator Section - shown after file upload */}
-        {threadId && state !== 'idle' && (
-          <div className="max-w-2xl mx-auto px-4 pb-6">
-            <div className="bg-white border border-zinc-200 rounded-2xl p-7">
-              <div className="text-xs font-semibold tracking-wider uppercase text-zinc-400 flex items-center gap-2 mb-5">
-                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-zinc-100 text-zinc-700 text-[11px] font-bold">
-                  2
-                </span>
-                Generate forms
-              </div>
-              <FormGenerator
-                detectResult={formsDetection}
-                onGenerate={handleFormGenerate}
-              />
-            </div>
-          </div>
-        )}
+        {/* The form generator now lives at the bottom of the analysis details
+            panel (see ReportPreview footer in the split view), so the recommended
+            forms read as an add-on to the analysis rather than replacing it. */}
 
         <InputArea
           onFilesSelect={handleFilesSelect}

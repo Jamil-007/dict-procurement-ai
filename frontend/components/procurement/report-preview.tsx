@@ -31,9 +31,12 @@ interface ReportPreviewProps {
   isGenerating?: boolean;
   showCTA?: boolean;
   onReset?: () => void;
+  /** Optional extra section rendered at the bottom of the report scroll area
+   *  (e.g. the form generator), so it reads as an add-on to the analysis. */
+  footer?: React.ReactNode;
 }
 
-export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateReport, onDeclineReport, isGenerating, showCTA, onReset }: ReportPreviewProps) {
+export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateReport, onDeclineReport, isGenerating, showCTA, onReset, footer }: ReportPreviewProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const handleDownloadPDF = async () => {
@@ -451,6 +454,9 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
             </CardContent>
           </Card>
         )}
+
+        {/* Optional add-on section (e.g. form generator) */}
+        {footer}
 
         {/* Footer */}
         <div className="text-center text-xs text-gray-500 pt-6">

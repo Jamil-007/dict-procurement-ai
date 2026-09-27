@@ -1,5 +1,5 @@
 import { VerdictData } from '@/types/procurement';
-import type { FormCatalogItem, DetectResult, FormKey } from '@/types/forms';
+import type { FormCatalogItem, DetectResult, FormKey, FeedbackItem } from '@/types/forms';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -463,6 +463,21 @@ class APIClient {
     }
 
     return { blob, filename };
+  }
+
+  async submitFeedback(items: FeedbackItem[]): Promise<{ stored: number }> {
+    if (!items.length) return { stored: 0 };
+    try {
+      const response = await fetch(`${this.baseUrl}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items }),
+      });
+      if (!response.ok) return { stored: 0 };
+      return await response.json();
+    } catch {
+      return { stored: 0 }; // best-effort: never block the caller
+    }
   }
 }
 

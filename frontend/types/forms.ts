@@ -45,3 +45,15 @@ export interface GenerateRequest {
   form_keys: FormKey[];
   overrides?: Partial<Record<FormKey, Record<string, string | null>>>;
 }
+
+export interface FeedbackItem {
+  feature: string;
+  context_key: string;
+  field_path?: string | null;
+  thread_id: string;
+  signal_type: 'implicit' | 'explicit';
+  ai_value?: string | null;
+  corrected_value?: string | null;
+  rating?: 'up' | 'down' | null;
+  note?: string | null;
+}

@@ -143,3 +143,26 @@ def file_exists(thread_id: str) -> bool:
 def generate_thread_id() -> str:
     """Generate a unique thread ID for a new analysis session."""
     return str(uuid.uuid4())
+
+
+def save_generated_file(thread_id: str, filename: str, data: bytes) -> Path:
+    """Write a generated form file under uploads/{thread_id}/forms/."""
+    if not validate_thread_id(thread_id):
+        raise ValueError("Invalid thread_id format")
+    forms_dir = get_thread_upload_dir(thread_id) / "forms"
+    forms_dir.mkdir(parents=True, exist_ok=True)
+    safe = sanitize_filename(filename)
+    path = forms_dir / safe
+    if not str(path.resolve()).startswith(str(forms_dir.resolve())):
+        raise ValueError("Invalid file path detected")
+    path.write_bytes(data)
+    return path
+
+
+def list_generated_files(thread_id: str) -> list[Path]:
+    if not validate_thread_id(thread_id):
+        return []
+    forms_dir = get_thread_upload_dir(thread_id) / "forms"
+    if not forms_dir.is_dir():
+        return []
+    return sorted(p for p in forms_dir.iterdir() if p.is_file())

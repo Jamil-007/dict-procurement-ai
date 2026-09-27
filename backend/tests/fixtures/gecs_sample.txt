@@ -1,0 +1,18 @@
+TERMS OF REFERENCE
+Project Title: Government Electronic Clearing System (GECS) Modernization
+Procuring Entity: Department of Finance
+Fiscal Year: 2026
+Project Type: Infrastructure
+Estimated Budget: Php 50,000,000.00
+Mode of Procurement: Public Bidding
+Expected Delivery: December 2026
+End-User Unit: IT Infrastructure Division
+Source of Funds: General Appropriations Act 2026
+General Description: Upgrade and modernization of the Government Electronic Clearing System including hardware, software, and network infrastructure.
+Quantity/Size: Complete system upgrade for 50 government offices
+Pre-procurement Conference: Yes
+Start Activity: January 2026
+End Activity: March 2026
+Supporting Documents: Technical Specifications, Detailed Cost Breakdown
+Remarks: Critical infrastructure project
+Prepared By: John Dela Cruz, Infrastructure Manager

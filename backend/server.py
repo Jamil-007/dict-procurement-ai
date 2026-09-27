@@ -9,6 +9,7 @@ import time
 import uuid
 from typing import Any, AsyncGenerator, List
 from fastapi import FastAPI, UploadFile, HTTPException, File, Request
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 from models import (
@@ -17,12 +18,17 @@ from models import (
     ReviewResponse,
     ChatRequest,
     ChatResponse,
+    FormDetectRequest,
+    FormExtractRequest,
+    FormGenerateRequest,
 )
 from utils.storage import save_uploaded_files, generate_thread_id, file_exists
 from utils.llm_factory import get_llm, get_llm_info
 from graph import graph, create_initial_state
 from prompts import CHAT_PROMPT, RA_12009_DIRECTIVE
 from config import settings
+from forms import service as forms_service
+from forms.registry import FORM_REGISTRY
 
 
 app = FastAPI(
@@ -45,6 +51,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
+    expose_headers=["Content-Disposition"],
 )
 
 # Store for tracking background tasks
@@ -496,3 +503,110 @@ async def get_analysis_status(thread_id: str):
         "has_gamma": bool(state.get("gamma_link")),
         "thinking_logs_count": len(state.get("thinking_logs", [])),
     }
+
+
+# Forms endpoints
+
+@app.get("/forms/catalog")
+async def get_forms_catalog():
+    """
+    Get catalog of available forms.
+
+    Returns:
+        List of form metadata
+    """
+    from forms.registry import catalog
+    return catalog()
+
+
+@app.post("/forms/detect")
+async def detect_forms(request: FormDetectRequest):
+    """
+    Detect document types and recommend forms.
+
+    Args:
+        request: Thread ID
+
+    Returns:
+        Document types and form recommendations
+    """
+    return forms_service.detect(request.thread_id)
+
+
+@app.post("/forms/extract")
+async def extract_forms(request: FormExtractRequest):
+    """
+    Extract fields from requested forms.
+
+    Args:
+        request: Thread ID and form keys
+
+    Returns:
+        Extracted field values per form
+    """
+    # Validate form keys
+    for key in request.form_keys:
+        if key not in FORM_REGISTRY:
+            raise HTTPException(status_code=400, detail=f"Unknown form key: {key}")
+
+    return forms_service.extract_all(request.thread_id, request.form_keys)
+
+
+@app.post("/forms/generate")
+async def generate_forms(request: FormGenerateRequest):
+    """
+    Generate form files.
+
+    Args:
+        request: Thread ID, form keys, and optional overrides
+
+    Returns:
+        Single file stream or zip of multiple files
+    """
+    import io
+    import zipfile
+
+    # Validate form keys
+    for key in request.form_keys:
+        if key not in FORM_REGISTRY:
+            raise HTTPException(status_code=400, detail=f"Unknown form key: {key}")
+
+    # Generate files
+    files = forms_service.generate(
+        request.thread_id,
+        request.form_keys,
+        request.overrides or {}
+    )
+
+    if len(files) == 1:
+        # Single file: stream directly
+        filename, file_bytes = files[0]
+        spec = FORM_REGISTRY[request.form_keys[0]]
+
+        # Determine MIME type
+        if spec.ext == ".xlsx":
+            media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        elif spec.ext == ".docx":
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        else:
+            media_type = "application/octet-stream"
+
+        return StreamingResponse(
+            io.BytesIO(file_bytes),
+            media_type=media_type,
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    else:
+        # Multiple files: create zip
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            for filename, file_bytes in files:
+                zip_file.writestr(filename, file_bytes)
+
+        zip_buffer.seek(0)
+
+        return StreamingResponse(
+            zip_buffer,
+            media_type="application/zip",
+            headers={"Content-Disposition": 'attachment; filename="procurement_forms.zip"'},
+        )

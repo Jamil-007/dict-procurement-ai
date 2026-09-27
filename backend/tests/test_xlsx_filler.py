@@ -1,7 +1,7 @@
 from pathlib import Path
 import io, openpyxl
-from forms.fillers.xlsx_filler import fill_ppmp, fill_app
-from forms.schemas import PPMPData, APPData
+from agents.doc_generation.fillers.xlsx_filler import fill_ppmp, fill_app
+from agents.doc_generation.schemas import PPMPData, APPData
 
 TPL = Path("templates/forms/ppmp.xlsx")
 APP_TPL = Path("templates/forms/app.xlsx")

@@ -1,6 +1,6 @@
 # backend/tests/test_feedback_store_firestore.py
-from feedback.models import FeedbackItem
-from feedback.firestore_store import FirestoreFeedbackStore
+from agents.feedback.models import FeedbackItem
+from agents.feedback.firestore_store import FirestoreFeedbackStore
 
 
 def _item(**kw):

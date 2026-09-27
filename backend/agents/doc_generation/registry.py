@@ -3,10 +3,10 @@ from pathlib import Path
 from typing import Callable
 from pydantic import BaseModel
 
-from forms.schemas import PPMPData, MarketScopingData, APPData, ContractData
-from forms.fillers.docx_filler import render_docx, fill_market, GROUP_A_DISCLAIMER
-from forms.fillers.xlsx_filler import fill_ppmp, fill_app
-from forms.classifier import DOC_FORM_MAP
+from agents.doc_generation.schemas import PPMPData, MarketScopingData, APPData, ContractData
+from agents.doc_generation.fillers.docx_filler import render_docx, fill_market, GROUP_A_DISCLAIMER
+from agents.doc_generation.fillers.xlsx_filler import fill_ppmp, fill_app
+from agents.doc_generation.classifier import DOC_FORM_MAP
 
 # Disclaimer for Group B forms
 GROUP_B_DISCLAIMER = "DRAFT — issued blank for completion by the bidder. Not an executed or notarized document."
@@ -58,7 +58,7 @@ def _docx_filler_group_b(template_path: Path, context: dict) -> bytes:
     return render_docx(template_path, context, disclaimer=GROUP_B_DISCLAIMER)
 
 # Template base directory
-TEMPLATE_DIR = Path(__file__).parent.parent / "templates" / "forms"
+TEMPLATE_DIR = Path(__file__).parent.parent.parent / "templates" / "forms"
 
 # Form registry
 FORM_REGISTRY = {

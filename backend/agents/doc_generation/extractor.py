@@ -1,11 +1,11 @@
 import re
 from pydantic import BaseModel
-from forms.schemas import SCHEMAS
+from agents.doc_generation.schemas import SCHEMAS
 from prompts import FORM_EXTRACTION_PROMPTS
 from utils.json_extract import extract_json_object
 from utils.llm_factory import get_llm
-from feedback.service import inject_fewshot
-from feedback.models import EMBED_INPUT_LIMIT
+from agents.feedback.service import inject_fewshot
+from agents.feedback.models import EMBED_INPUT_LIMIT
 
 HEADER_KEYS = ["procuring_entity", "project_title", "project_reference"]
 

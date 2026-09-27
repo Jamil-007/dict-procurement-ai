@@ -35,12 +35,12 @@ from utils.llm_factory import get_llm, get_llm_info
 from graph import graph, create_initial_state
 from prompts import CHAT_PROMPT, RA_12009_DIRECTIVE
 from config import settings
-from forms import service as forms_service
-from forms.service import FormGenerationError
-from forms.registry import FORM_REGISTRY
-from forms.text_source import get_source_text
-from feedback import service as feedback_service
-from feedback.models import FeedbackItem
+from agents.doc_generation import service as forms_service
+from agents.doc_generation.service import FormGenerationError
+from agents.doc_generation.registry import FORM_REGISTRY
+from agents.doc_generation.text_source import get_source_text
+from agents.feedback import service as feedback_service
+from agents.feedback.models import FeedbackItem
 
 import re as _re
 import unicodedata as _unicodedata
@@ -558,7 +558,7 @@ async def get_forms_catalog():
     Returns:
         List of form metadata
     """
-    from forms.registry import catalog
+    from agents.doc_generation.registry import catalog
     return catalog()
 
 

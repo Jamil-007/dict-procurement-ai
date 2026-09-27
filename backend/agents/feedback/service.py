@@ -1,8 +1,8 @@
 import logging
 
 from config import settings
-from feedback.models import FeedbackItem, EMBED_INPUT_LIMIT
-from feedback.store import get_feedback_store
+from agents.feedback.models import FeedbackItem, EMBED_INPUT_LIMIT
+from agents.feedback.store import get_feedback_store
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
 # backend/tests/test_feedback_service.py
-import feedback.service as svc
-from feedback.models import FeedbackItem
+import agents.feedback.service as svc
+from agents.feedback.models import FeedbackItem
 
 
 def _item(**kw):

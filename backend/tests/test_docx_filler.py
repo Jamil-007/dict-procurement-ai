@@ -1,8 +1,8 @@
 from pathlib import Path
 from docx import Document
 import io
-from forms.fillers.docx_filler import render_docx, fill_market
-from forms.schemas import MarketScopingData, MarketActivity, MarketResult
+from agents.doc_generation.fillers.docx_filler import render_docx, fill_market
+from agents.doc_generation.schemas import MarketScopingData, MarketActivity, MarketResult
 
 FIX = Path(__file__).parent / "fixtures" / "mini.docx"
 MARKET_TPL = Path("templates/forms/market.docx")

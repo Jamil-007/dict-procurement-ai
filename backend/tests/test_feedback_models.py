@@ -1,4 +1,4 @@
-from feedback.models import FeedbackItem, EMBED_INPUT_LIMIT, EMBEDDING_DIM
+from agents.feedback.models import FeedbackItem, EMBED_INPUT_LIMIT, EMBEDDING_DIM
 from config import settings
 
 

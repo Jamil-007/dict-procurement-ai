@@ -1,9 +1,9 @@
-from forms import service
+from agents.doc_generation import service
 
 def test_generate_ppmp_no_docs_blank(monkeypatch, tmp_path):
     from config import settings
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
-    monkeypatch.setattr("forms.service.get_source_text", lambda tid: "")
+    monkeypatch.setattr("agents.doc_generation.service.get_source_text", lambda tid: "")
     from utils.storage import generate_thread_id
     tid = generate_thread_id()
     out = service.generate(tid, ["ppmp"], overrides={})
@@ -12,7 +12,7 @@ def test_generate_ppmp_no_docs_blank(monkeypatch, tmp_path):
 def test_generate_group_b_has_disclaimer(monkeypatch, tmp_path):
     from config import settings
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
-    monkeypatch.setattr("forms.service.get_source_text", lambda tid: "")
+    monkeypatch.setattr("agents.doc_generation.service.get_source_text", lambda tid: "")
     from utils.storage import generate_thread_id
     import io
     from docx import Document
@@ -23,7 +23,7 @@ def test_generate_group_b_has_disclaimer(monkeypatch, tmp_path):
 
 
 def test_extract_all_group_b_returns_header_keys(monkeypatch):
-    monkeypatch.setattr("forms.service.get_source_text", lambda tid: "")
+    monkeypatch.setattr("agents.doc_generation.service.get_source_text", lambda tid: "")
     result = service.extract_all("x", ["bsd", "oss"])
     for key in ["bsd", "oss"]:
         assert set(result[key]["fields"].keys()) == {
@@ -37,7 +37,7 @@ def test_extract_all_group_b_returns_header_keys(monkeypatch):
 def test_generate_group_b_stamps_project_title(monkeypatch, tmp_path):
     from config import settings
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
-    monkeypatch.setattr("forms.service.get_source_text", lambda tid: "")
+    monkeypatch.setattr("agents.doc_generation.service.get_source_text", lambda tid: "")
     from utils.storage import generate_thread_id
     import io
     from docx import Document
@@ -53,7 +53,7 @@ def test_generate_group_b_stamps_project_title(monkeypatch, tmp_path):
 def test_generate_market_with_composites_does_not_raise(monkeypatch, tmp_path):
     from config import settings
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
-    monkeypatch.setattr("forms.service.get_source_text", lambda tid: "")
+    monkeypatch.setattr("agents.doc_generation.service.get_source_text", lambda tid: "")
     from utils.storage import generate_thread_id
     tid = generate_thread_id()
     overrides = {
@@ -70,7 +70,7 @@ def test_generate_market_with_composites_does_not_raise(monkeypatch, tmp_path):
 def test_generate_market_malformed_override_no_500(monkeypatch, tmp_path):
     from config import settings
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
-    monkeypatch.setattr("forms.service.get_source_text", lambda tid: "")
+    monkeypatch.setattr("agents.doc_generation.service.get_source_text", lambda tid: "")
     from utils.storage import generate_thread_id
     tid = generate_thread_id()
     # activity_flags as a corrupted string (what "[object Object]" edits would produce).
@@ -86,7 +86,7 @@ def test_detect_per_file_documents(monkeypatch):
         {"filename": "TOR.pdf", "text": "terms of reference body"},
         {"filename": "Market.pdf", "text": "market study body"},
     ]
-    monkeypatch.setattr("forms.service.get_source_documents", lambda tid: docs)
+    monkeypatch.setattr("agents.doc_generation.service.get_source_documents", lambda tid: docs)
 
     def fake_classify(text):
         if "terms of reference" in text:
@@ -95,7 +95,7 @@ def test_detect_per_file_documents(monkeypatch):
             return ["Market Study"]
         return ["Other"]
 
-    monkeypatch.setattr("forms.service.classify_documents", fake_classify)
+    monkeypatch.setattr("agents.doc_generation.service.classify_documents", fake_classify)
 
     out = service.detect("any-thread")
 
@@ -110,7 +110,7 @@ def test_detect_per_file_documents(monkeypatch):
 
 
 def test_detect_empty_session(monkeypatch):
-    monkeypatch.setattr("forms.service.get_source_documents", lambda tid: [])
+    monkeypatch.setattr("agents.doc_generation.service.get_source_documents", lambda tid: [])
     out = service.detect("any-thread")
     assert out["documents"] == []
     assert out["doc_types"] == []
@@ -119,9 +119,9 @@ def test_detect_empty_session(monkeypatch):
 
 def test_detect_blank_text_file_has_no_types(monkeypatch):
     docs = [{"filename": "blank.pdf", "text": "   "}]
-    monkeypatch.setattr("forms.service.get_source_documents", lambda tid: docs)
+    monkeypatch.setattr("agents.doc_generation.service.get_source_documents", lambda tid: docs)
     monkeypatch.setattr(
-        "forms.service.classify_documents",
+        "agents.doc_generation.service.classify_documents",
         lambda text: (_ for _ in ()).throw(AssertionError("should not classify blank")),
     )
     out = service.detect("any-thread")

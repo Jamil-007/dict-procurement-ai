@@ -5,8 +5,8 @@ from pathlib import Path
 from typing import Optional, Protocol, runtime_checkable
 
 from config import settings
-from feedback.embedder import local_embed
-from feedback.models import FeedbackItem
+from agents.feedback.embedder import local_embed
+from agents.feedback.models import FeedbackItem
 
 _STORED_FIELDS = [
     "id", "created_at", "feature", "context_key", "field_path", "thread_id",
@@ -98,6 +98,6 @@ class LocalFeedbackStore:
 
 def get_feedback_store() -> FeedbackStore:
     if settings.FEEDBACK_BACKEND == "firestore":
-        from feedback.firestore_store import FirestoreFeedbackStore
+        from agents.feedback.firestore_store import FirestoreFeedbackStore
         return FirestoreFeedbackStore()
     return LocalFeedbackStore(settings.FEEDBACK_LOCAL_DB)

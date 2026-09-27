@@ -1,8 +1,8 @@
 from typing import Optional
 
 from config import settings
-from feedback.embedder import embed_text
-from feedback.models import FeedbackItem
+from agents.feedback.embedder import embed_text
+from agents.feedback.models import FeedbackItem
 
 _ITEM_FIELDS = [
     "id", "created_at", "feature", "context_key", "field_path", "thread_id",
@@ -18,7 +18,8 @@ class FirestoreFeedbackStore:
         if client is None:
             from google.cloud import firestore
             client = firestore.Client(
-                project=settings.FIRESTORE_PROJECT or settings.GOOGLE_CLOUD_PROJECT
+                project=settings.FIRESTORE_PROJECT or settings.GOOGLE_CLOUD_PROJECT,
+                database=settings.FIRESTORE_DATABASE,
             )
         self._client = client
         self._name = collection_name or settings.FIRESTORE_COLLECTION

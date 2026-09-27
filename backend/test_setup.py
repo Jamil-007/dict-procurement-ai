@@ -13,7 +13,7 @@ def check_files():
         "main.py",
         "server.py",
         "graph.py",
-        "agents.py",
+        "agents/analysis.py",
         "prompts.py",
         "models.py",
         "config.py",

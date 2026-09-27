@@ -3,7 +3,7 @@ import math
 import re
 
 from config import settings
-from feedback.models import EMBEDDING_DIM, EMBED_INPUT_LIMIT
+from agents.feedback.models import EMBEDDING_DIM, EMBED_INPUT_LIMIT
 
 _TOKEN = re.compile(r"[a-z0-9]+")
 

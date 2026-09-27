@@ -2,14 +2,14 @@ import logging
 
 from pydantic import ValidationError
 
-from forms.text_source import (
+from agents.doc_generation.text_source import (
     get_source_text,
     has_source_documents,
     get_source_documents,
 )
-from forms.classifier import classify_documents, recommendations
-from forms.extractor import extract_fields, extract_header, HEADER_KEYS
-from forms.registry import FORM_REGISTRY, GROUP_B_DISCLAIMER
+from agents.doc_generation.classifier import classify_documents, recommendations
+from agents.doc_generation.extractor import extract_fields, extract_header, HEADER_KEYS
+from agents.doc_generation.registry import FORM_REGISTRY, GROUP_B_DISCLAIMER
 from utils.storage import save_generated_file
 
 logger = logging.getLogger(__name__)

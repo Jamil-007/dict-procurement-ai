@@ -1,4 +1,4 @@
-from forms.registry import FORM_REGISTRY, catalog
+from agents.doc_generation.registry import FORM_REGISTRY, catalog
 
 def test_ten_forms():
     assert len(FORM_REGISTRY) == 10

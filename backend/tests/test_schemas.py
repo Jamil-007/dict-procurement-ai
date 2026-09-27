@@ -1,4 +1,4 @@
-from forms.schemas import PPMPData, MarketScopingData, ContractData, APPData, SCHEMAS
+from agents.doc_generation.schemas import PPMPData, MarketScopingData, ContractData, APPData, SCHEMAS
 
 def test_all_optional_defaults_none():
     assert PPMPData().fiscal_year is None

@@ -77,7 +77,7 @@ class FormDetectRequest(BaseModel):
 
 
 class FormExtractRequest(BaseModel):
-    """Request to extract fields from forms."""
+    """Request to extract fields from agents.doc_generation."""
 
     thread_id: str
     form_keys: List[str]

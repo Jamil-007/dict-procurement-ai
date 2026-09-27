@@ -1,6 +1,6 @@
 import pytest
 
-from forms.classifier import classify_documents, recommendations, DOC_FORM_MAP
+from agents.doc_generation.classifier import classify_documents, recommendations, DOC_FORM_MAP
 
 ALLOWED = {"Terms of Reference", "Market Study", "Cost Breakdown", "Contract", "Other"}
 
@@ -16,7 +16,7 @@ def force_keyword_fallback(monkeypatch):
     def _raise(*args, **kwargs):
         raise RuntimeError("LLM disabled for keyword-fallback test")
 
-    monkeypatch.setattr("forms.classifier.get_llm", _raise)
+    monkeypatch.setattr("agents.doc_generation.classifier.get_llm", _raise)
 
 
 TOR_SNIPPET = (

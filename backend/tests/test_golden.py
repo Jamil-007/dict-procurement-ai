@@ -2,7 +2,7 @@ import json
 import os
 import pytest
 from pathlib import Path
-from forms.extractor import extract_fields
+from agents.doc_generation.extractor import extract_fields
 
 SAMPLE = (Path(__file__).parent / "fixtures" / "gecs_sample.txt").read_text()
 

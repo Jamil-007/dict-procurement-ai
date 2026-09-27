@@ -1,5 +1,5 @@
-from feedback.models import FeedbackItem
-from feedback.store import LocalFeedbackStore
+from agents.feedback.models import FeedbackItem
+from agents.feedback.store import LocalFeedbackStore
 
 
 def _item(**kw):

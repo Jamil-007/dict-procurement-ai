@@ -1,4 +1,4 @@
-from forms.text_source import (
+from agents.doc_generation.text_source import (
     get_source_text,
     has_source_documents,
     get_source_documents,
@@ -15,7 +15,7 @@ def test_no_docs_returns_empty(monkeypatch, tmp_path):
 def test_reads_pdfs(monkeypatch, tmp_path):
     from config import settings
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
-    monkeypatch.setattr("forms.text_source.extract_text_from_pdf", lambda p: f"TEXT({p.name})")
+    monkeypatch.setattr("agents.doc_generation.text_source.extract_text_from_pdf", lambda p: f"TEXT({p.name})")
     from utils.storage import generate_thread_id, get_thread_upload_dir
     tid = generate_thread_id()
     d = get_thread_upload_dir(tid); d.mkdir(parents=True)
@@ -28,7 +28,7 @@ def test_reads_pdfs(monkeypatch, tmp_path):
 def test_get_source_documents_per_file(monkeypatch, tmp_path):
     from config import settings
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
-    monkeypatch.setattr("forms.text_source.extract_text_from_pdf", lambda p: f"TEXT({p.name})")
+    monkeypatch.setattr("agents.doc_generation.text_source.extract_text_from_pdf", lambda p: f"TEXT({p.name})")
     from utils.storage import generate_thread_id, get_thread_upload_dir
     tid = generate_thread_id()
     d = get_thread_upload_dir(tid); d.mkdir(parents=True)
@@ -45,7 +45,7 @@ def test_get_source_documents_extract_error_empty_text(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
     def _boom(p):
         raise RuntimeError("bad pdf")
-    monkeypatch.setattr("forms.text_source.extract_text_from_pdf", _boom)
+    monkeypatch.setattr("agents.doc_generation.text_source.extract_text_from_pdf", _boom)
     from utils.storage import generate_thread_id, get_thread_upload_dir
     tid = generate_thread_id()
     d = get_thread_upload_dir(tid); d.mkdir(parents=True)

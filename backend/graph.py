@@ -6,7 +6,7 @@ Manages the multi-agent pipeline with human-in-the-loop capabilities.
 from typing import List
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
-from agents import (
+from agents.analysis import (
     AgentState,
     pdf_parser_node,
     specification_validator_agent,

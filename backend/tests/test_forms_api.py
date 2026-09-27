@@ -26,7 +26,7 @@ def test_generate_price_local_ascii_content_disposition(monkeypatch):
     assert "filename*=UTF-8''" in cd
 
 def test_generate_error_returns_generic_500(monkeypatch):
-    from forms.service import FormGenerationError
+    from agents.doc_generation.service import FormGenerationError
     def boom(*a, **k):
         raise FormGenerationError("boom detail")
     monkeypatch.setattr("server.forms_service.generate", boom)

@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     FEEDBACK_BANK_ENABLED: bool = False
     FEEDBACK_BACKEND: Literal["firestore", "local"] = "local"
     FIRESTORE_PROJECT: str = ""
+    FIRESTORE_DATABASE: str = "(default)"
     FIRESTORE_COLLECTION: str = "feedback"
     EMBEDDING_MODEL: str = "text-embedding-004"
     FEEDBACK_TOP_K: int = 3

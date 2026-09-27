@@ -68,3 +68,24 @@ class ErrorResponse(BaseModel):
 
     error: str
     detail: Optional[str] = None
+
+
+class FormDetectRequest(BaseModel):
+    """Request to detect document types and recommend forms."""
+
+    thread_id: str
+
+
+class FormExtractRequest(BaseModel):
+    """Request to extract fields from forms."""
+
+    thread_id: str
+    form_keys: List[str]
+
+
+class FormGenerateRequest(BaseModel):
+    """Request to generate form files."""
+
+    thread_id: str
+    form_keys: List[str]
+    overrides: Optional[dict] = None

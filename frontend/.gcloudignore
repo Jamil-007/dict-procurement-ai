@@ -1,0 +1,13 @@
+# Controls what `gcloud builds submit` uploads.
+# IMPORTANT: without this file, gcloud falls back to .gitignore — which ignores
+# package-lock.json, breaking `npm ci` in the Docker build. This file overrides
+# that so the lockfile IS uploaded, while still skipping heavy/irrelevant dirs.
+node_modules/
+.next/
+.git/
+.gitignore
+npm-debug.log*
+yarn-error.log*
+.DS_Store
+*.pem
+.env*.local

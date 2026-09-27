@@ -4,6 +4,9 @@ from forms.schemas import SCHEMAS
 from prompts import FORM_EXTRACTION_PROMPTS
 from utils.json_extract import extract_json_object
 from utils.llm_factory import get_llm
+from config import settings
+from feedback.service import retrieve_feedback, build_fewshot_block
+from feedback.models import EMBED_INPUT_LIMIT
 
 HEADER_KEYS = ["procuring_entity", "project_title", "project_reference"]
 
@@ -12,7 +15,16 @@ def extract_fields(form_key: str, parsed_text: str) -> tuple[BaseModel, bool]:
     schema = SCHEMAS[form_key]
     if not parsed_text.strip():
         return schema(), True
+    context = parsed_text[:EMBED_INPUT_LIMIT]
     prompt = FORM_EXTRACTION_PROMPTS[form_key].format(parsed_text=parsed_text[:20000])
+    if settings.FEEDBACK_BANK_ENABLED:
+        try:
+            items = retrieve_feedback("forms", form_key, context)
+            block = build_fewshot_block(items)
+            if block:
+                prompt = f"{block}\n\n{prompt}"
+        except Exception:
+            pass  # fail-safe: never break extraction
     try:
         resp = get_llm(temperature=0.0).invoke(prompt)
         content = resp.content if hasattr(resp, "content") else str(resp)

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { FileUpload } from '@/components/procurement/file-upload';
 import { FormGenerator } from '@/components/procurement/form-generator';
+import { FormHint } from '@/components/procurement/form-hint';
 import { apiClient } from '@/lib/api-client';
 import type { FormKey } from '@/types/forms';
 
@@ -67,6 +68,7 @@ export default function FormsPage() {
         {!threadId ? (
           <>
             <FileUpload onFilesSelect={startSession} disabled={busy} />
+            <FormHint />
             <div className="mt-4">
               <button
                 onClick={() => startSession([])}

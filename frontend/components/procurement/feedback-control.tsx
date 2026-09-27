@@ -24,7 +24,7 @@ export function FeedbackControl({ rating, note, onRate, onNote }: FeedbackContro
           <button
             type="button"
             aria-label="Correct"
-            onClick={() => onRate(rating === 'up' ? null : 'up')}
+            onClick={() => { const next = rating === 'up' ? null : 'up'; if (next === null) setExpanded(false); onRate(next); }}
             className={`w-7 h-6 grid place-items-center rounded-md border text-xs transition ${
               rating === 'up' ? 'bg-green-50 border-green-600 text-green-700' : 'bg-white border-zinc-200 text-zinc-400 hover:border-zinc-400'
             }`}
@@ -32,7 +32,7 @@ export function FeedbackControl({ rating, note, onRate, onNote }: FeedbackContro
           <button
             type="button"
             aria-label="Wrong"
-            onClick={() => onRate(rating === 'down' ? null : 'down')}
+            onClick={() => { const next = rating === 'down' ? null : 'down'; if (next === null) setExpanded(false); onRate(next); }}
             className={`w-7 h-6 grid place-items-center rounded-md border text-xs transition ${
               rating === 'down' ? 'bg-amber-50 border-amber-600 text-amber-700' : 'bg-white border-zinc-200 text-zinc-400 hover:border-zinc-400'
             }`}

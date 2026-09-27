@@ -710,15 +710,30 @@ async def generate_forms(request: FormGenerateRequest):
 async def submit_feedback(request: FeedbackRequest):
     """Record implicit/explicit feedback into the feedback bank.
 
-    Inert (returns {"stored": 0}) unless FEEDBACK_BANK_ENABLED is set.
+    Inert (returns {"stored": 0}, no source parsing, no storage) unless
+    FEEDBACK_BANK_ENABLED is set.
     """
     from utils.storage import validate_thread_id
 
-    items = []
+    # Validate every thread_id first so malformed input is rejected even when disabled.
     for item in request.items:
         if not validate_thread_id(item.thread_id):
             raise HTTPException(status_code=400, detail="Invalid thread_id format")
-        ctx = feedback_service.resolve_input_context(item.thread_id, item.input_context)
+
+    # Inert when disabled: no source parsing, no storage.
+    if not settings.FEEDBACK_BANK_ENABLED:
+        return FeedbackResponse(stored=0)
+
+    ctx_cache: dict[str, str] = {}
+    items = []
+    for item in request.items:
+        if item.input_context:
+            ctx = feedback_service.resolve_input_context(item.thread_id, item.input_context)
+        else:
+            ctx = ctx_cache.get(item.thread_id)
+            if ctx is None:
+                ctx = feedback_service.resolve_input_context(item.thread_id, None)
+                ctx_cache[item.thread_id] = ctx
         data = item.model_dump()
         data["input_context"] = ctx
         items.append(FeedbackItem(**data))

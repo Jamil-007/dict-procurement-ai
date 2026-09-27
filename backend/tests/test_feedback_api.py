@@ -14,6 +14,7 @@ def _payload(**kw):
 
 
 def test_feedback_stores_and_returns_count(monkeypatch):
+    monkeypatch.setattr("server.settings.FEEDBACK_BANK_ENABLED", True)
     captured = {}
     monkeypatch.setattr("server.feedback_service.record_feedback",
                         lambda items: captured.setdefault("n", len(items)) or len(items))
@@ -41,3 +42,13 @@ def test_feedback_rejects_bad_thread_id(monkeypatch):
     monkeypatch.setattr("server.feedback_service.record_feedback", lambda items: len(items))
     r = client.post("/feedback", json=_payload(thread_id="not-a-uuid"))
     assert r.status_code == 400
+
+
+def test_feedback_inert_when_disabled(monkeypatch):
+    monkeypatch.setattr("server.settings.FEEDBACK_BANK_ENABLED", False)
+    def boom(*a, **k):
+        raise AssertionError("must not be called when disabled")
+    monkeypatch.setattr("server.feedback_service.resolve_input_context", boom)
+    monkeypatch.setattr("server.feedback_service.record_feedback", boom)
+    r = client.post("/feedback", json=_payload())
+    assert r.status_code == 200 and r.json() == {"stored": 0}

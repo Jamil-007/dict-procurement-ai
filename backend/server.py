@@ -22,6 +22,8 @@ from models import (
     FormDetectRequest,
     FormExtractRequest,
     FormGenerateRequest,
+    FeedbackRequest,
+    FeedbackResponse,
 )
 from utils.storage import (
     save_uploaded_files,
@@ -36,6 +38,8 @@ from config import settings
 from forms import service as forms_service
 from forms.service import FormGenerationError
 from forms.registry import FORM_REGISTRY
+from feedback import service as feedback_service
+from feedback.models import FeedbackItem
 
 import re as _re
 import unicodedata as _unicodedata
@@ -700,3 +704,28 @@ async def generate_forms(request: FormGenerateRequest):
             media_type="application/zip",
             headers={"Content-Disposition": _content_disposition("procurement_forms.zip")},
         )
+
+
+@app.post("/feedback", response_model=FeedbackResponse)
+async def submit_feedback(request: FeedbackRequest):
+    """Record implicit/explicit feedback into the feedback bank.
+
+    Inert (returns {"stored": 0}) unless FEEDBACK_BANK_ENABLED is set.
+    """
+    from utils.storage import validate_thread_id
+
+    items = []
+    for item in request.items:
+        if not validate_thread_id(item.thread_id):
+            raise HTTPException(status_code=400, detail="Invalid thread_id format")
+        ctx = feedback_service.resolve_input_context(item.thread_id, item.input_context)
+        data = item.model_dump()
+        data["input_context"] = ctx
+        items.append(FeedbackItem(**data))
+
+    try:
+        stored = feedback_service.record_feedback(items)
+    except Exception:
+        logger.exception("Feedback recording failed")
+        stored = 0
+    return FeedbackResponse(stored=stored)

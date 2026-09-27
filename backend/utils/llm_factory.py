@@ -2,9 +2,12 @@ from config import settings
 from langchain_core.language_models.chat_models import BaseChatModel
 
 
-def get_llm() -> BaseChatModel:
+def get_llm(temperature: float | None = None) -> BaseChatModel:
     """
     Returns configured LLM instance based on settings.LLM_PROVIDER.
+
+    Args:
+        temperature: Optional temperature override. If None, uses settings.TEMPERATURE.
 
     Returns:
         BaseChatModel: Configured LLM instance (ChatVertexAI or ChatAnthropic)
@@ -12,6 +15,8 @@ def get_llm() -> BaseChatModel:
     Raises:
         ValueError: If LLM_PROVIDER is not recognized or required credentials are missing
     """
+    temp = temperature if temperature is not None else settings.TEMPERATURE
+
     if settings.LLM_PROVIDER == "vertex_ai":
         if not settings.GOOGLE_CLOUD_PROJECT:
             raise ValueError("GOOGLE_CLOUD_PROJECT must be set for Vertex AI provider")
@@ -23,7 +28,7 @@ def get_llm() -> BaseChatModel:
             return ChatGoogleGenerativeAI(
                 model=settings.VERTEX_MODEL_NAME,
                 google_api_key=None,  # Uses Application Default Credentials
-                temperature=settings.TEMPERATURE,
+                temperature=temp,
             )
         except ImportError:
             # Fallback to langchain-google-vertexai (deprecated but still works)
@@ -33,7 +38,7 @@ def get_llm() -> BaseChatModel:
                 model_name=settings.VERTEX_MODEL_NAME,
                 project=settings.GOOGLE_CLOUD_PROJECT,
                 location=settings.GOOGLE_CLOUD_LOCATION,
-                temperature=settings.TEMPERATURE,
+                temperature=temp,
             )
 
     elif settings.LLM_PROVIDER == "anthropic":
@@ -45,7 +50,7 @@ def get_llm() -> BaseChatModel:
         return ChatAnthropic(
             model=settings.ANTHROPIC_MODEL_NAME,
             anthropic_api_key=settings.ANTHROPIC_API_KEY,
-            temperature=settings.TEMPERATURE,
+            temperature=temp,
         )
 
     else:

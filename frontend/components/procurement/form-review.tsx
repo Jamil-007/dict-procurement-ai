@@ -27,10 +27,18 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
         const data = await apiClient.extractForms(threadId, formKeys);
         setExtractedData(data);
 
-        // Initialize edited fields
+        // Initialize edited fields. Composite/object fields (e.g. market activity_flags,
+        // result_rows) are intentionally excluded from the editable overrides so they can
+        // never render as "[object Object]" or be corrupted into invalid values.
         const initial: Record<string, Record<string, string>> = {};
         Object.entries(data).forEach(([key, formData]) => {
-          initial[key] = { ...formData.fields } as Record<string, string>;
+          const primitives: Record<string, string> = {};
+          Object.entries(formData.fields || {}).forEach(([fieldName, value]) => {
+            if (value === null || typeof value !== 'object') {
+              primitives[fieldName] = value == null ? '' : String(value);
+            }
+          });
+          initial[key] = primitives;
         });
         setEditedFields(initial as any);
 

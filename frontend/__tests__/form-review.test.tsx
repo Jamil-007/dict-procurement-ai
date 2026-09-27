@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FormReview } from '@/components/procurement/form-review';
 import type { ExtractResponse } from '@/lib/api-client';
 
@@ -50,5 +50,28 @@ describe('FormReview', () => {
       const disclaimers = screen.getAllByText(/DRAFT/i);
       expect(disclaimers.length).toBeGreaterThan(0);
     });
+  });
+
+  it('does not render [object Object] for market composite fields', async () => {
+    const { apiClient } = await import('@/lib/api-client');
+    vi.mocked(apiClient.extractForms).mockResolvedValue({
+      market: {
+        fields: {
+          project_name: 'GECS Study',
+          // Composite object fields returned by the market extractor.
+          activity_flags: { consultation: { checked: true } },
+          result_rows: { cost_estimate: { considered: 'Yes', recommendation: 'OK' } },
+        } as any,
+        warning: false,
+        group: 'A_rich',
+      },
+    });
+
+    render(<FormReview threadId="test-thread" formKeys={['market']} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/market/i).length).toBeGreaterThan(0);
+    });
+    expect(screen.queryByText(/\[object Object\]/)).toBeNull();
   });
 });

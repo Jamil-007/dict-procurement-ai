@@ -408,7 +408,7 @@ class APIClient {
   async generateForms(
     threadId: string,
     formKeys: FormKey[],
-    overrides?: Record<FormKey, Record<string, string | null>>
+    overrides?: Partial<Record<FormKey, Record<string, string | null>>>
   ): Promise<GenerateResult> {
     const response = await fetch(`${this.baseUrl}/forms/generate`, {
       method: 'POST',

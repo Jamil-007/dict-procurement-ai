@@ -43,5 +43,5 @@ export type FormFields = Record<string, FormFieldValue>;
 export interface GenerateRequest {
   thread_id: string;
   form_keys: FormKey[];
-  overrides?: Record<FormKey, Record<string, string | null>>;
+  overrides?: Partial<Record<FormKey, Record<string, string | null>>>;
 }

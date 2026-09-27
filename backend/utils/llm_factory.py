@@ -33,26 +33,18 @@ def get_llm(temperature: float | None = None) -> BaseChatModel:
         if not settings.GOOGLE_CLOUD_PROJECT:
             raise ValueError("GOOGLE_CLOUD_PROJECT must be set for Vertex AI provider")
 
-        try:
-            # Try newer langchain-google-genai package first
-            from langchain_google_genai import ChatGoogleGenerativeAI
+        # Vertex AI authenticates via Application Default Credentials (on Cloud Run,
+        # the service account with roles/aiplatform.user). Use ChatVertexAI for this:
+        # ChatGoogleGenerativeAI is the Gemini *Developer API* client and requires an
+        # explicit API key, so it cannot serve the vertex_ai path.
+        from langchain_google_vertexai import ChatVertexAI
 
-            return ChatGoogleGenerativeAI(
-                model=settings.VERTEX_MODEL_NAME,
-                google_api_key=None,  # Uses Application Default Credentials
-                temperature=temp,
-                thinking_budget=_thinking_budget(),
-            )
-        except ImportError:
-            # Fallback to langchain-google-vertexai (deprecated but still works)
-            from langchain_google_vertexai import ChatVertexAI
-
-            return ChatVertexAI(
-                model_name=settings.VERTEX_MODEL_NAME,
-                project=settings.GOOGLE_CLOUD_PROJECT,
-                location=settings.GOOGLE_CLOUD_LOCATION,
-                temperature=temp,
-            )
+        return ChatVertexAI(
+            model=settings.VERTEX_MODEL_NAME,
+            project=settings.GOOGLE_CLOUD_PROJECT,
+            location=settings.GOOGLE_CLOUD_LOCATION,
+            temperature=temp,
+        )
 
     elif settings.LLM_PROVIDER == "google_genai":
         if not settings.GOOGLE_API_KEY:

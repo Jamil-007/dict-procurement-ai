@@ -52,8 +52,7 @@ export default function FormsPage() {
         Generate procurement forms
       </h1>
       <p className="mt-2 text-sm text-zinc-500">
-        Upload your procurement documents to auto-fill GPPB forms — or continue
-        without documents and fill a form in manually.
+        Upload your procurement documents to auto-fill the matching GPPB forms.
       </p>
 
       {/* Step 1: upload / start session */}
@@ -69,15 +68,6 @@ export default function FormsPage() {
           <>
             <FileUpload onFilesSelect={startSession} disabled={busy} />
             <FormHint />
-            <div className="mt-4">
-              <button
-                onClick={() => startSession([])}
-                disabled={busy}
-                className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-50 disabled:opacity-40"
-              >
-                Continue without documents
-              </button>
-            </div>
           </>
         ) : (
           <div className="flex items-center justify-between gap-4">

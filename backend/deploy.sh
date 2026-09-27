@@ -20,7 +20,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --region "${REGION}" \
   --platform managed \
   --allow-unauthenticated \
-  --set-env-vars "LLM_PROVIDER=vertex_ai,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${REGION},VERTEX_MODEL_NAME=gemini-2.5-flash,STATE_STORAGE=memory,FEEDBACK_BANK_ENABLED=true,FEEDBACK_BACKEND=firestore,FIRESTORE_PROJECT=${PROJECT_ID},FIRESTORE_DATABASE=proc-feedback-bank,FIRESTORE_COLLECTION=feedback,EMBEDDING_MODEL=text-embedding-004" \
+  --set-env-vars "LLM_PROVIDER=vertex_ai,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${REGION},VERTEX_MODEL_NAME=gemini-2.5-flash,STATE_STORAGE=memory,FEEDBACK_BANK_ENABLED=true,FEEDBACK_BACKEND=firestore,FIRESTORE_PROJECT=${PROJECT_ID},FEEDBACK_FIRESTORE_DATABASE=proc-feedback-bank,FIRESTORE_COLLECTION=feedback,EMBEDDING_MODEL=text-embedding-004" \
   --set-secrets "TAVILY_API_KEY=TAVILY_API_KEY:latest,GAMMA_API_KEY=GAMMA_API_KEY:latest" \
   --memory 2Gi \
   --cpu 2 \

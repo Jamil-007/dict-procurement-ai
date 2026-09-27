@@ -1,0 +1,120 @@
+{
+  "built_at": "2026-09-26T05:04:12.026671+00:00",
+  "embedding_model": "models/gemini-embedding-001",
+  "dimensions": 768,
+  "chunk_count": 1774,
+  "documents": [
+    {
+      "doc_id": "ra-12009-irr",
+      "title": "IRR of RA 12009",
+      "filename": "(IRR) Implementing-Rules-and-Regulations-of-RA-12009.pdf",
+      "sha256": "e18ecd232896d896d7a50cff0755ba65cd0af8a426dae997474e63e20ee23007",
+      "pages": 193,
+      "chunks": 374
+    },
+    {
+      "doc_id": "gppb-circ-06-2026",
+      "title": "GPPB Circular No. 06-2026",
+      "filename": "Annex-A-Circular-No.-06-2026.pdf",
+      "sha256": "f096f0c4509f6044ec3a6ac4e048b74954649dd17994a281b7295fda98483eaf",
+      "pages": 8,
+      "chunks": 14
+    },
+    {
+      "doc_id": "gppb-res-12-2026",
+      "title": "GPPB Resolution No. 12-2026",
+      "filename": "Annex-A-FNL-Approved-GPPB-Resolution-No.-12-2026.pdf",
+      "sha256": "42c168298024dd5850678d6b36c7af8ceec83e9d17ea1e0f7dfd2668e019a2ed",
+      "pages": 22,
+      "chunks": 45
+    },
+    {
+      "doc_id": "gppb-circ-bid-docs-fees",
+      "title": "GPPB Circular on Bidding Document Fees",
+      "filename": "Annex-A_Circular-Bid-Docs-Fees_15052026.pdf",
+      "sha256": "836760fb6250a7bf76ae53c39727218876a75cee1c096ddabf134130dbe646db",
+      "pages": 3,
+      "chunks": 5
+    },
+    {
+      "doc_id": "gppb-res-08-2026",
+      "title": "GPPB Resolution No. 08-2026",
+      "filename": "Approved-GPPB-Resolution-No.-08-2026-Updated-guidelines_01072026.pdf",
+      "sha256": "bd0b421cc1d91678b27c5c7831814f2595c784ec894d3517a2fe19ef839f4c19",
+      "pages": 16,
+      "chunks": 30
+    },
+    {
+      "doc_id": "gppb-circ-01-2026",
+      "title": "GPPB Circular No. 01-2026",
+      "filename": "CIRCULAR-NO.-01-2026.pdf",
+      "sha256": "dc3ff855f4c55d3b22db24add3beb3d6db0f07f8b8ced0fe3ba404ad00151418",
+      "pages": 12,
+      "chunks": 29
+    },
+    {
+      "doc_id": "coa-circ-2009-001",
+      "title": "COA Circular No. 2009-001",
+      "filename": "COA-CIRCULAR-NO.-2009-001-February-12-2009(d0ec7deb55fed8949efb61cf1fa39004).pdf",
+      "sha256": "97f715082430b07dd9738ebfd992f81dd89b58b426f9bfc2845b4240226c9fc5",
+      "pages": 28,
+      "chunks": 33
+    },
+    {
+      "doc_id": "coa-circ-2023-004",
+      "title": "COA Circular No. 2023-004",
+      "filename": "COA-CIRCULAR-NO.-2023-004-June-14-2023.pdf",
+      "sha256": "6affefba66566f6cabec80209713abc2a243c507c8dd9ccb9c2faa129a2158cb",
+      "pages": 32,
+      "chunks": 52
+    },
+    {
+      "doc_id": "gppb-res-17-2026",
+      "title": "GPPB Resolution No. 17-2026",
+      "filename": "Final_GPPB-Resolution-No.-17-2026-EP_09092026.pdf",
+      "sha256": "ef3f4162e4875e00320219670d2f7c1b46fd2fcae46fa707cff4f509edac7f87",
+      "pages": 38,
+      "chunks": 83
+    },
+    {
+      "doc_id": "ngpa-market-scoping-form",
+      "title": "NGPA Market Scoping Form",
+      "filename": "NGPA_Market-Scoping-Form.pdf",
+      "sha256": "a1797761102c57e93927dd823876771b837ed994f1464a110895e5ef0c746f0b",
+      "pages": 3,
+      "chunks": 4
+    },
+    {
+      "doc_id": "manual-vol-1",
+      "title": "Procurement Manual Volume 1 — Procurement Systems and Organizations",
+      "filename": "Volume 1 – Procurement Systems and Organizations.pdf",
+      "sha256": "82feab95b600bf1745926a239b419e6dcfd851e5294a5e270d3c69f1e374051a",
+      "pages": 120,
+      "chunks": 206
+    },
+    {
+      "doc_id": "manual-vol-2",
+      "title": "Procurement Manual Volume 2 — Procurement of Goods and Services",
+      "filename": "Volume 2 – Procurement of Goods and Services.pdf",
+      "sha256": "8ce438e2aa94a22a3041ffda8a54e85d756748abe0a6ae9ca4e3aa185aa2ee2f",
+      "pages": 152,
+      "chunks": 344
+    },
+    {
+      "doc_id": "manual-vol-3",
+      "title": "Procurement Manual Volume 3 — Procurement of Infrastructure Projects",
+      "filename": "Volume 3 – Procurement of Infrastructure Projects.pdf",
+      "sha256": "750631ce1d128b5ee4f6bb8ac52660a1b2b76ae0033780eaa2b83ace7ac172a5",
+      "pages": 121,
+      "chunks": 276
+    },
+    {
+      "doc_id": "manual-vol-4",
+      "title": "Procurement Manual Volume 4 — Procurement of Consulting Services",
+      "filename": "Volume 4 – Procurement of Consulting Services.pdf",
+      "sha256": "9c5c6d03d95bf9efdbc05312a0c537914565f599aacbc5c3bb24eafd7365bb50",
+      "pages": 123,
+      "chunks": 279
+    }
+  ]
+}

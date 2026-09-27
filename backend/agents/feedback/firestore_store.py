@@ -19,7 +19,7 @@ class FirestoreFeedbackStore:
             from google.cloud import firestore
             client = firestore.Client(
                 project=settings.FIRESTORE_PROJECT or settings.GOOGLE_CLOUD_PROJECT,
-                database=settings.FIRESTORE_DATABASE,
+                database=settings.FEEDBACK_FIRESTORE_DATABASE,
             )
         self._client = client
         self._name = collection_name or settings.FIRESTORE_COLLECTION

@@ -35,8 +35,17 @@ temp/
 *.tar.gz
 *.rar
 
-# Local docs, specs, plans, mockups and source form templates — not committed
-docs/
+# Reference PDFs — laws, issuances and manuals. Staging area for building the
+# knowledge index; the documents themselves live in the bucket under
+# knowledge/, not in the repo. See backend/data/knowledge_sources.json for
+# what belongs here and backend/scripts/build_knowledge_index.py to rebuild.
+Reference/
+
+# docs/ is published, so only the per-dimension briefs belong in it. All other
+# working notes — specs, plans, mockups, agent instructions — stay out of the
+# repo. Ignore everything under docs/ and allow the briefs back in.
+docs/*
+!docs/dimension-*.md
 
 # Agent worktrees and orchestration scratch — not committed
 .claude/

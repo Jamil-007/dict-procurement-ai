@@ -6,7 +6,10 @@ import { cn } from '@/lib/utils';
 
 const LINKS = [
   { href: '/', label: 'Analyze' },
+  { href: '/analyst', label: 'ProcAI' },
   { href: '/forms', label: 'Forms' },
+  { href: '/items', label: 'Procurements' },
+  { href: '/hub', label: 'Knowledge Hub' },
 ];
 
 export function TopNav() {

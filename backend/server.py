@@ -8,6 +8,7 @@ import json
 import logging
 import time
 import uuid
+from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, List, Optional
 from fastapi import FastAPI, UploadFile, HTTPException, File, Request
 from fastapi.responses import StreamingResponse
@@ -41,6 +42,7 @@ from agents.doc_generation.registry import FORM_REGISTRY
 from agents.doc_generation.text_source import get_source_text
 from agents.feedback import service as feedback_service
 from agents.feedback.models import FeedbackItem
+from routers import knowledge, procurements, review_api
 
 import re as _re
 import unicodedata as _unicodedata
@@ -70,10 +72,27 @@ def _content_disposition(filename: str) -> str:
     )
 
 
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # MemoryStore loads the Knowledge Hub when it is constructed; Firestore
+    # needs it written once. Doing it here means switching STORE_BACKEND is
+    # the only change required to move onto a real database.
+    from store import get_store
+
+    try:
+        written = get_store().seed_knowledge()
+        if written:
+            print(f"Knowledge Hub: seeded {written} entries")
+    except Exception as exc:  # noqa: BLE001 — never block startup on the seed
+        print(f"Knowledge Hub: could not seed ({exc})")
+    yield
+
+
 app = FastAPI(
     title="Procurement Analysis API",
     description="AI-powered procurement document analysis for Philippine Government Procurement (RA 12009)",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Configure CORS for frontend
@@ -91,12 +110,18 @@ app.add_middleware(
     # plus this project's procurement-ai* Cloud Run frontends (either run.app URL format).
     allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+|https://procurement-ai[a-z0-9-]*\.(asia-southeast1\.run\.app|as\.a\.run\.app)",
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
     expose_headers=["Content-Disposition"],
 )
 
 logger = logging.getLogger(__name__)
+
+# Procurement records, Knowledge Hub and AI Review. The Procurement Analyst
+# endpoints below are unchanged and still run off graph.py.
+app.include_router(procurements.router)
+app.include_router(knowledge.router)
+app.include_router(review_api.router)
 
 # Store for tracking background tasks
 analysis_tasks = {}

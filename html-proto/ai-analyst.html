@@ -1,0 +1,2562 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Analyst — DICT</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              navy: "#123B6D",
+              blue: "#1E5AA8",
+              sky: "#EAF3FB",
+              page: "#F5F9FD",
+              ink: "#172B4D",
+              muted: "#64748B",
+              line: "#D9E5F0",
+            },
+            fontFamily: {
+              sans: ['"IBM Plex Sans"', "system-ui", "sans-serif"],
+              serif: ['"IBM Plex Serif"', "Georgia", "serif"],
+              mono: ['"IBM Plex Mono"', "ui-monospace", "monospace"],
+            },
+            borderRadius: { DEFAULT: "8px", md: "8px", lg: "10px", xl: "12px" },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      body {
+        font-family: "IBM Plex Sans", system-ui, sans-serif;
+      }
+      ::selection {
+        background: #cfe2f6;
+      }
+      :focus-visible {
+        outline: 2px solid #1e5aa8;
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
+
+      .scroll-x {
+        overflow-x: auto;
+      }
+      .scroll-x::-webkit-scrollbar {
+        height: 8px;
+      }
+      .scroll-x::-webkit-scrollbar-thumb {
+        background: #d9e5f0;
+        border-radius: 8px;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .spin {
+        animation: spin 1s linear infinite;
+      }
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .fade-up {
+        animation: fadeUp 0.25s ease-out both;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.001ms !important;
+          transition-duration: 0.001ms !important;
+        }
+      }
+
+      .quote {
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+      .report {
+        font-family: "IBM Plex Serif", Georgia, serif;
+        color: #1a1a1a;
+      }
+
+      @media print {
+        @page {
+          size: A4;
+          margin: 18mm 16mm;
+        }
+        body {
+          background: #fff !important;
+        }
+        .no-print,
+        #sidebar,
+        #topbar,
+        #scrim,
+        #toastRoot,
+        #modalRoot {
+          display: none !important;
+        }
+        #shell {
+          margin-left: 0 !important;
+        }
+        main {
+          padding: 0 !important;
+        }
+        .print-area {
+          border: 0 !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          max-width: 100% !important;
+          border-radius: 0 !important;
+        }
+        .print-break {
+          break-inside: avoid;
+          page-break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+
+  <body class="bg-page text-ink antialiased">
+    <div class="flex min-h-screen">
+      <!-- ============================ SIDEBAR ============================ -->
+      <aside
+        id="sidebar"
+        class="fixed inset-y-0 left-0 z-40 w-[228px] bg-navy text-white flex flex-col -translate-x-full lg:translate-x-0 transition-transform duration-200 no-print"
+      >
+        <div class="px-5 pt-6 pb-6">
+          <div class="text-[15px] font-bold tracking-wide">AI Analyst</div>
+          <div class="text-[12px] text-white/55 leading-tight mt-0.5">
+            DICT Procurement
+          </div>
+        </div>
+
+        <nav class="px-3 flex-1">
+          <div
+            class="px-2 pb-2 text-[10px] font-semibold tracking-[0.16em] text-white/35"
+          >
+            WORKSPACE
+          </div>
+          <ul id="navList" class="space-y-0.5"></ul>
+        </nav>
+      </aside>
+
+      <div
+        id="scrim"
+        onclick="sidebar(false)"
+        class="fixed inset-0 z-30 bg-navy/40 hidden lg:hidden no-print"
+      ></div>
+
+      <!-- ============================= SHELL ============================= -->
+      <div id="shell" class="flex-1 min-w-0 lg:ml-[228px] flex flex-col">
+        <header
+          id="topbar"
+          class="lg:hidden sticky top-0 z-20 bg-white border-b border-line h-14 flex items-center px-4 no-print"
+        >
+          <button
+            onclick="sidebar(true)"
+            class="text-muted"
+            aria-label="Open navigation"
+          >
+            <i data-lucide="menu" class="h-5 w-5"></i>
+          </button>
+          <span class="ml-3 text-[14px] font-semibold text-navy"
+            >AI Analyst</span
+          >
+        </header>
+        <main id="main" class="flex-1 px-5 sm:px-8 py-7"></main>
+      </div>
+    </div>
+
+    <div id="modalRoot" class="no-print"></div>
+    <div
+      id="toastRoot"
+      class="fixed bottom-5 right-5 z-[60] flex flex-col items-end gap-2 no-print"
+    ></div>
+
+    <script>
+      /* ======================================================================
+   MOCK DATA — fictional records for demonstration
+   ====================================================================== */
+
+      const TODAY = "Sep 24, 2026";
+      const NOW = "Sep 24, 2026 · 14:08";
+
+      const DIMENSIONS = [
+        {
+          key: "compliance",
+          label: "Compliance",
+          blurb:
+            "RA 12009, its IRR, GPPB and COA issuances, and documentary completeness.",
+        },
+        {
+          key: "consistency",
+          label: "Document Consistency",
+          blurb:
+            "Figures, dates, quantities and terms compared across procurement documents.",
+        },
+        {
+          key: "quality",
+          label: "Document Quality",
+          blurb:
+            "Structure, clarity and completeness of the TOR and technical specifications.",
+        },
+        {
+          key: "market",
+          label: "Procurement & Market",
+          blurb:
+            "Specification openness, ABC alignment, and existing system dependencies.",
+        },
+        {
+          key: "risk",
+          label: "Requirements & Risk",
+          blurb:
+            "Deliverables, warranty, payment conditions and contract obligations.",
+        },
+      ];
+      const DIM = Object.fromEntries(DIMENSIONS.map((d) => [d.key, d.label]));
+
+      /* Severity scale — see the review guidance: Critical · High · Medium · Low · Informational */
+      const SEV = {
+        critical: {
+          label: "Critical",
+          chip: "bg-red-50 text-red-700 border-red-200",
+          bar: "bg-red-500",
+          text: "text-red-700",
+          icon: "alert-octagon",
+          meaning: "Potentially material issue requiring prompt BAC attention",
+        },
+        high: {
+          label: "High",
+          chip: "bg-orange-50 text-orange-800 border-orange-200",
+          bar: "bg-orange-500",
+          text: "text-orange-700",
+          icon: "alert-triangle",
+          meaning:
+            "Significant issue that should be resolved or explicitly reviewed before proceeding",
+        },
+        medium: {
+          label: "Medium",
+          chip: "bg-amber-50 text-amber-800 border-amber-200",
+          bar: "bg-amber-400",
+          text: "text-amber-700",
+          icon: "alert-circle",
+          meaning:
+            "Meaningful issue but generally does not by itself prevent continuation",
+        },
+        low: {
+          label: "Low",
+          chip: "bg-sky text-blue border-blue/20",
+          bar: "bg-blue",
+          text: "text-blue",
+          icon: "info",
+          meaning: "Minor quality or completeness issue",
+        },
+        info: {
+          label: "Informational",
+          chip: "bg-slate-100 text-slate-600 border-slate-200",
+          bar: "bg-slate-300",
+          text: "text-slate-600",
+          icon: "circle-check",
+          meaning: "Observation rather than an identified deficiency",
+        },
+      };
+      const SEV_KEYS = Object.keys(SEV);
+
+      const DECISIONS = {
+        accepted: {
+          label: "Accepted",
+          chip: "bg-green-50 text-green-700 border-green-200",
+          icon: "check",
+        },
+        modified: {
+          label: "Modified",
+          chip: "bg-sky text-blue border-line",
+          icon: "pencil",
+        },
+      };
+
+      const DOC_TYPES = [
+        "Market Study",
+        "TOR",
+        "Technical Specifications",
+        "DCB",
+        "Bidding Documents",
+        "BAC Resolution",
+        "Purchase Request",
+        "Contract",
+        "Supplier Quotation",
+        "Payment Document",
+        "Other",
+      ];
+
+      function seedDocuments() {
+        return [
+          {
+            name: "Market Study.pdf",
+            type: "Market Study",
+            pages: 18,
+            uploaded: "Sep 22, 2026",
+          },
+          { name: "TOR.pdf", type: "TOR", pages: 24, uploaded: "Sep 22, 2026" },
+          {
+            name: "Technical Specifications.pdf",
+            type: "Technical Specifications",
+            pages: 31,
+            uploaded: "Sep 22, 2026",
+          },
+          { name: "DCB.pdf", type: "DCB", pages: 9, uploaded: "Sep 23, 2026" },
+          {
+            name: "Bidding Documents.pdf",
+            type: "Bidding Documents",
+            pages: 64,
+            uploaded: "Sep 23, 2026",
+          },
+          {
+            name: "BAC Resolution No. 01.pdf",
+            type: "BAC Resolution",
+            pages: 3,
+            uploaded: "Sep 23, 2026",
+          },
+          {
+            name: "BAC Resolution No. 02.pdf",
+            type: "BAC Resolution",
+            pages: 3,
+            uploaded: "Sep 23, 2026",
+          },
+          {
+            name: "Purchase Request.pdf",
+            type: "Purchase Request",
+            pages: 2,
+            uploaded: "Sep 24, 2026",
+          },
+          {
+            name: "Contract.pdf",
+            type: "Contract",
+            pages: 28,
+            uploaded: "Sep 24, 2026",
+          },
+        ].map((d) => ({ ...d, status: "Ready" }));
+      }
+
+      /* ---- 15 findings: 2 critical · 4 high · 3 medium · 1 low · 5 informational ---- */
+      function seedFindings() {
+        const f = (o) => ({
+          decision: null,
+          decidedAt: null,
+          comments: [],
+          feedback: null,
+          edited: false,
+          aiAnalysis: o.analysis,
+          aiRecommendation: o.recommendation || "",
+          ...o,
+        });
+        return [
+          /* ---------------- COMPLIANCE ---------------- */
+          f({
+            id: "AI-01",
+            dim: "compliance",
+            severity: "critical",
+            title: "Required provision not found in the Bidding Documents",
+            analysis:
+              "The Instructions to Bidders does not carry the provision on the submission of the Bid Securing Declaration that the applicable procurement rule requires for this modality. Section 8 moves from bid security forms directly to the opening of bids.",
+            recommendation:
+              "Review Section 8 against the standard bidding document and insert the missing provision before the invitation to bid is published.",
+            source: {
+              doc: "Bidding Documents.pdf",
+              page: 24,
+              section: "Section 8 — Bid Security",
+            },
+            policy: "RA 12009 IRR",
+            quote:
+              '"8.3 The Bidder shall submit bid security in any of the following forms and amounts: (a) cash or cashier’s check; (b) bank draft or guarantee; (c) surety bond. 8.4 Bid securities shall be returned..."',
+          }),
+
+          f({
+            id: "AI-02",
+            dim: "compliance",
+            severity: "high",
+            title: "BAC Resolution No. 02 is missing a signature and a date",
+            analysis:
+              "The signature block for one committee member is blank and the date of approval is not filled in. The resolution is otherwise complete.",
+            recommendation:
+              "Secure the remaining signature and encode the date of approval before the resolution is attached to the procurement record.",
+            source: {
+              doc: "BAC Resolution No. 02.pdf",
+              page: 3,
+              section: "Signature page",
+            },
+            policy: "RA 12009 IRR · Documentary requirements",
+            quote:
+              '"APPROVED this ____ day of __________, 2026.   _______________________ (Member, Bids and Awards Committee)"',
+          }),
+
+          f({
+            id: "AI-03",
+            dim: "compliance",
+            severity: "info",
+            title: "Procurement mode is consistent with the approved budget",
+            analysis:
+              "Competitive bidding is consistent with the ABC of ₱17,339,609.00 and with the nature of the requirement. The eligibility documents enumerated in the Bidding Documents match the checklist in the DCB.",
+            recommendation: "",
+            source: {
+              doc: "Bidding Documents.pdf",
+              page: 6,
+              section: "Section 1 — Invitation to Bid",
+            },
+            policy: "RA 12009",
+            quote:
+              '"The Department of Information and Communications Technology invites bids for the Procurement of One (1) Year Subscription of the Cyber Risk Assessment and Baseline Scoring Tool with an ABC of ₱17,339,609.00."',
+          }),
+
+          /* ------------- DOCUMENT CONSISTENCY ------------- */
+          f({
+            id: "AI-04",
+            dim: "consistency",
+            severity: "critical",
+            title: "Contract amount and payment document differ by ₱600,000.00",
+            analysis:
+              "The contract price and the amount stated on the disbursement voucher do not match. The difference of ₱600,000.00 is not explained by any variation order or supplemental agreement in the uploaded records.",
+            recommendation:
+              "Trace the ₱600,000.00 difference to a supporting document. If no variation order exists, return the payment document to the end-user for correction before processing.",
+            source: {
+              doc: "Contract.pdf",
+              page: 4,
+              section: "Article III — Contract Price",
+            },
+            policy: "COA Circular · Documentation of disbursements",
+            comparison: [
+              {
+                doc: "Contract.pdf",
+                page: 4,
+                label: "Contract price",
+                quote:
+                  '"The CONTRACT PRICE shall be Seventeen Million One Hundred Fifty Thousand Pesos (₱17,150,000.00), inclusive of all applicable taxes."',
+              },
+              {
+                doc: "Payment Document.pdf",
+                page: 1,
+                label: "Amount claimed",
+                quote:
+                  '"Gross amount due: ₱17,750,000.00 — First and final billing for one (1) year subscription."',
+              },
+            ],
+            delta: "Unreconciled difference of ₱600,000.00",
+          }),
+
+          f({
+            id: "AI-05",
+            dim: "consistency",
+            severity: "high",
+            title: "Licence quantity differs across three documents",
+            analysis:
+              "The number of licence seats is stated as 50 in the Market Study and the Technical Specifications, but as 45 in the Purchase Request. The ABC appears to have been computed on 50 seats.",
+            recommendation:
+              "Confirm the correct number of seats with the end-user and reflect one figure across the Purchase Request, Market Study and Technical Specifications.",
+            source: {
+              doc: "Purchase Request.pdf",
+              page: 3,
+              section: "Item description",
+            },
+            policy: "Internal consistency check",
+            comparison: [
+              {
+                doc: "Market Study.pdf",
+                page: 7,
+                label: "Quantity",
+                quote:
+                  '"Indicative requirement: fifty (50) assessor seats for one (1) year."',
+              },
+              {
+                doc: "Technical Specifications.pdf",
+                page: 12,
+                label: "Quantity",
+                quote:
+                  '"The subscription shall cover fifty (50) named user seats."',
+              },
+              {
+                doc: "Purchase Request.pdf",
+                page: 3,
+                label: "Quantity",
+                quote:
+                  '"Qty: 45 seats — Annual subscription, cyber risk assessment and baseline scoring tool."',
+              },
+            ],
+            delta:
+              "5 seats unaccounted for between the Purchase Request and the specifications",
+          }),
+
+          f({
+            id: "AI-06",
+            dim: "consistency",
+            severity: "info",
+            title:
+              "ABC is stated consistently across the procurement documents",
+            analysis:
+              "The ABC of ₱17,339,609.00 appears identically in the Market Study, the Purchase Request, the Bidding Documents and BAC Resolution No. 01.",
+            recommendation: "",
+            source: {
+              doc: "Market Study.pdf",
+              page: 9,
+              section: "Cost estimate",
+            },
+            policy: "Internal consistency check",
+            comparison: [
+              {
+                doc: "Market Study.pdf",
+                page: 9,
+                label: "ABC",
+                quote: '"Estimated budget requirement: ₱17,339,609.00"',
+              },
+              {
+                doc: "Purchase Request.pdf",
+                page: 1,
+                label: "ABC",
+                quote: '"Estimated cost: ₱17,339,609.00"',
+              },
+            ],
+          }),
+
+          /* ---------------- DOCUMENT QUALITY ---------------- */
+          f({
+            id: "AI-07",
+            dim: "quality",
+            severity: "medium",
+            title:
+              "Post-qualification requirements appear inside the technical specifications",
+            analysis:
+              "Section 4 of the TOR lists post-qualification documentary requirements within the technical specifications. Bidders reading the specifications may treat these as technical criteria rather than post-qualification requirements.",
+            recommendation:
+              "Move the post-qualification requirements to the appropriate section of the procurement documents and cross-reference them from the TOR.",
+            source: {
+              doc: "TOR.pdf",
+              page: 11,
+              section: "Section 4 — Technical Specifications",
+            },
+            policy: "Document structure · Standard procurement forms",
+            quote:
+              '"4.7 The winning bidder shall submit, within five (5) calendar days from notice, its latest audited financial statements, certificate of authorised reseller status, and the résumés of assigned personnel."',
+          }),
+
+          f({
+            id: "AI-08",
+            dim: "quality",
+            severity: "info",
+            title: "Technical requirements are stated in measurable terms",
+            analysis:
+              "The performance requirements in Sections 5 and 6 are expressed with measurable thresholds for scan coverage, reporting frequency and uptime, which supports objective evaluation.",
+            recommendation: "",
+            source: {
+              doc: "Technical Specifications.pdf",
+              page: 17,
+              section: "Section 5 — Performance Requirements",
+            },
+            policy: "Document quality review",
+            quote:
+              '"The platform shall complete a full baseline assessment of all enrolled assets within seventy-two (72) hours and maintain 99.5% monthly availability."',
+          }),
+
+          f({
+            id: "AI-15",
+            dim: "quality",
+            severity: "low",
+            title: "Subscription period is written in two different ways",
+            analysis:
+              'The TOR refers to the engagement as a "one (1) year subscription" in Section 2 and as a "twelve (12) month subscription" in Section 6. Both describe the same period, so the requirement remains understandable.',
+            recommendation:
+              "Use one wording throughout the TOR for consistency with the title of the procurement.",
+            source: {
+              doc: "TOR.pdf",
+              page: 6,
+              section: "Section 2 — Background",
+            },
+            policy: "Document quality review",
+            quote:
+              '"2.1 The agency intends to procure a one (1) year subscription… 6.2 The twelve (12) month subscription shall commence upon activation."',
+          }),
+
+          /* ---------------- PROCUREMENT & MARKET ---------------- */
+          f({
+            id: "AI-09",
+            dim: "market",
+            severity: "high",
+            title:
+              "Specification may correspond closely to one commercial product",
+            analysis:
+              "The combination of a named scoring methodology, a fixed dashboard layout and a specific export format narrows the field to configurations offered by a small number of providers. This is a potential concern that requires BAC review; it is not, on its own, a determination that the specification is restrictive.",
+            recommendation:
+              'Restate the requirement in terms of the outcome needed, or retain the reference with "or equivalent" and publish the equivalence criteria.',
+            source: {
+              doc: "Technical Specifications.pdf",
+              page: 14,
+              section: "Section 4.2 — Scoring Engine",
+            },
+            policy: "RA 12009 · Non-restrictive specifications",
+            quote:
+              '"The scoring engine shall implement the vendor’s proprietary baseline index and export results in its native .brx format for ingestion by the agency dashboard."',
+          }),
+
+          f({
+            id: "AI-10",
+            dim: "market",
+            severity: "medium",
+            title:
+              "Configuration may warrant further market validation against the ABC",
+            analysis:
+              "The Market Study cites two providers for a 50-seat configuration. The ABC sits within 3% of both quotations, which gives a narrow basis for concluding that it reflects prevailing market prices for the requested scope.",
+            recommendation:
+              "Obtain one further quotation or a published price reference, and record in the Market Study how the ABC was derived.",
+            source: {
+              doc: "Market Study.pdf",
+              page: 8,
+              section: "Price canvass",
+            },
+            policy: "RA 12009 · Determination of the ABC",
+            quote:
+              '"Provider A: ₱17,420,000.00 · Provider B: ₱17,680,000.00 · Average of canvassed offers used as basis for the ABC."',
+          }),
+
+          f({
+            id: "AI-11",
+            dim: "market",
+            severity: "info",
+            title: "Dependency on an existing system is disclosed",
+            analysis:
+              "The TOR states that the subscription must integrate with the agency security operations platform procured in 2024 and identifies the interface involved, so bidders can price the integration work.",
+            recommendation: "",
+            source: {
+              doc: "TOR.pdf",
+              page: 15,
+              section: "Section 7 — Integration",
+            },
+            policy: "Existing contract and system compatibility",
+            quote:
+              '"The solution shall integrate with the agency’s existing security operations platform (Contract No. DICT-2024-118) through its documented REST interface."',
+          }),
+
+          /* ---------------- REQUIREMENTS & RISK ---------------- */
+          f({
+            id: "AI-12",
+            dim: "risk",
+            severity: "high",
+            title: "Final deliverables are not clearly defined",
+            analysis:
+              "The TOR describes the service to be subscribed to but does not state what the agency receives at the end of the subscription period, such as assessment reports, exported data or a closing baseline report.",
+            recommendation:
+              "List the expected deliverables and their format and due dates in the TOR so acceptance can be assessed against them.",
+            source: {
+              doc: "TOR.pdf",
+              page: 19,
+              section: "Section 6 — Scope of Services",
+            },
+            policy: "Requirements completeness",
+            quote:
+              '"The service provider shall provide continuous cyber risk assessment and baseline scoring for the duration of the subscription."',
+          }),
+
+          f({
+            id: "AI-13",
+            dim: "risk",
+            severity: "medium",
+            title: "Warranty and support period are not defined",
+            analysis:
+              "The technical specifications require technical support but do not state the support hours, response times or the period covered after the subscription ends.",
+            recommendation:
+              "State the support window, the response and resolution targets, and what support continues after expiry of the subscription.",
+            source: {
+              doc: "Technical Specifications.pdf",
+              page: 22,
+              section: "Section 8 — Support",
+            },
+            policy: "Contract obligations",
+            quote:
+              '"The provider shall render technical support for the duration of the engagement."',
+          }),
+
+          f({
+            id: "AI-14",
+            dim: "risk",
+            severity: "info",
+            title: "Payment milestones and acceptance conditions are defined",
+            analysis:
+              "The contract sets out two payment milestones tied to activation and to the issuance of the certificate of acceptance, and lists the supporting documents required for each claim.",
+            recommendation: "",
+            source: {
+              doc: "Contract.pdf",
+              page: 11,
+              section: "Article VI — Terms of Payment",
+            },
+            policy: "COA Circular · Documentation of disbursements",
+            quote:
+              '"Payment shall be released in two (2) tranches: 50% upon activation and acceptance testing, and 50% upon issuance of the Certificate of Final Acceptance."',
+          }),
+        ];
+      }
+
+      let procurements = [
+        {
+          ref: "PROC-2026-001",
+          title:
+            "Procurement of One (1) Year Subscription of the Cyber Risk Assessment and Baseline Scoring Tool",
+          abc: 17339609,
+          mode: "Competitive Bidding",
+          fund: "GAA",
+          category: "ICT / Software Subscription",
+          endUser: "Emerging Technologies Group",
+          created: "Sep 20, 2026",
+          updated: "Sep 24, 2026",
+          status: "Ongoing",
+          documents: seedDocuments(),
+          review: "done",
+          findings: seedFindings(),
+        },
+        {
+          ref: "PROC-2026-002",
+          title:
+            "Procurement of Network Switches and Structured Cabling for Regional Offices",
+          abc: 8500000,
+          mode: "Competitive Bidding",
+          fund: "GAA",
+          category: "ICT / Network Infrastructure",
+          endUser: "Infrastructure Management Service",
+          created: "Sep 15, 2026",
+          updated: "Sep 21, 2026",
+          status: "Ongoing",
+          documents: seedDocuments().slice(0, 4),
+          review: "none",
+          findings: [],
+        },
+        {
+          ref: "PROC-2026-003",
+          title: "Renewal of Enterprise Cloud Hosting Services",
+          abc: 4200000,
+          mode: "Competitive Bidding",
+          fund: "GAA",
+          category: "ICT / Cloud Services",
+          endUser: "Cybersecurity Bureau",
+          created: "Aug 28, 2026",
+          updated: "Sep 12, 2026",
+          status: "Finalized",
+          documents: seedDocuments().slice(0, 6),
+          review: "done",
+          findings: seedFindings().slice(0, 6),
+        },
+      ];
+
+      /* ---------------- Knowledge Hub ---------------- */
+      const KB_CATEGORIES = [
+        "Laws & Regulations",
+        "GPPB Issuances",
+        "COA Issuances",
+        "DICT Policies",
+        "Standard Forms",
+        "Jurisprudence & Cases",
+      ];
+
+      const KNOWLEDGE = [
+        {
+          title: "RA 12009",
+          subtitle: "New Government Procurement Act",
+          cat: "Laws & Regulations",
+          type: "Republic Act",
+          date: "Jul 20, 2024",
+          pages: 96,
+          excerpt:
+            "An act providing for the modernisation, standardisation and regulation of the procurement activities of the government, repealing Republic Act No. 9184.",
+        },
+        {
+          title: "RA 12009 IRR",
+          subtitle: "Implementing Rules and Regulations",
+          cat: "Laws & Regulations",
+          type: "IRR",
+          date: "Feb 28, 2025",
+          pages: 214,
+          excerpt:
+            "Rules implementing the New Government Procurement Act, covering procurement planning, modalities, bidding procedures, and contract implementation.",
+        },
+        {
+          title: "RA 9184",
+          subtitle: "Government Procurement Reform Act (superseded)",
+          cat: "Laws & Regulations",
+          type: "Republic Act",
+          date: "Jan 10, 2003",
+          pages: 64,
+          excerpt:
+            "Retained for reference in reviewing procurement commenced prior to the effectivity of RA 12009.",
+        },
+
+        {
+          title: "GPPB Resolution No. 12-2025",
+          subtitle: "Guidelines on the determination of the ABC",
+          cat: "GPPB Issuances",
+          type: "Resolution",
+          date: "Mar 14, 2025",
+          pages: 18,
+          excerpt:
+            "Prescribes the basis and supporting documentation for determining the approved budget for the contract for goods, infrastructure and consulting services.",
+        },
+        {
+          title: "GPPB Circular No. 04-2025",
+          subtitle: "Use of non-restrictive technical specifications",
+          cat: "GPPB Issuances",
+          type: "Circular",
+          date: "Jun 02, 2025",
+          pages: 11,
+          excerpt:
+            "Reminds procuring entities to express requirements in performance terms and to avoid references to brand names without an equivalence clause.",
+        },
+        {
+          title: "GPPB Resolution No. 07-2025",
+          subtitle: "Framework agreements for recurring ICT subscriptions",
+          cat: "GPPB Issuances",
+          type: "Resolution",
+          date: "May 09, 2025",
+          pages: 22,
+          excerpt:
+            "Guidance on the use of framework agreements for requirements that recur within a fiscal year.",
+        },
+
+        {
+          title: "COA Circular No. 2023-004",
+          subtitle:
+            "Documentary requirements for common government transactions",
+          cat: "COA Issuances",
+          type: "Circular",
+          date: "Aug 17, 2023",
+          pages: 78,
+          excerpt:
+            "Enumerates the documents required to support disbursements, including procurement of goods and services.",
+        },
+        {
+          title: "COA Circular No. 2024-002",
+          subtitle: "Audit of ICT subscription and cloud service contracts",
+          cat: "COA Issuances",
+          type: "Circular",
+          date: "Apr 05, 2024",
+          pages: 26,
+          excerpt:
+            "Audit guidance on recurring subscription contracts, including acceptance and continuity of service documentation.",
+        },
+
+        {
+          title: "DICT Procurement Manual",
+          subtitle: "Department procurement procedures, 2026 edition",
+          cat: "DICT Policies",
+          type: "Manual",
+          date: "Jan 15, 2026",
+          pages: 148,
+          excerpt:
+            "Internal procedures covering procurement planning, BAC operations, document routing and review responsibilities within the Department.",
+        },
+        {
+          title: "DICT Memorandum Circular No. 03-2026",
+          subtitle: "Review of ICT technical specifications",
+          cat: "DICT Policies",
+          type: "Memorandum",
+          date: "Feb 20, 2026",
+          pages: 9,
+          excerpt:
+            "Requires technical specifications for ICT procurement to be reviewed for openness and interoperability prior to endorsement to the BAC.",
+        },
+
+        {
+          title: "GPPB Standard Procurement Forms",
+          subtitle: "Goods — Philippine Bidding Documents, 7th edition",
+          cat: "Standard Forms",
+          type: "Form set",
+          date: "Jan 08, 2025",
+          pages: 180,
+          excerpt:
+            "Standard bidding documents for the procurement of goods, including the invitation to bid, instructions to bidders and contract forms.",
+        },
+        {
+          title: "BAC Resolution Template",
+          subtitle: "Standard format for BAC resolutions",
+          cat: "Standard Forms",
+          type: "Template",
+          date: "Jan 08, 2025",
+          pages: 4,
+          excerpt:
+            "Prescribed format for resolutions recommending award, declaring failure of bidding, or adopting alternative modes of procurement.",
+        },
+        {
+          title: "Post-Qualification Checklist",
+          subtitle: "Goods and services",
+          cat: "Standard Forms",
+          type: "Checklist",
+          date: "Mar 03, 2025",
+          pages: 6,
+          excerpt:
+            "Checklist of legal, technical and financial documents examined during post-qualification.",
+        },
+
+        {
+          title: "COA Decision No. 2024-118",
+          subtitle: "Disallowance — unsupported variation in contract price",
+          cat: "Jurisprudence & Cases",
+          type: "Decision",
+          date: "Sep 12, 2024",
+          pages: 15,
+          excerpt:
+            "Discusses the documentation required where the amount paid differs from the contract price stated in the signed agreement.",
+        },
+        {
+          title: "Supreme Court G.R. No. 245678",
+          subtitle: "On restrictive technical specifications",
+          cat: "Jurisprudence & Cases",
+          type: "Decision",
+          date: "Nov 23, 2022",
+          pages: 32,
+          excerpt:
+            "Holds that specifications tailored to a single product without justification defeat the purpose of competitive bidding.",
+        },
+      ];
+
+      /* ======================================================================
+   STATE
+   ====================================================================== */
+
+      const state = {
+        page: "items", // items | assistant | hub | workspace
+        tab: "overview", // overview | documents | review | report | forms
+        ref: null,
+        dim: "all",
+        kbCat: "all",
+        kbSearch: "",
+        staged: [],
+        chat: { docs: [], msgs: [], busy: false },
+      };
+
+      const NAV = [
+        { key: "items", label: "All Items", icon: "layout-list" },
+        {
+          key: "assistant",
+          label: "Procurement Analyst",
+          icon: "message-square",
+        },
+        { key: "hub", label: "Knowledge Hub", icon: "library" },
+      ];
+
+      /* ======================================================================
+   HELPERS
+   ====================================================================== */
+
+      const $ = (id) => document.getElementById(id);
+      const esc = (s = "") =>
+        String(s).replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      const nl2br = (s = "") => esc(s).replace(/\n/g, "<br>");
+      const peso = (n) =>
+        "₱" +
+        Number(n || 0).toLocaleString("en-PH", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      const cur = () => procurements.find((p) => p.ref === state.ref);
+      const icons = () => {
+        if (window.lucide) lucide.createIcons();
+      };
+      const sidebar = (open) => {
+        $("sidebar").classList.toggle("-translate-x-full", !open);
+        $("scrim").classList.toggle("hidden", !open);
+      };
+
+      function tally(p) {
+        const t = Object.fromEntries(SEV_KEYS.map((k) => [k, 0]));
+        (p.findings || []).forEach((f) => {
+          if (t[f.severity] !== undefined) t[f.severity]++;
+        });
+        return t;
+      }
+      const statusChip = (s) =>
+        s === "Finalized"
+          ? "bg-green-50 text-green-700 border-green-200"
+          : "bg-sky text-blue border-line";
+
+      /* ------------------------------ UI atoms ------------------------------ */
+      const btnPrimary =
+        "rounded-md bg-blue px-4 py-2 text-[13px] font-semibold text-white hover:bg-navy transition-colors";
+      const btnGhost =
+        "rounded-md border border-line bg-white px-3.5 py-2 text-[13px] font-medium text-ink hover:bg-sky transition-colors";
+      const inputCls =
+        "w-full rounded-md border border-line bg-white px-3 py-2 text-[13px] text-ink focus:border-blue focus:outline-none focus:ring-2 focus:ring-blue/15";
+      const areaCls = inputCls + " leading-relaxed resize-y";
+      const field = (l, inner) =>
+        `<label class="block"><span class="block text-[12px] font-semibold text-ink mb-1.5">${esc(l)}</span>${inner}</label>`;
+      const opts = (arr, sel) =>
+        arr
+          .map(
+            (o) => `<option ${o === sel ? "selected" : ""}>${esc(o)}</option>`,
+          )
+          .join("");
+      const sectionLbl = (t) =>
+        `<div class="text-[10px] font-semibold tracking-[0.13em] text-muted">${t}</div>`;
+
+      function toast(title, sub = "", kind = "info") {
+        const ic = {
+          info: "info",
+          success: "check-circle-2",
+          warn: "alert-triangle",
+        }[kind];
+        const tone = {
+          info: "text-blue",
+          success: "text-green-600",
+          warn: "text-amber-600",
+        }[kind];
+        const el = document.createElement("div");
+        el.className =
+          "fade-up w-[320px] rounded-lg border border-line bg-white shadow-lg px-4 py-3 flex gap-3";
+        el.innerHTML = `<i data-lucide="${ic}" class="h-[18px] w-[18px] ${tone} shrink-0 mt-0.5"></i>
+    <div class="min-w-0"><div class="text-[13px] font-semibold">${esc(title)}</div>
+    ${sub ? `<div class="text-[12px] text-muted mt-0.5">${esc(sub)}</div>` : ""}</div>`;
+        $("toastRoot").appendChild(el);
+        icons();
+        setTimeout(() => el.remove(), 4000);
+      }
+
+      function openModal(html, width = "max-w-lg") {
+        $("modalRoot").innerHTML =
+          `<div class="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
+    <div class="fixed inset-0 bg-navy/40" onclick="closeModal()"></div>
+    <div role="dialog" aria-modal="true" class="relative w-full ${width} my-8 rounded-xl bg-white border border-line shadow-xl">${html}</div></div>`;
+        icons();
+        const f = $("modalRoot").querySelector("input,textarea,select");
+        if (f) f.focus();
+      }
+      const closeModal = () => {
+        $("modalRoot").innerHTML = "";
+      };
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeModal();
+      });
+
+      const modalHead = (
+        title,
+        sub = "",
+      ) => `<div class="flex items-start gap-4 px-6 pt-5 pb-4 border-b border-line">
+  <div class="min-w-0"><h2 class="text-[16px] font-semibold text-navy">${esc(title)}</h2>
+  ${sub ? `<p class="text-[12.5px] text-muted mt-0.5">${esc(sub)}</p>` : ""}</div>
+  <button onclick="closeModal()" class="ml-auto text-muted hover:text-ink" aria-label="Close"><i data-lucide="x" class="h-[18px] w-[18px]"></i></button></div>`;
+      const modalFoot = (
+        submitLabel,
+        tone = "primary",
+      ) => `<div class="flex justify-end gap-2 px-6 py-4 border-t border-line bg-page rounded-b-xl">
+  <button type="button" onclick="closeModal()" class="${btnGhost}">Cancel</button>
+  <button type="submit" class="${tone === "danger" ? "rounded-md bg-red-600 px-4 py-2 text-[13px] font-semibold text-white hover:bg-red-700" : btnPrimary}">${esc(submitLabel)}</button></div>`;
+
+      /* ======================================================================
+   ROUTER
+   ====================================================================== */
+
+      function render() {
+        $("navList").innerHTML = NAV.map((n) => {
+          const on =
+            state.page === n.key ||
+            (n.key === "items" && state.page === "workspace");
+          return `<li><button onclick="go('${n.key}')" class="w-full flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] transition-colors ${on ? "bg-white/15 text-white font-semibold" : "text-white/70 hover:bg-white/10"}">
+      <i data-lucide="${n.icon}" class="h-[16px] w-[16px]"></i>${n.label}</button></li>`;
+        }).join("");
+
+        $("main").innerHTML =
+          state.page === "workspace" && cur()
+            ? workspace(cur())
+            : state.page === "hub"
+              ? hubPage()
+              : state.page === "assistant"
+                ? assistantPage()
+                : itemsPage();
+        icons();
+        if (state.page === "assistant") scrollChat();
+      }
+
+      function go(key) {
+        state.page = key;
+        sidebar(false);
+        render();
+        window.scrollTo(0, 0);
+      }
+      function open_(ref) {
+        state.ref = ref;
+        state.page = "workspace";
+        state.tab = cur().review === "done" ? "review" : "overview";
+        state.dim = "all";
+        render();
+        window.scrollTo(0, 0);
+      }
+      function setTab(t) {
+        state.tab = t;
+        render();
+        window.scrollTo(0, 0);
+      }
+
+      const pageHead = (title, sub, action = "") => `
+  <div class="flex flex-wrap items-end gap-4 mb-6">
+    <div><h1 class="text-[21px] font-bold text-navy tracking-tight">${esc(title)}</h1>
+    <p class="text-[13px] text-muted mt-1 max-w-2xl">${esc(sub)}</p></div>
+    ${action ? `<div class="ml-auto">${action}</div>` : ""}
+  </div>`;
+
+      /* ======================================================================
+   ALL ITEMS
+   ====================================================================== */
+
+      function itemsPage() {
+        return `<div class="max-w-[1160px]">
+    ${pageHead(
+      "All Items",
+      "Manage procurement records and review their documents using AI.",
+      `<button onclick="newProcurement()" class="${btnPrimary} flex items-center gap-2"><i data-lucide="plus" class="h-4 w-4"></i> New Procurement</button>`,
+    )}
+
+    <div class="rounded-xl border border-line bg-white overflow-hidden">
+      <div class="scroll-x"><table class="w-full min-w-[920px] text-left">
+        <thead><tr class="bg-page border-b border-line text-[11px] font-semibold text-muted">
+          <th class="px-5 py-3">Reference</th><th class="px-5 py-3">Procurement</th>
+          <th class="px-5 py-3 text-right">ABC</th><th class="px-5 py-3">Mode</th>
+          <th class="px-5 py-3">Status</th><th class="px-5 py-3 whitespace-nowrap">Last Updated</th><th class="px-5 py-3 text-right">Action</th>
+        </tr></thead>
+        <tbody>${procurements
+          .map((p) => {
+            const t = tally(p);
+            return `<tr onclick="open_('${p.ref}')" tabindex="0" onkeydown="if(event.key==='Enter'){open_('${p.ref}')}"
+            class="border-b border-line last:border-0 hover:bg-sky/50 cursor-pointer focus:bg-sky/50 focus:outline-none">
+            <td class="px-5 py-4 align-top text-[12.5px] font-semibold text-blue whitespace-nowrap">${p.ref}</td>
+            <td class="px-5 py-4 align-top">
+              <div class="text-[13px] font-medium leading-snug max-w-[420px]">${esc(p.title)}</div>
+              <div class="text-[11.5px] text-muted mt-1">${esc(p.category)} · ${p.documents.length} documents${p.review === "done" ? ` · ${p.findings.length} findings (${t.critical} critical · ${t.high} high)` : " · review not yet run"}</div>
+            </td>
+            <td class="px-5 py-4 align-top text-[13px] text-right whitespace-nowrap tabular-nums">${peso(p.abc)}</td>
+            <td class="px-5 py-4 align-top text-[13px] text-muted whitespace-nowrap">${esc(p.mode)}</td>
+            <td class="px-5 py-4 align-top"><span class="inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${statusChip(p.status)}">${p.status}</span></td>
+            <td class="px-5 py-4 align-top text-[13px] text-muted whitespace-nowrap">${p.updated}</td>
+            <td class="px-5 py-4 align-top text-right">
+              <button onclick="event.stopPropagation();deleteProcurementModal('${p.ref}')" aria-label="Delete ${esc(p.ref)}" title="Delete"
+                class="inline-grid place-items-center h-8 w-8 rounded-md text-muted hover:text-red-600 hover:bg-red-50 transition-colors">
+                <i data-lucide="trash-2" class="h-4 w-4"></i></button></td>
+          </tr>`;
+          })
+          .join("")}</tbody>
+      </table></div>
+    </div>
+  </div>`;
+      }
+
+      function deleteProcurementModal(ref) {
+        const p = procurements.find((x) => x.ref === ref);
+        openModal(`${modalHead("Delete procurement?", ref)}
+    <div class="px-6 py-5 text-[13px] leading-relaxed space-y-3">
+      <p class="font-semibold">${esc(p.title)}</p>
+      <p>This removes the record together with its ${p.documents.length} document${p.documents.length === 1 ? "" : "s"}${p.review === "done" ? `, its ${p.findings.length} findings and the final report` : ""}.</p>
+      <p class="text-muted">The procurement cannot be recovered from this prototype.</p>
+    </div>
+    <form onsubmit="event.preventDefault();confirmDeleteProcurement('${ref}')">${modalFoot("Delete procurement", "danger")}</form>`);
+      }
+      function confirmDeleteProcurement(ref) {
+        const i = procurements.findIndex((x) => x.ref === ref);
+        if (i < 0) {
+          closeModal();
+          return;
+        }
+        procurements.splice(i, 1);
+        if (state.ref === ref) {
+          state.ref = null;
+          state.page = "items";
+        }
+        closeModal();
+        toast("Procurement deleted", ref);
+        render();
+      }
+
+      /* ---------------------------- New procurement ---------------------------- */
+      function newProcurement() {
+        openModal(
+          `${modalHead("New Procurement", "Create a procurement record, then upload its documents.")}
+    <form onsubmit="createProcurement(event)">
+      <div class="px-6 py-5 space-y-4">
+        ${sectionLbl("PROCUREMENT INFORMATION")}
+        ${field("Procurement Title", `<textarea id="n_title" rows="2" required class="${areaCls}" placeholder="Procurement of One (1) Year Subscription of the Cyber Risk Assessment and Baseline Scoring Tool"></textarea>`)}
+        <div class="grid sm:grid-cols-2 gap-4">
+          ${field("ABC", `<div class="relative"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-muted text-[13px]">&#8369;</span><input id="n_abc" required inputmode="decimal" class="${inputCls} pl-7" placeholder="17,339,609.00" /></div>`)}
+          ${field("Procurement Mode", `<select id="n_mode" class="${inputCls}">${opts(["Competitive Bidding", "Small Value Procurement", "Direct Contracting", "Negotiated Procurement", "Repeat Order"])}</select>`)}
+          ${field("Source of Fund", `<select id="n_fund" class="${inputCls}">${opts(["GAA", "Trust Fund", "Special Account", "Continuing Appropriation"])}</select>`)}
+          ${field("Procurement Category", `<input id="n_cat" class="${inputCls}" placeholder="ICT / Software Subscription" />`)}
+        </div>
+        ${field("End-User / Requesting Office", `<input id="n_user" class="${inputCls}" placeholder="Emerging Technologies Group" />`)}
+        <label class="flex items-start gap-2.5 rounded-md bg-sky border border-line px-3 py-2.5">
+          <input id="n_seed" type="checkbox" class="mt-0.5 accent-[#1E5AA8]" />
+          <span class="text-[12px] leading-snug">Attach the sample document set so the review can be demonstrated immediately.</span>
+        </label>
+      </div>
+      ${modalFoot("Create Procurement")}
+    </form>`,
+          "max-w-2xl",
+        );
+      }
+
+      function createProcurement(e) {
+        e.preventDefault();
+        const ref =
+          "PROC-2026-" + String(procurements.length + 1).padStart(3, "0");
+        procurements.push({
+          ref,
+          title: $("n_title").value.trim(),
+          abc: Number(($("n_abc").value || "0").replace(/[^\d.]/g, "")) || 0,
+          mode: $("n_mode").value,
+          fund: $("n_fund").value,
+          category: $("n_cat").value.trim() || "ICT",
+          endUser: $("n_user").value.trim() || "Not specified",
+          created: TODAY,
+          updated: TODAY,
+          status: "Ongoing",
+          documents: $("n_seed").checked ? seedDocuments() : [],
+          review: "none",
+          findings: [],
+        });
+        closeModal();
+        toast("Procurement created", ref, "success");
+        open_(ref);
+      }
+
+      /* ======================================================================
+   AI ASSISTANT — quick sanity check, no procurement record required
+   ====================================================================== */
+
+      const CHAT_SUGGESTIONS = [
+        "Is anything required by RA 12009 missing from this document?",
+        "Do the amounts in this document agree with each other?",
+        "Does this specification look restrictive to one brand?",
+        "Summarise the deliverables and payment terms.",
+      ];
+
+      /* Canned replies for the prototype — matched on keywords, in order. */
+      const CHAT_REPLIES = [
+        {
+          match: /miss|complete|require|ra ?12009|compliance|provision/i,
+          text:
+            "Reading the attached document, two items look worth checking:\n\n" +
+            "• The Instructions to Bidders moves from the bid security forms straight to the opening of bids — the provision on the Bid Securing Declaration does not appear.\n" +
+            "• One signature block and the date of approval on the BAC Resolution are blank.\n\n" +
+            "This is a quick read, not a recorded review. Create a procurement record and run the AI Review if you want these captured as findings with citations.",
+        },
+        {
+          match: /amount|price|abc|budget|cost|figure|total|peso|₱/i,
+          text:
+            "The amounts do not fully reconcile:\n\n" +
+            "• Contract price: ₱17,150,000.00\n" +
+            "• Amount claimed on the payment document: ₱17,750,000.00\n\n" +
+            "That is a difference of ₱600,000.00 with no variation order in what you attached. Worth tracing before the document moves further.",
+        },
+        {
+          match: /restrict|brand|spec|tailor|proprietary|equivalent/i,
+          text:
+            "The scoring engine clause names a proprietary baseline index and a native .brx export format. Together those narrow the field to a small number of providers.\n\n" +
+            'That is a point for the BAC to consider rather than a conclusion. If the requirement is genuine, stating it as an outcome, or adding "or equivalent" with published equivalence criteria, keeps the specification open.',
+        },
+        {
+          match: /deliverable|payment|term|warranty|support|scope/i,
+          text:
+            "From the attached document:\n\n" +
+            "• Payment is in two tranches — 50% on activation and acceptance testing, 50% on the Certificate of Final Acceptance.\n" +
+            '• Support is required "for the duration of the engagement", with no hours, response times or post-expiry coverage stated.\n' +
+            "• End-of-subscription deliverables are not listed, so there is nothing definite to accept against.",
+        },
+      ];
+      const CHAT_FALLBACK =
+        "I can only work from what is attached here, and this is a sanity check rather than a recorded review. " +
+        "Ask me about missing requirements, amounts that do not reconcile, restrictive specifications, or the deliverables and payment terms — " +
+        "or create a procurement record and run the full AI Review to get findings with citations that the BAC can act on.";
+
+      function assistantPage() {
+        const c = state.chat;
+        return `<div class="max-w-[900px]">
+    ${pageHead(
+      "Procurement Analyst",
+      "Ask a quick question about a document without creating a procurement record. Nothing here is saved to a procurement or to the final report.",
+      c.msgs.length
+        ? `<button onclick="clearChat()" class="${btnGhost} flex items-center gap-1.5"><i data-lucide="eraser" class="h-3.5 w-3.5"></i> Clear</button>`
+        : "",
+    )}
+
+    <div class="rounded-xl border border-line bg-white flex flex-col">
+
+      <div class="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-line bg-page rounded-t-xl">
+        <i data-lucide="paperclip" class="h-3.5 w-3.5 text-muted"></i>
+        <span class="text-[12px] font-semibold text-muted">${c.docs.length ? `${c.docs.length} document${c.docs.length === 1 ? "" : "s"} attached` : "No document attached"}</span>
+        <button onclick="attachChatDocs()" class="ml-auto text-[12px] font-semibold text-blue hover:text-navy">Attach document</button>
+      </div>
+
+      ${
+        c.docs.length
+          ? `<div class="flex flex-wrap gap-2 px-5 pt-4">
+        ${c.docs
+          .map(
+            (
+              d,
+              i,
+            ) => `<span class="inline-flex items-center gap-2 rounded-full border border-line bg-sky px-3 py-1 text-[12px]">
+          <i data-lucide="file-text" class="h-3.5 w-3.5 text-blue"></i>${esc(d.name)}
+          <button onclick="detachChatDoc(${i})" class="text-muted hover:text-red-600" aria-label="Remove ${esc(d.name)}"><i data-lucide="x" class="h-3.5 w-3.5"></i></button></span>`,
+          )
+          .join("")}
+      </div>`
+          : ""
+      }
+
+      <div id="chatThread" class="px-5 py-5 space-y-4 min-h-[280px] max-h-[52vh] overflow-y-auto">${chatThread()}</div>
+
+      <div class="border-t border-line px-5 py-4">
+        <div class="flex items-end gap-2">
+          <textarea id="chatInput" rows="2" onkeydown="chatKey(event)" placeholder="Ask about the attached document…"
+            class="${areaCls} flex-1"></textarea>
+          <button onclick="sendChat()" class="${btnPrimary} shrink-0">Send</button>
+        </div>
+        <p class="text-[11.5px] text-muted mt-2">Answers are AI-generated and unverified. For anything that has to be on record, create a procurement and run the AI Review.</p>
+      </div>
+    </div>
+  </div>`;
+      }
+
+      function chatThread() {
+        const c = state.chat;
+        if (!c.msgs.length) {
+          return `<div class="text-center py-6">
+      <span class="h-10 w-10 rounded-full bg-sky grid place-items-center mx-auto"><i data-lucide="message-square" class="h-5 w-5 text-blue"></i></span>
+      <h3 class="text-[14px] font-semibold text-navy mt-3">Quick document check</h3>
+      <p class="text-[13px] text-muted mt-1 max-w-md mx-auto">Attach a document and ask a question. Useful for a sanity check before a procurement record is created.</p>
+      <div class="flex flex-wrap justify-center gap-2 mt-5">
+        ${CHAT_SUGGESTIONS.map(
+          (s) => `<button onclick="askChat(this.dataset.q)" data-q="${esc(s)}"
+          class="rounded-full border border-line bg-white px-3.5 py-1.5 text-[12px] text-muted hover:border-blue hover:text-blue transition-colors">${esc(s)}</button>`,
+        ).join("")}
+      </div>
+    </div>`;
+        }
+        return c.msgs
+          .map((m) =>
+            m.role === "user"
+              ? `<div class="flex justify-end fade-up"><div class="max-w-[80%] rounded-xl rounded-br-sm bg-blue text-white px-4 py-2.5 text-[13px] leading-relaxed">${nl2br(m.text)}</div></div>`
+              : `<div class="flex gap-3 fade-up">
+        <span class="h-7 w-7 rounded-full bg-sky grid place-items-center shrink-0"><i data-lucide="sparkles" class="h-3.5 w-3.5 text-blue"></i></span>
+        <div class="max-w-[80%] rounded-xl rounded-bl-sm border border-line bg-page px-4 py-2.5 text-[13px] leading-relaxed">${
+          m.pending
+            ? `<span class="inline-flex items-center gap-2 text-muted"><span class="h-3 w-3 rounded-full border-2 border-blue border-t-transparent spin"></span>Reading the document…</span>`
+            : nl2br(m.text)
+        }</div>
+      </div>`,
+          )
+          .join("");
+      }
+
+      function renderChatThread() {
+        const el = $("chatThread");
+        if (el) {
+          el.innerHTML = chatThread();
+          icons();
+          scrollChat();
+        }
+      }
+      function scrollChat() {
+        const el = $("chatThread");
+        if (el) el.scrollTop = el.scrollHeight;
+      }
+
+      function attachChatDocs() {
+        const have = state.chat.docs.map((d) => d.name);
+        const pool = seedDocuments().filter((d) => !have.includes(d.name));
+        if (!pool.length) {
+          toast(
+            "All sample documents are attached",
+            "Nothing further to add.",
+            "warn",
+          );
+          return;
+        }
+        state.chat.docs.push(pool[0]);
+        toast(
+          "Document attached",
+          pool[0].name + " · not saved to any procurement",
+        );
+        render();
+      }
+      function detachChatDoc(i) {
+        state.chat.docs.splice(i, 1);
+        render();
+      }
+
+      function askChat(q) {
+        const el = $("chatInput");
+        if (el) el.value = q;
+        sendChat();
+      }
+      function chatKey(e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendChat();
+        }
+      }
+
+      function sendChat() {
+        const c = state.chat,
+          el = $("chatInput");
+        const text = (el?.value || "").trim();
+        if (!text || c.busy) return;
+        if (!c.docs.length) {
+          toast(
+            "No document attached",
+            "Attach a document for the assistant to read.",
+            "warn",
+          );
+          return;
+        }
+
+        el.value = "";
+        c.msgs.push({ role: "user", text });
+        c.msgs.push({ role: "ai", text: "", pending: true });
+        c.busy = true;
+        renderChatThread();
+
+        setTimeout(() => {
+          const reply = CHAT_REPLIES.find((r) => r.match.test(text));
+          const last = c.msgs[c.msgs.length - 1];
+          last.pending = false;
+          last.text = reply ? reply.text : CHAT_FALLBACK;
+          c.busy = false;
+          renderChatThread();
+        }, 1100);
+      }
+
+      function clearChat() {
+        state.chat = { docs: [], msgs: [], busy: false };
+        render();
+        toast("Conversation cleared", "Nothing from this chat was saved.");
+      }
+
+      /* ======================================================================
+   KNOWLEDGE HUB
+   ====================================================================== */
+
+      function hubPage() {
+        const rows = KNOWLEDGE.filter(
+          (k) =>
+            (state.kbCat === "all" || k.cat === state.kbCat) &&
+            (!state.kbSearch.trim() ||
+              (k.title + " " + k.subtitle + " " + k.excerpt)
+                .toLowerCase()
+                .includes(state.kbSearch.toLowerCase())),
+        );
+
+        const chip = (
+          key,
+          label,
+          n,
+        ) => `<button onclick="setKbCat('${key.replace(/'/g, "\\'")}')"
+    class="rounded-full border px-3.5 py-1.5 text-[12px] font-medium whitespace-nowrap transition-colors ${state.kbCat === key ? "bg-navy border-navy text-white" : "bg-white border-line text-muted hover:border-blue hover:text-blue"}">${label}<span class="ml-1.5 ${state.kbCat === key ? "text-white/60" : "text-muted/60"}">${n}</span></button>`;
+
+        return `<div class="max-w-[1160px]">
+    ${pageHead("Knowledge Hub", "Central repository of procurement laws, policies, issuances, forms, and reference materials.")}
+
+    <div class="flex flex-col lg:flex-row gap-3 mb-5">
+      <label class="relative block lg:max-w-sm w-full">
+        <i data-lucide="search" class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted"></i>
+        <input value="${esc(state.kbSearch)}" oninput="setKbSearch(this.value)" placeholder="Search the Knowledge Hub"
+          class="w-full rounded-md border border-line bg-white pl-9 pr-3 py-2 text-[13px] focus:border-blue focus:outline-none" />
+      </label>
+      <div class="scroll-x flex-1"><div class="flex gap-2 min-w-max pb-1">
+        ${chip("all", "All", KNOWLEDGE.length)}
+        ${KB_CATEGORIES.map((c) => chip(c, c, KNOWLEDGE.filter((k) => k.cat === c).length)).join("")}
+      </div></div>
+    </div>
+
+    <div class="rounded-xl border border-line bg-white divide-y divide-line overflow-hidden">
+      ${
+        rows.length
+          ? rows
+              .map(
+                (k, i) => `
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-4 hover:bg-sky/40">
+          <span class="h-9 w-9 rounded-md bg-sky grid place-items-center shrink-0"><i data-lucide="book-marked" class="h-4 w-4 text-blue"></i></span>
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-baseline gap-x-2.5">
+              <span class="text-[13.5px] font-semibold text-ink">${esc(k.title)}</span>
+              <span class="text-[12px] text-muted">${esc(k.subtitle)}</span>
+            </div>
+            <div class="text-[11.5px] text-muted mt-1">${esc(k.cat)} · ${esc(k.type)} · ${k.pages} pages · ${esc(k.date)}</div>
+          </div>
+          <button onclick="viewKb(${KNOWLEDGE.indexOf(k)})" class="${btnGhost} shrink-0 self-start sm:self-auto">View document</button>
+        </div>`,
+              )
+              .join("")
+          : `<div class="px-5 py-14 text-center text-[13px] text-muted">No reference material matches this search.</div>`
+      }
+    </div>
+    <p class="text-[12px] text-muted mt-3">${rows.length} of ${KNOWLEDGE.length} references</p>
+  </div>`;
+      }
+
+      function setKbCat(c) {
+        state.kbCat = c;
+        render();
+      }
+      function setKbSearch(v) {
+        state.kbSearch = v;
+        render();
+        const i = document.querySelector(
+          'input[placeholder="Search the Knowledge Hub"]',
+        );
+        if (i) {
+          i.focus();
+          i.setSelectionRange(v.length, v.length);
+        }
+      }
+
+      function viewKb(i) {
+        const k = KNOWLEDGE[i];
+        openModal(
+          `${modalHead(k.title, k.subtitle)}
+    <div class="px-6 py-5">
+      <div class="flex flex-wrap gap-x-6 gap-y-2 text-[12px] text-muted border-b border-line pb-4">
+        <span><span class="text-ink font-medium">Category</span> · ${esc(k.cat)}</span>
+        <span><span class="text-ink font-medium">Type</span> · ${esc(k.type)}</span>
+        <span><span class="text-ink font-medium">Date</span> · ${esc(k.date)}</span>
+        <span><span class="text-ink font-medium">Pages</span> · ${k.pages}</span>
+      </div>
+      <p class="text-[13.5px] leading-relaxed mt-4">${esc(k.excerpt)}</p>
+      <div class="mt-4 rounded-lg border border-line bg-page px-4 py-8 text-center">
+        <i data-lucide="file-text" class="h-6 w-6 text-line mx-auto"></i>
+        <p class="text-[12.5px] text-muted mt-2">Document viewer is not part of this prototype.</p>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 px-6 py-4 border-t border-line bg-page rounded-b-xl">
+      <button onclick="closeModal()" class="${btnGhost}">Close</button>
+      <button onclick="toast('Download prepared','${esc(k.title)}.pdf','success')" class="${btnPrimary}">Download</button>
+    </div>`,
+          "max-w-xl",
+        );
+      }
+
+      /* ======================================================================
+   WORKSPACE
+   ====================================================================== */
+
+      function workspace(p) {
+        const tabs = [
+          ["overview", "Overview"],
+          ["documents", "Documents"],
+          ["review", "AI Review"],
+          ["report", "Final Report"],
+          ["forms", "Form Generator"],
+        ];
+        return `<div class="max-w-[1160px]">
+    <button onclick="go('items')" class="no-print inline-flex items-center gap-1.5 text-[12px] font-medium text-muted hover:text-blue mb-4">
+      <i data-lucide="arrow-left" class="h-3.5 w-3.5"></i> All Items</button>
+
+    <div class="no-print">
+      <div class="text-[12px] font-semibold text-blue tracking-wide">${p.ref}</div>
+      <h1 class="text-[19px] font-bold text-navy leading-snug mt-1 max-w-3xl">${esc(p.title)}</h1>
+      <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-[13px]">
+        <span class="font-semibold tabular-nums">${peso(p.abc)}</span>
+        <span class="text-muted">${esc(p.mode)}</span>
+        <span class="inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${statusChip(p.status)}">${p.status}</span>
+      </div>
+
+      <nav class="mt-6 border-b border-line flex gap-7 overflow-x-auto">
+        ${tabs
+          .map(
+            ([k, l]) => `<button onclick="setTab('${k}')"
+          class="whitespace-nowrap border-b-2 pb-2.5 text-[13px] transition-colors ${state.tab === k ? "border-blue text-navy font-semibold" : "border-transparent text-muted hover:text-navy"}">
+          ${l}${k === "review" && p.review === "done" ? ` <span class="text-[11px] text-muted font-normal">${p.findings.length}</span>` : ""}</button>`,
+          )
+          .join("")}
+      </nav>
+    </div>
+
+    <div class="mt-6">${
+      state.tab === "overview"
+        ? overviewTab(p)
+        : state.tab === "documents"
+          ? documentsTab(p)
+          : state.tab === "review"
+            ? reviewTab(p)
+            : state.tab === "report"
+              ? reportTab(p)
+              : formsTab(p)
+    }</div>
+  </div>`;
+      }
+
+      /* ------------------------------ OVERVIEW ------------------------------ */
+
+      function overviewTab(p) {
+        const t = tally(p);
+        const total = p.findings.length || 1;
+        const row = (
+          k,
+          v,
+        ) => `<div class="flex flex-col sm:flex-row sm:gap-6 py-2.5 border-b border-line last:border-0">
+    <dt class="sm:w-52 shrink-0 text-[12px] font-semibold text-muted">${esc(k)}</dt>
+    <dd class="text-[13px] leading-relaxed">${esc(v)}</dd></div>`;
+
+        return `<div class="grid lg:grid-cols-3 gap-5 items-start">
+    <section class="lg:col-span-2 rounded-xl border border-line bg-white">
+      <h2 class="px-5 py-3 text-[13px] font-semibold text-navy border-b border-line bg-page rounded-t-xl">Procurement Details</h2>
+      <dl class="px-5 py-2">
+        ${row("Reference Number", p.ref)}${row("Procurement Title", p.title)}${row("ABC", peso(p.abc))}
+        ${row("Procurement Mode", p.mode)}${row("Source of Fund", p.fund)}${row("Procurement Category", p.category)}
+        ${row("End-User", p.endUser)}${row("Created", p.created)}${row("Last Updated", p.updated)}
+      </dl>
+    </section>
+
+    <section class="rounded-xl border border-line bg-white">
+      <h2 class="px-5 py-3 text-[13px] font-semibold text-navy border-b border-line bg-page rounded-t-xl">Review Summary</h2>
+      <div class="px-5 py-5">
+        ${
+          p.review === "done"
+            ? `
+          <div class="flex items-baseline gap-2">
+            <span class="text-[30px] font-bold text-navy leading-none tabular-nums">${p.findings.length}</span>
+            <span class="text-[13px] text-muted">findings identified</span>
+          </div>
+          <div class="mt-4 flex h-2 rounded-full overflow-hidden bg-line">
+            ${SEV_KEYS.map((k) => `<div class="${SEV[k].bar}" style="width:${(t[k] / total) * 100}%"></div>`).join("")}
+          </div>
+          <dl class="mt-4 space-y-2.5">
+            ${SEV_KEYS.map(
+              (k) =>
+                `<div class="flex items-center gap-2.5 text-[13px]"><span class="h-2 w-2 rounded-full ${SEV[k].bar}"></span>${SEV[k].label}<span class="ml-auto font-semibold tabular-nums">${t[k]}</span></div>`,
+            ).join("")}
+            <div class="flex items-center gap-2.5 text-[13px] pt-2.5 border-t border-line"><i data-lucide="file-text" class="h-3.5 w-3.5 text-muted"></i>Documents<span class="ml-auto font-semibold tabular-nums">${p.documents.length}</span></div>
+            <div class="flex items-center gap-2.5 text-[13px]"><i data-lucide="user-check" class="h-3.5 w-3.5 text-muted"></i>Reviewed by BAC<span class="ml-auto font-semibold tabular-nums">${p.findings.filter((f) => f.decision).length}</span></div>
+          </dl>
+          <button onclick="setTab('review')" class="${btnGhost} w-full mt-5">Open AI Review</button>
+        `
+            : `
+          <p class="text-[13px] text-muted leading-relaxed">No AI review has been run for this procurement. The review reads the uploaded documents and lists points for the BAC to verify across five dimensions.</p>
+          <dl class="mt-4 space-y-2 text-[13px]">
+            <div class="flex"><dt class="text-muted">Documents uploaded</dt><dd class="ml-auto font-semibold tabular-nums">${p.documents.length}</dd></div>
+          </dl>
+          <button onclick="runReview()" class="${btnPrimary} w-full mt-5">Run AI Review</button>
+          ${!p.documents.length ? `<p class="text-[11.5px] text-muted mt-2 text-center">Upload documents first.</p>` : ""}
+        `
+        }
+      </div>
+    </section>
+  </div>`;
+      }
+
+      /* ------------------------------ DOCUMENTS ------------------------------ */
+
+      function documentsTab(p) {
+        return `<div class="space-y-5">
+    <div class="flex flex-wrap items-end gap-4">
+      <div><h2 class="text-[16px] font-semibold text-navy">Procurement Documents</h2>
+      <p class="text-[13px] text-muted mt-1">Upload the documents associated with this procurement.</p></div>
+      <button onclick="uploadModal()" class="${btnPrimary} ml-auto flex items-center gap-2"><i data-lucide="plus" class="h-4 w-4"></i> Upload Documents</button>
+    </div>
+
+    <div class="rounded-xl border border-line bg-white overflow-hidden">
+      ${
+        p.documents.length
+          ? `
+      <div class="scroll-x"><table class="w-full min-w-[780px] text-left">
+        <thead><tr class="bg-page border-b border-line text-[11px] font-semibold text-muted">
+          <th class="px-5 py-3">Document Name</th><th class="px-5 py-3">Type</th><th class="px-5 py-3">Pages</th>
+          <th class="px-5 py-3">Uploaded</th><th class="px-5 py-3">Status</th><th class="px-5 py-3 text-right">Actions</th>
+        </tr></thead>
+        <tbody>${p.documents
+          .map(
+            (d, i) => `
+          <tr class="border-b border-line last:border-0 hover:bg-sky/40">
+            <td class="px-5 py-3.5">
+              <div class="flex items-center gap-3"><span class="h-8 w-8 rounded-md bg-sky grid place-items-center shrink-0"><i data-lucide="file-text" class="h-4 w-4 text-blue"></i></span>
+              <span class="text-[13px] font-medium">${esc(d.name)}</span></div>
+            </td>
+            <td class="px-5 py-3.5 text-[12.5px] text-muted">${esc(d.type)}</td>
+            <td class="px-5 py-3.5 text-[12.5px] text-muted whitespace-nowrap">${d.pages} pages</td>
+            <td class="px-5 py-3.5 text-[12.5px] text-muted whitespace-nowrap">${esc(d.uploaded)}</td>
+            <td class="px-5 py-3.5"><span class="inline-flex items-center gap-1.5 text-[12px] font-semibold text-green-700"><i data-lucide="check" class="h-3.5 w-3.5"></i>Ready</span></td>
+            <td class="px-5 py-3.5 text-right whitespace-nowrap">
+              <button onclick="previewDoc(${i})" class="text-[12px] font-semibold text-blue hover:text-navy">Preview</button>
+              <span class="text-line mx-2">·</span>
+              <button onclick="toast('Download prepared','${esc(d.name)}','success')" class="text-[12px] font-semibold text-blue hover:text-navy">Download</button>
+              <span class="text-line mx-2">·</span>
+              <button onclick="removeDoc(${i})" class="text-[12px] font-semibold text-red-600 hover:text-red-700">Remove</button>
+            </td>
+          </tr>`,
+          )
+          .join("")}</tbody>
+      </table></div>
+      <div class="flex flex-wrap items-center gap-4 px-5 py-4 bg-page border-t border-line">
+        <p class="text-[12.5px] text-muted">${p.documents.length} documents · ${p.documents.reduce((s, d) => s + d.pages, 0)} pages total</p>
+        <button onclick="runReview()" class="${btnPrimary} ml-auto">${p.review === "done" ? "Run AI Review again" : "Run AI Review"}</button>
+      </div>`
+          : `<div class="px-5 py-16 text-center">
+          <i data-lucide="upload-cloud" class="h-8 w-8 text-line mx-auto"></i>
+          <div class="text-[14px] font-semibold mt-3">No documents uploaded</div>
+          <p class="text-[13px] text-muted mt-1">Add the market study, TOR, specifications and supporting records.</p>
+          <button onclick="uploadModal()" class="${btnPrimary} mt-4">Upload Documents</button></div>`
+      }
+    </div>
+  </div>`;
+      }
+
+      function previewDoc(i) {
+        const d = cur().documents[i];
+        openModal(`${modalHead(d.name, d.type + " · " + d.pages + " pages · uploaded " + d.uploaded)}
+    <div class="px-6 py-5">
+      <div class="rounded-lg border border-line bg-page px-4 py-16 text-center">
+        <i data-lucide="file-text" class="h-7 w-7 text-line mx-auto"></i>
+        <p class="text-[12.5px] text-muted mt-2">Document viewer is not part of this prototype.</p>
+      </div>
+    </div>
+    <div class="flex justify-end px-6 py-4 border-t border-line bg-page rounded-b-xl"><button onclick="closeModal()" class="${btnGhost}">Close</button></div>`);
+      }
+
+      function removeDoc(i) {
+        const p = cur(),
+          d = p.documents[i];
+        openModal(`${modalHead("Remove document", d.name)}
+    <div class="px-6 py-5 text-[13px] leading-relaxed">This removes ${esc(d.name)} from ${p.ref}. Findings that cite it will remain until the review is run again.</div>
+    <form onsubmit="event.preventDefault();confirmRemoveDoc(${i})">${modalFoot("Remove document", "danger")}</form>`);
+      }
+      function confirmRemoveDoc(i) {
+        const p = cur();
+        const [d] = p.documents.splice(i, 1);
+        p.updated = TODAY;
+        closeModal();
+        toast("Document removed", d.name);
+        render();
+      }
+
+      function uploadModal() {
+        state.staged = [];
+        openModal(`${modalHead("Upload Documents", "PDF files. Uploads are simulated in this prototype.")}
+    <div class="px-6 py-5">
+      <button onclick="stageFiles()" class="w-full rounded-lg border-2 border-dashed border-line bg-page hover:bg-sky hover:border-blue/40 transition-colors px-6 py-8 text-center">
+        <i data-lucide="upload-cloud" class="h-7 w-7 text-blue mx-auto"></i>
+        <div class="text-[13px] font-semibold mt-2">Select files</div>
+        <div class="text-[12px] text-muted mt-0.5">Click to add the sample procurement document set</div>
+      </button>
+      <div id="stage" class="mt-4 space-y-2"></div>
+    </div>
+    <div class="flex justify-end gap-2 px-6 py-4 border-t border-line bg-page rounded-b-xl">
+      <button onclick="closeModal()" class="${btnGhost}">Cancel</button>
+      <button id="upBtn" disabled onclick="commitUpload()" class="${btnPrimary} disabled:opacity-40 disabled:cursor-not-allowed">Upload</button>
+    </div>`);
+      }
+      function stageFiles() {
+        const have = cur().documents.map((d) => d.name);
+        const pool = seedDocuments().filter(
+          (d) =>
+            !have.includes(d.name) &&
+            !state.staged.some((s) => s.name === d.name),
+        );
+        if (!pool.length) {
+          toast(
+            "All sample documents are attached",
+            "Nothing further to add.",
+            "warn",
+          );
+          return;
+        }
+        state.staged.push(...pool);
+        renderStage();
+      }
+      function renderStage() {
+        const s = state.staged;
+        $("stage").innerHTML = s.length
+          ? `<div class="text-[11px] font-semibold text-muted">${s.length} file${s.length === 1 ? "" : "s"} selected</div>` +
+            s
+              .map(
+                (f, i) => `
+    <div class="flex items-center gap-3 rounded-md border border-line px-3 py-2">
+      <i data-lucide="file-text" class="h-4 w-4 text-blue shrink-0"></i>
+      <div class="min-w-0 flex-1"><div class="text-[13px] font-medium truncate">${esc(f.name)}</div><div class="text-[11px] text-muted">${f.pages} pages</div></div>
+      <select onchange="state.staged[${i}].type=this.value" class="rounded-md border border-line px-2 py-1 text-[12px] focus:border-blue focus:outline-none">${opts(DOC_TYPES, f.type)}</select>
+      <button onclick="state.staged.splice(${i},1);renderStage()" class="text-muted hover:text-red-600" aria-label="Remove"><i data-lucide="x" class="h-4 w-4"></i></button>
+    </div>`,
+              )
+              .join("")
+          : "";
+        $("upBtn").disabled = !s.length;
+        $("upBtn").textContent = s.length
+          ? `Upload ${s.length} document${s.length === 1 ? "" : "s"}`
+          : "Upload";
+        icons();
+      }
+      function commitUpload() {
+        const p = cur(),
+          n = state.staged.length;
+        p.documents.push(
+          ...state.staged.map((f) => ({
+            ...f,
+            uploaded: TODAY,
+            status: "Ready",
+          })),
+        );
+        p.updated = TODAY;
+        state.staged = [];
+        closeModal();
+        toast(
+          `${n} document${n === 1 ? "" : "s"} uploaded`,
+          "Ready for AI review.",
+          "success",
+        );
+        state.tab = "documents";
+        render();
+      }
+
+      /* ======================================================================
+   AI REVIEW
+   ====================================================================== */
+
+      const STEPS = [
+        "Documents analyzed",
+        "Compliance review",
+        "Document consistency review",
+        "Document quality review",
+        "Procurement & market review",
+        "Requirements & risk review",
+      ];
+      let timer = null;
+
+      function runReview() {
+        const p = cur();
+        if (!p.documents.length) {
+          toast("No documents to review", "Upload documents first.", "warn");
+          return;
+        }
+        p.review = "processing";
+        p.step = 0;
+        state.tab = "review";
+        render();
+        clearInterval(timer);
+        timer = setInterval(() => {
+          p.step++;
+          if (p.step > STEPS.length) {
+            clearInterval(timer);
+            p.review = "done";
+            if (!p.findings.length) p.findings = seedFindings();
+            p.updated = TODAY;
+            render();
+            toast(
+              "AI Review Complete",
+              `${p.findings.length} findings identified`,
+              "success",
+            );
+            return;
+          }
+          const h = $("procHost");
+          if (h) {
+            h.innerHTML = procMarkup(p);
+            icons();
+          }
+        }, 620);
+      }
+
+      function procMarkup(p) {
+        const done = p.step;
+        return `<ul class="space-y-3.5">
+    ${STEPS.map((s, i) => {
+      const st = i < done ? "done" : i === done ? "active" : "idle";
+      const mark =
+        st === "done"
+          ? `<i data-lucide="check" class="h-4 w-4 text-green-600"></i>`
+          : st === "active"
+            ? `<span class="h-3.5 w-3.5 rounded-full border-2 border-blue border-t-transparent spin"></span>`
+            : `<span class="h-3.5 w-3.5 rounded-full border border-line"></span>`;
+      return `<li class="flex items-center gap-3 text-[13px] ${st === "idle" ? "text-muted" : st === "active" ? "text-navy font-semibold" : "text-ink"}">
+        <span class="w-4 grid place-items-center">${mark}</span>${s}</li>`;
+    }).join("")}
+  </ul>
+  <p class="text-[12.5px] text-muted mt-6">${done >= STEPS.length ? "Consolidating findings…" : "Analyzing…"}</p>`;
+      }
+
+      function reviewTab(p) {
+        if (p.review === "processing") {
+          return `<div class="rounded-xl border border-line bg-white px-6 sm:px-8 py-8 max-w-xl">
+      <h2 class="text-[16px] font-semibold text-navy">Reviewing Procurement Documents</h2>
+      <p class="text-[13px] text-muted mt-1 mb-6">Reading ${p.documents.length} documents for ${p.ref}.</p>
+      <div id="procHost">${procMarkup(p)}</div></div>`;
+        }
+        if (p.review !== "done") {
+          return `<div class="rounded-xl border border-line bg-white px-6 py-16 text-center">
+      <h2 class="text-[15px] font-semibold">No AI review has been run</h2>
+      <p class="text-[13px] text-muted mt-1 max-w-md mx-auto">The review examines the uploaded documents across compliance, consistency, quality, market and risk, and lists findings for the BAC to verify.</p>
+      <button onclick="runReview()" class="${btnPrimary} mt-5">Run AI Review</button></div>`;
+        }
+
+        const t = tally(p);
+        const shown = p.findings.filter(
+          (f) => state.dim === "all" || f.dim === state.dim,
+        );
+        const decided = p.findings.filter((f) => f.decision).length;
+
+        const chip = (key, label, n) => `<button onclick="setDim('${key}')"
+    class="rounded-full border px-3.5 py-1.5 text-[12px] font-medium whitespace-nowrap transition-colors ${state.dim === key ? "bg-navy border-navy text-white" : "bg-white border-line text-muted hover:border-blue hover:text-blue"}">
+    ${label}<span class="ml-1.5 ${state.dim === key ? "text-white/60" : "text-muted/60"}">${n}</span></button>`;
+
+        return `<div class="space-y-5">
+    <div class="flex flex-wrap items-end gap-4">
+      <div>
+        <h2 class="text-[16px] font-semibold text-navy">AI Review</h2>
+        <p class="text-[13px] text-muted mt-1"><span class="font-semibold text-ink">${p.findings.length} findings identified</span> · ${SEV_KEYS.filter(
+          (k) => t[k],
+        )
+          .map((k) => `${t[k]} ${SEV[k].label.toLowerCase()}`)
+          .join(" · ")}</p>
+      </div>
+      <div class="ml-auto flex items-center gap-2">
+        <span class="text-[12px] text-muted">${decided} of ${p.findings.length} acted on</span>
+        <button onclick="runReview()" class="${btnGhost} flex items-center gap-1.5"><i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i> Re-run</button>
+      </div>
+    </div>
+
+    <div class="flex items-start gap-2.5 rounded-lg border border-line bg-sky px-4 py-3">
+      <i data-lucide="user-check" class="h-4 w-4 text-blue shrink-0 mt-0.5"></i>
+      <p class="text-[12.5px] text-navy leading-relaxed">Findings and recommendations are AI-generated and require BAC review. Every analysis can be edited, commented on, accepted, modified, or rejected — a rejected finding is removed from the review. The BAC remains the decision-maker.</p>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+      ${SEV_KEYS.map(
+        (
+          k,
+        ) => `<span class="inline-flex items-center gap-1.5 text-[11.5px] text-muted" title="${esc(SEV[k].meaning)}">
+        <span class="h-2 w-2 rounded-full ${SEV[k].bar}"></span><span class="font-semibold text-ink">${SEV[k].label}</span>${t[k]}</span>`,
+      ).join("")}
+    </div>
+
+    <div class="scroll-x"><div class="flex gap-2 min-w-max pb-1">
+      ${chip("all", "All", p.findings.length)}
+      ${DIMENSIONS.map((d) => chip(d.key, d.label, p.findings.filter((f) => f.dim === d.key).length)).join("")}
+    </div></div>
+
+    ${state.dim !== "all" ? `<p class="text-[12.5px] text-muted">${esc(DIMENSIONS.find((d) => d.key === state.dim).blurb)}</p>` : ""}
+
+    <div class="space-y-4">${shown.map((f) => findingCard(f, p)).join("")}</div>
+  </div>`;
+      }
+
+      function setDim(k) {
+        state.dim = k;
+        render();
+      }
+
+      /* ---------------------------- Finding card ---------------------------- */
+
+      function findingCard(f, p) {
+        const s = SEV[f.severity];
+        const d = f.decision ? DECISIONS[f.decision] : null;
+
+        const evidence = f.comparison
+          ? `
+    <div class="grid gap-3 ${f.comparison.length > 2 ? "sm:grid-cols-3" : "sm:grid-cols-2"}">
+      ${f.comparison
+        .map(
+          (c) => `
+        <div class="rounded-lg border border-line bg-white px-3.5 py-3">
+          <div class="text-[11px] font-semibold text-navy">${esc(c.doc)}</div>
+          <div class="text-[10.5px] text-muted mt-0.5">Page ${c.page} · ${esc(c.label)}</div>
+          <p class="quote text-ink mt-2">${esc(c.quote)}</p>
+        </div>`,
+        )
+        .join("")}
+    </div>
+    ${
+      f.delta
+        ? `<div class="mt-3 flex items-center gap-2 text-[12px] font-semibold ${s.text}">
+      <i data-lucide="git-compare-arrows" class="h-3.5 w-3.5"></i>${esc(f.delta)}</div>`
+        : ""
+    }`
+          : `<p class="quote text-ink">${esc(f.quote)}</p>`;
+
+        return `<article id="f-${f.id}" class="rounded-xl border border-line bg-white overflow-hidden fade-up scroll-mt-6">
+    <div class="flex">
+      <div class="w-1 ${s.bar} shrink-0"></div>
+      <div class="flex-1 min-w-0">
+
+        <div class="px-5 pt-4 pb-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <span title="${esc(s.meaning)}" class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[10.5px] font-bold tracking-wide ${s.chip}">
+              <i data-lucide="${s.icon}" class="h-3 w-3"></i>${s.label.toUpperCase()}</span>
+            <span class="text-[11px] font-semibold text-muted tracking-wide">${DIM[f.dim].toUpperCase()}</span>
+            <span class="text-[11px] text-muted/70">${f.id}</span>
+            ${
+              d
+                ? `<span class="ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${d.chip}">
+              <i data-lucide="${d.icon}" class="h-3 w-3"></i>${d.label}</span>`
+                : ""
+            }
+          </div>
+
+          <h3 class="text-[15px] font-semibold leading-snug mt-2.5">${esc(f.title)}</h3>
+
+          <div class="mt-4 space-y-3.5">
+            <div>
+              ${sectionLbl(f.edited ? "ANALYSIS · EDITED" : "AI ANALYSIS")}
+              <p class="text-[13px] leading-relaxed mt-1.5">${nl2br(f.analysis)}</p>
+              ${
+                f.edited
+                  ? `<details class="mt-1.5"><summary class="text-[11.5px] text-blue cursor-pointer">Show original AI analysis</summary>
+                <p class="text-[12.5px] text-muted leading-relaxed mt-1.5 border-l-2 border-line pl-3">${nl2br(f.aiAnalysis)}</p></details>`
+                  : ""
+              }
+            </div>
+
+            ${
+              f.recommendation
+                ? `<div>
+              ${sectionLbl("RECOMMENDATION")}
+              <p class="text-[13px] leading-relaxed mt-1.5">${nl2br(f.recommendation)}</p></div>`
+                : ""
+            }
+          </div>
+
+          <!-- Evidence -->
+          <div class="mt-4 rounded-lg bg-page border border-line px-4 py-3.5">
+            <div class="flex flex-wrap gap-x-8 gap-y-2.5 pb-3 mb-3 border-b border-line">
+              <div><div class="text-[10px] font-semibold tracking-[0.13em] text-muted">SOURCE</div>
+                <div class="text-[12.5px] font-medium mt-1">${esc(f.source.doc)}</div>
+                <div class="text-[11.5px] text-muted">Page ${f.source.page} · ${esc(f.source.section)}</div></div>
+              <div><div class="text-[10px] font-semibold tracking-[0.13em] text-muted">POLICY BASIS</div>
+                <div class="text-[12.5px] font-medium mt-1">${esc(f.policy)}</div></div>
+            </div>
+            <div class="text-[10px] font-semibold tracking-[0.13em] text-muted mb-2">${f.comparison ? "COMPARED TEXT" : "CITED TEXT"}</div>
+            ${evidence}
+          </div>
+
+          ${
+            f.comments.length
+              ? `<div class="mt-4 space-y-2.5">
+            ${f.comments
+              .map(
+                (c) => `<div class="border-l-2 border-navy pl-3.5">
+              <div class="flex items-center gap-2"><i data-lucide="message-square" class="h-3.5 w-3.5 text-navy"></i>
+              <span class="text-[12px] font-semibold text-navy">Comment</span><span class="text-[11px] text-muted">${esc(c.at)}</span></div>
+              <p class="text-[13px] leading-relaxed mt-1.5">${nl2br(c.text)}</p></div>`,
+              )
+              .join("")}
+          </div>`
+              : ""
+          }
+
+          ${f.decidedAt ? `<p class="text-[11.5px] text-muted mt-4">${DECISIONS[f.decision].label} · ${esc(f.decidedAt)}</p>` : ""}
+        </div>
+
+        <!-- Action bar -->
+        <div class="px-5 py-3 bg-white border-t border-line flex flex-wrap items-center gap-x-4 gap-y-2">
+          <button onclick="editModal('${f.id}')" class="inline-flex items-center gap-2 text-[13px] font-semibold text-blue hover:text-navy">
+            <i data-lucide="pencil" class="h-4 w-4"></i>Edit Analysis</button>
+          <span class="h-5 w-px bg-line"></span>
+          <button onclick="commentModal('${f.id}')" class="inline-flex items-center gap-2 text-[13px] font-semibold text-blue hover:text-navy">
+            <i data-lucide="message-square-plus" class="h-4 w-4"></i>Add Comment</button>
+
+          <div class="ml-auto flex flex-wrap gap-2">
+            <button onclick="rejectModal('${f.id}')"
+              class="rounded-md border border-red-500 bg-white px-4 py-2 text-[13px] font-semibold text-red-600 hover:bg-red-50 transition-colors">Reject</button>
+            <button onclick="decide('${f.id}','modified')"
+              class="rounded-md border px-4 py-2 text-[13px] font-semibold transition-colors ${f.decision === "modified" ? "bg-navy border-navy text-white" : "border-blue bg-white text-navy hover:bg-sky"}">Modify</button>
+            <button onclick="decide('${f.id}','accepted')"
+              class="rounded-md border px-4 py-2 text-[13px] font-semibold transition-colors ${f.decision === "accepted" ? "bg-navy border-navy text-white" : "border-blue bg-blue text-white hover:bg-navy hover:border-navy"}">Accept</button>
+          </div>
+        </div>
+
+        <!-- Feedback -->
+        <div class="px-5 py-2.5 bg-page border-t border-line flex flex-wrap items-center gap-2">
+          <span class="text-[12.5px] text-muted mr-1">Was this finding useful?</span>
+          ${["Correct", "Incorrect", "Irrelevant", "Incomplete"]
+            .map(
+              (o) =>
+                `<button onclick="rate('${f.id}','${o}')" class="rounded px-2 py-0.5 text-[12.5px] transition-colors ${f.feedback === o ? "bg-sky text-blue font-semibold" : "text-muted hover:text-blue"}">${o}</button>`,
+            )
+            .join("")}
+        </div>
+      </div>
+    </div>
+  </article>`;
+      }
+
+      const byId = (id) => cur().findings.find((f) => f.id === id);
+
+      function decide(id, kind) {
+        const f = byId(id);
+        if (kind === "modified") {
+          editModal(id);
+          return;
+        }
+        f.decision = kind;
+        f.decidedAt = NOW;
+        cur().updated = TODAY;
+        toast(
+          DECISIONS[kind].label,
+          f.id + " · recorded for this review",
+          "success",
+        );
+        render();
+      }
+
+      function rejectModal(id) {
+        const f = byId(id);
+        openModal(`${modalHead("Reject this finding?", DIM[f.dim] + " · " + f.id)}
+    <div class="px-6 py-5 text-[13px] leading-relaxed space-y-3">
+      <p class="font-semibold">${esc(f.title)}</p>
+      <p>Rejecting removes this finding from the review. It will not appear in the final report, and any comments recorded against it are removed with it.</p>
+      <p class="text-muted">Re-running the AI review will list the findings again from the start.</p>
+    </div>
+    <form onsubmit="event.preventDefault();confirmReject('${id}')">${modalFoot("Reject finding", "danger")}</form>`);
+      }
+      function confirmReject(id) {
+        const p = cur(),
+          i = p.findings.findIndex((f) => f.id === id);
+        if (i < 0) {
+          closeModal();
+          return;
+        }
+        const [f] = p.findings.splice(i, 1);
+        p.updated = TODAY;
+        closeModal();
+        toast("Finding rejected", f.id + " was removed from the review.");
+        render();
+      }
+      function rate(id, val) {
+        const f = byId(id);
+        f.feedback = val;
+        toast("Feedback recorded", f.id + ' marked "' + val + '"');
+        render();
+      }
+
+      function editModal(id) {
+        const f = byId(id);
+        openModal(
+          `${modalHead("Edit AI Analysis", DIM[f.dim] + " · " + f.id)}
+    <form onsubmit="saveEdit(event,'${id}')">
+      <div class="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
+        <div class="flex items-start gap-2.5 rounded-md bg-sky border border-line px-3 py-2.5 text-[12px] text-navy">
+          <i data-lucide="info" class="h-4 w-4 shrink-0 mt-0.5"></i>
+          <span>Your version replaces the AI text in this finding and in the final report. The original wording stays available for reference.</span>
+        </div>
+        ${field(
+          "Severity",
+          `<select id="e_sev" onchange="sevHint(this.value)" class="${inputCls}">${SEV_KEYS.map((k) => `<option value="${k}" ${k === f.severity ? "selected" : ""}>${SEV[k].label}</option>`).join("")}</select>
+          <p id="e_sev_hint" class="text-[11.5px] text-muted mt-1.5">${esc(SEV[f.severity].meaning)}</p>`,
+        )}
+        ${field("Finding", `<textarea id="e_title" rows="2" class="${areaCls}">${esc(f.title)}</textarea>`)}
+        ${field("Analysis", `<textarea id="e_analysis" rows="5" class="${areaCls}">${esc(f.analysis)}</textarea>`)}
+        ${field("Recommendation", `<textarea id="e_rec" rows="4" class="${areaCls}">${esc(f.recommendation)}</textarea>`)}
+        ${field("Comment (optional)", `<textarea id="e_comment" rows="2" class="${areaCls}" placeholder="Verified against the signed contract on file."></textarea>`)}
+      </div>
+      ${modalFoot("Save Changes")}
+    </form>`,
+          "max-w-2xl",
+        );
+      }
+      function sevHint(k) {
+        const el = $("e_sev_hint");
+        if (el) el.textContent = SEV[k].meaning;
+      }
+
+      function saveEdit(e, id) {
+        e.preventDefault();
+        const f = byId(id);
+        f.severity = $("e_sev").value;
+        f.title = $("e_title").value.trim();
+        f.analysis = $("e_analysis").value.trim();
+        f.recommendation = $("e_rec").value.trim();
+        const c = $("e_comment").value.trim();
+        if (c) f.comments.push({ text: c, at: NOW });
+        f.edited = true;
+        f.decision = "modified";
+        f.decidedAt = NOW;
+        cur().updated = TODAY;
+        closeModal();
+        toast(
+          "Changes saved",
+          "The final report will use your version.",
+          "success",
+        );
+        render();
+      }
+
+      function commentModal(id) {
+        const f = byId(id);
+        openModal(`${modalHead("Add Comment", f.title)}
+    <form onsubmit="saveComment(event,'${id}')">
+      <div class="px-6 py-5">
+        <textarea id="c_text" rows="4" required class="${areaCls}" placeholder="Confirmed with the end-user that 50 seats is correct; the Purchase Request will be amended."></textarea>
+        <p class="text-[11.5px] text-muted mt-2">The comment will be dated ${NOW} and will appear in the final report.</p>
+      </div>
+      ${modalFoot("Add Comment")}
+    </form>`);
+      }
+      function saveComment(e, id) {
+        e.preventDefault();
+        byId(id).comments.push({ text: $("c_text").value.trim(), at: NOW });
+        cur().updated = TODAY;
+        closeModal();
+        toast(
+          "Comment added",
+          "It will appear in the final report.",
+          "success",
+        );
+        render();
+      }
+
+      /* ======================================================================
+   FINAL REPORT
+   ====================================================================== */
+
+      function reportTab(p) {
+        if (p.review !== "done") {
+          return `<div class="rounded-xl border border-line bg-white px-6 py-16 text-center">
+      <h2 class="text-[15px] font-semibold">The report becomes available after the AI review</h2>
+      <p class="text-[13px] text-muted mt-1">Run the review to consolidate findings into a report.</p>
+      <button onclick="setTab('documents')" class="${btnPrimary} mt-5">Go to Documents</button></div>`;
+        }
+
+        const t = tally(p);
+        const decided = p.findings.filter((f) => f.decision).length;
+
+        const pending = p.findings.length - decided;
+
+        return `<div class="space-y-4">
+    <div class="no-print flex flex-wrap items-center gap-4 rounded-xl border border-line bg-white px-5 py-4">
+      <span class="h-10 w-10 rounded-lg bg-sky grid place-items-center shrink-0"><i data-lucide="file-text" class="h-5 w-5 text-blue"></i></span>
+      <div class="min-w-0">
+        <h2 class="text-[17px] font-bold text-navy leading-tight">Final Procurement Review Report</h2>
+        <p class="text-[12.5px] text-muted mt-0.5">${decided} of ${p.findings.length} findings reviewed${pending ? ` · ${pending} pending` : ""}</p>
+      </div>
+      <div class="ml-auto flex flex-wrap gap-2">
+        <button onclick="window.print()" class="${btnGhost} flex items-center gap-2"><i data-lucide="printer" class="h-4 w-4"></i> Print Report</button>
+        <button onclick="toast('PDF export prepared','${p.ref} — Final Review Report.pdf','success')" class="${btnGhost} flex items-center gap-2"><i data-lucide="download" class="h-4 w-4"></i> Download PDF</button>
+        ${
+          p.status === "Finalized"
+            ? `<span class="inline-flex items-center gap-1.5 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-[12.5px] font-semibold text-green-700"><i data-lucide="check" class="h-3.5 w-3.5"></i> Finalized</span>`
+            : `<button onclick="finalizeModal()" class="${btnPrimary}">Finalize Review</button>`
+        }
+      </div>
+    </div>
+
+    ${
+      p.status !== "Finalized" && pending
+        ? `
+      <div class="no-print flex flex-wrap items-center gap-4 rounded-xl border border-line bg-white px-5 py-4">
+        <span class="h-8 w-8 rounded-full bg-amber-50 grid place-items-center shrink-0"><i data-lucide="alert-circle" class="h-4 w-4 text-amber-600"></i></span>
+        <div class="min-w-0">
+          <div class="text-[13px] font-semibold text-navy">${pending} finding${pending === 1 ? "" : "s"} pending BAC action</div>
+          <p class="text-[12.5px] text-muted mt-0.5">These findings will appear in the report as pending.</p>
+        </div>
+        <button onclick="reviewPending()" class="ml-auto rounded-md border border-blue bg-white px-4 py-2 text-[12.5px] font-semibold text-blue hover:bg-sky transition-colors flex items-center gap-2">
+          Review pending findings <i data-lucide="arrow-right" class="h-3.5 w-3.5"></i></button>
+      </div>`
+        : ""
+    }
+
+    ${reportDoc(p, t)}
+  </div>`;
+      }
+
+      /* Jump from the report to the first finding with no recorded action. */
+      function reviewPending() {
+        const p = cur();
+        const f = p.findings.find((x) => !x.decision);
+        state.tab = "review";
+        state.dim = "all";
+        render();
+        if (!f) {
+          window.scrollTo(0, 0);
+          return;
+        }
+        requestAnimationFrame(() => {
+          const el = $("f-" + f.id);
+          if (!el) {
+            window.scrollTo(0, 0);
+            return;
+          }
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("ring-2", "ring-blue", "ring-offset-2");
+          setTimeout(
+            () => el.classList.remove("ring-2", "ring-blue", "ring-offset-2"),
+            2200,
+          );
+        });
+      }
+
+      function finalizeModal() {
+        const p = cur();
+        const pending = p.findings.filter((f) => !f.decision).length;
+        openModal(`${modalHead("Finalize review", p.ref)}
+    <div class="px-6 py-5 text-[13px] leading-relaxed space-y-3">
+      <p>Finalizing sets the status of ${p.ref} to <span class="font-semibold">Finalized</span> and marks the report as the record of this review.</p>
+      ${
+        pending
+          ? `<div class="flex items-start gap-2.5 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5">
+        <i data-lucide="alert-triangle" class="h-4 w-4 text-amber-600 shrink-0 mt-0.5"></i>
+        <span class="text-[12.5px] text-amber-900">${pending} finding${pending === 1 ? "" : "s"} still have no recorded action. You can finalize anyway, and they will be listed as pending.</span></div>`
+          : ""
+      }
+      <p class="text-muted">Findings remain editable after finalization, but the change will be recorded against the report.</p>
+    </div>
+    <form onsubmit="event.preventDefault();confirmFinalize()">${modalFoot("Finalize Review")}</form>`);
+      }
+      function confirmFinalize() {
+        const p = cur();
+        p.status = "Finalized";
+        p.updated = TODAY;
+        closeModal();
+        toast("Review finalized", p.ref + " is now Finalized.", "success");
+        render();
+      }
+
+      /* ======================================================================
+   FORM GENERATOR
+   ====================================================================== */
+
+      const FORMS = [
+        "GPPB Standard Form — Invitation to Bid (ITB)",
+        "GPPB Standard Form — Bid Data Sheet (BDS)",
+        "BAC Resolution (Recommending Award)",
+        "Notice of Award",
+        "Post-Qualification Checklist",
+        "Abstract of Bids",
+      ];
+
+      const PREFILL = [
+        "Procurement title and reference number",
+        "ABC / Budget",
+        "Procurement mode",
+        "End-User / Requesting Office",
+        "Other available details from the record",
+      ];
+
+      const stepNum = (n) =>
+        `<span class="h-7 w-7 rounded-full bg-sky text-blue grid place-items-center text-[12.5px] font-bold shrink-0">${n}</span>`;
+
+      function formsTab(p) {
+        return `<div class="space-y-5 max-w-[1000px]">
+    <div class="flex items-center gap-4">
+      <span class="h-11 w-11 rounded-lg bg-sky grid place-items-center shrink-0"><i data-lucide="file-text" class="h-5 w-5 text-blue"></i></span>
+      <div>
+        <h2 class="text-[19px] font-bold text-navy leading-tight">Form Generator</h2>
+        <p class="text-[13px] text-muted mt-0.5">Draft standard procurement forms from the details on record for ${p.ref}.</p>
+      </div>
+    </div>
+
+    <section class="rounded-xl border border-line bg-white overflow-hidden">
+
+      <div class="px-6 py-5">
+        <div class="flex items-start gap-3">
+          ${stepNum(1)}
+          <div>
+            <h3 class="text-[14px] font-bold text-navy">Select a Form</h3>
+            <p class="text-[12.5px] text-muted mt-0.5">Choose a standard form to generate. The form will be pre-filled with this procurement's details.</p>
+          </div>
+        </div>
+
+        <div class="grid lg:grid-cols-[1fr_340px] gap-5 mt-4 lg:pl-10">
+          <label class="block self-start">
+            <span class="sr-only">Select Form</span>
+            <span class="relative block">
+              <i data-lucide="file-text" class="h-4 w-4 text-blue absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+              <select id="formPick" class="w-full appearance-none rounded-lg border border-line bg-white pl-10 pr-10 py-3 text-[13.5px] text-ink focus:border-blue focus:outline-none focus:ring-2 focus:ring-blue/15">${opts(FORMS)}</select>
+              <i data-lucide="chevron-down" class="h-4 w-4 text-muted absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            </span>
+          </label>
+
+          <div class="rounded-lg bg-sky px-4 py-3.5">
+            <div class="flex items-start gap-2.5">
+              <span class="h-5 w-5 rounded-full bg-blue text-white grid place-items-center shrink-0 mt-px"><i data-lucide="info" class="h-3 w-3"></i></span>
+              <div class="min-w-0">
+                <div class="text-[12.5px] font-bold text-navy">Form will be pre-filled with:</div>
+                <ul class="mt-2 space-y-1.5">
+                  ${PREFILL.map(
+                    (
+                      x,
+                    ) => `<li class="flex items-start gap-2 text-[12.5px] text-ink">
+                    <i data-lucide="check" class="h-3.5 w-3.5 text-blue shrink-0 mt-0.5"></i>${esc(x)}</li>`,
+                  ).join("")}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-6 py-5 border-t border-line flex flex-wrap items-center gap-4">
+        <div class="flex items-start gap-3">
+          ${stepNum(2)}
+          <div>
+            <h3 class="text-[14px] font-bold text-navy">Generate</h3>
+            <p class="text-[12.5px] text-muted mt-0.5">Click generate to create a draft form. Review the generated document before use.</p>
+          </div>
+        </div>
+        <button onclick="generateForm()" class="${btnPrimary} ml-auto flex items-center gap-2 px-5 py-2.5"><i data-lucide="sparkles" class="h-4 w-4"></i> Generate Form</button>
+      </div>
+    </section>
+  </div>`;
+      }
+
+      const pickedForm = () => $("formPick")?.value || FORMS[0];
+
+      function generateForm() {
+        toast("Draft generated", pickedForm() + " · " + cur().ref, "success");
+      }
+
+      const ACTION_LABEL = { accepted: "Accepted", modified: "Modified" };
+
+      function reportDoc(p, t) {
+        const secNum = {
+          compliance: 1,
+          consistency: 2,
+          quality: 3,
+          market: 4,
+          risk: 5,
+        };
+
+        return `<div class="print-area report mx-auto max-w-[840px] bg-white border border-line rounded-xl px-8 sm:px-14 py-12">
+
+    <header class="text-center border-b-2 border-[#123B6D] pb-6">
+      <div class="font-sans text-[10.5px] tracking-[0.2em] text-[#123B6D]">REPUBLIC OF THE PHILIPPINES</div>
+      <h1 class="mt-2 text-[19px] sm:text-[21px] font-bold leading-tight text-[#123B6D]">DEPARTMENT OF INFORMATION AND<br>COMMUNICATIONS TECHNOLOGY</h1>
+      <div class="mt-4 text-[14px] tracking-[0.12em]">FINAL PROCUREMENT REVIEW REPORT</div>
+    </header>
+
+    <section class="mt-8 space-y-1.5">
+      ${[
+        ["Reference", p.ref],
+        ["Procurement Title", p.title],
+        ["ABC", peso(p.abc)],
+        ["Procurement Mode", p.mode],
+        ["Source of Fund", p.fund],
+        ["End-User", p.endUser],
+      ]
+        .map(
+          ([k, v]) =>
+            `<div class="flex gap-4"><span class="w-[150px] shrink-0 font-sans text-[11px] tracking-wide text-[#555] pt-[3px]">${k.toUpperCase()}</span>
+         <span class="text-[15px] flex-1">${esc(v)}</span></div>`,
+        )
+        .join("")}
+    </section>
+
+    <section class="mt-9 print-break">
+      <h2 class="font-sans text-[12px] font-bold tracking-[0.12em] text-[#123B6D] border-b border-[#D9E5F0] pb-2">SUMMARY OF FINDINGS</h2>
+      <table class="w-full mt-4 text-[15px]">
+        <tbody>
+          ${[
+            ["Total findings", p.findings.length],
+            ...SEV_KEYS.map((k) => [SEV[k].label, t[k]]),
+            [
+              "Findings acted on by the BAC",
+              p.findings.filter((f) => f.decision).length,
+            ],
+          ]
+            .map(
+              ([k, v]) =>
+                `<tr class="border-b border-[#EEF3F8]"><td class="py-1.5">${k}</td><td class="py-1.5 text-right font-semibold tabular-nums">${v}</td></tr>`,
+            )
+            .join("")}
+        </tbody>
+      </table>
+      <p class="mt-4 text-[14.5px] leading-[1.7] text-justify">
+        This report consolidates the AI-assisted review of ${p.documents.length} documents submitted for ${p.ref}. Findings are grouped by review dimension.
+        Where an analysis has been revised, the revised text is reproduced below in place of the original. The analysis is AI-assisted and reviewed by the
+        BAC; it supports, and does not replace, the determination of the Bids and Awards Committee.
+      </p>
+    </section>
+
+    ${DIMENSIONS.map((dim) => {
+      const list = p.findings.filter((f) => f.dim === dim.key);
+      if (!list.length) return "";
+      return `<section class="mt-9">
+        <h2 class="font-sans text-[12px] font-bold tracking-[0.12em] text-[#123B6D] border-b border-[#D9E5F0] pb-2">
+          ${secNum[dim.key]}. ${dim.label.toUpperCase()}</h2>
+        <div class="divide-y divide-[#EEF3F8]">
+          ${list
+            .map(
+              (f) => `
+            <article class="py-5 print-break">
+              <div class="flex flex-wrap items-baseline gap-3">
+                <span class="font-sans text-[11px] font-bold ${SEV[f.severity].text}">${SEV[f.severity].label.toUpperCase()}</span>
+                <span class="font-sans text-[11px] text-[#666]">${f.id}</span>
+                <span class="font-sans text-[11px] ml-auto ${f.decision ? "text-[#123B6D] font-semibold" : "text-[#999]"}">
+                  ${f.decision ? ACTION_LABEL[f.decision] + " · " + f.decidedAt : "Pending BAC action"}</span>
+              </div>
+              <h3 class="text-[16.5px] font-semibold leading-snug mt-1.5">${esc(f.title)}</h3>
+
+              <div class="mt-2.5">
+                <div class="font-sans text-[10.5px] font-semibold tracking-wide text-[#555]">${f.edited ? "ANALYSIS (AS REVISED)" : "AI ANALYSIS"}</div>
+                <p class="text-[14.5px] leading-[1.7] text-justify mt-1">${nl2br(f.analysis)}</p>
+              </div>
+
+              ${
+                f.recommendation
+                  ? `<div class="mt-2.5">
+                <div class="font-sans text-[10.5px] font-semibold tracking-wide text-[#555]">RECOMMENDATION</div>
+                <p class="text-[14.5px] leading-[1.7] text-justify mt-1">${nl2br(f.recommendation)}</p></div>`
+                  : ""
+              }
+
+              ${
+                f.comments.length
+                  ? `<div class="mt-2.5 border-l-2 border-[#123B6D] pl-4">
+                <div class="font-sans text-[10.5px] font-semibold tracking-wide text-[#123B6D]">BAC COMMENT</div>
+                ${f.comments.map((c) => `<p class="text-[14.5px] leading-[1.7] mt-1">${nl2br(c.text)} <span class="font-sans text-[10.5px] text-[#666]">— ${esc(c.at)}</span></p>`).join("")}
+              </div>`
+                  : ""
+              }
+
+              <div class="mt-2.5 font-sans text-[10.5px] text-[#666] leading-relaxed">
+                Source: ${esc(f.source.doc)}, page ${f.source.page}, ${esc(f.source.section)} · Policy basis: ${esc(f.policy)}
+                ${f.comparison ? "<br>Compared: " + f.comparison.map((c) => esc(c.doc) + " p." + c.page).join(" · ") : ""}
+              </div>
+            </article>`,
+            )
+            .join("")}
+        </div>
+      </section>`;
+    }).join("")}
+
+    <footer class="mt-11 pt-6 border-t border-[#D9E5F0]">
+      <p class="text-center font-sans text-[10.5px] text-[#666]">${p.ref} · Prepared through AI Analyst · DICT</p>
+      <p class="mt-1 text-center font-sans text-[10px] text-[#8a8a8a]">Prototype with fictional data. The analysis is AI-assisted and is not a legal determination.</p>
+    </footer>
+  </div>`;
+      }
+
+      /* ====================================================================== */
+      render();
+      icons();
+    </script>
+  </body>
+</html>

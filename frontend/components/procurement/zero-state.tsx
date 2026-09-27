@@ -16,15 +16,20 @@ export function ZeroState({ onFilesSelect, onScenarioSelect }: ZeroStateProps) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="flex flex-col items-center justify-center min-h-[60vh] space-y-8"
+      className="mx-auto flex w-full max-w-2xl flex-col items-center justify-center py-10"
     >
-      <div className="text-center space-y-3 mb-4">
-        <h2 className="text-3xl font-bold text-black">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-navy">
           Procurement Document Analysis
         </h2>
+        <p className="mx-auto mt-2 max-w-md text-[13.5px] leading-relaxed text-subtle">
+          Upload a procurement document to get an AI-powered analysis. The
+          system will identify key information, check compliance, and flag
+          potential issues.
+        </p>
       </div>
 
-      <div className="w-full max-w-lg">
+      <div className="mt-8 w-full">
         <FileUpload onFilesSelect={onFilesSelect} />
       </div>
     </motion.div>

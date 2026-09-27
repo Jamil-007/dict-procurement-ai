@@ -7,16 +7,20 @@ import { MessageList } from '@/components/procurement/message-list';
 import { ThinkingWidget } from '@/components/procurement/thinking-widget';
 import { InputArea } from '@/components/procurement/input-area';
 import { ReportPreview } from '@/components/procurement/report-preview';
+import { FormGenerator } from '@/components/procurement/form-generator';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Message } from '@/types/procurement';
 import { AlertTriangle } from 'lucide-react';
+import type { FormKey } from '@/types/forms';
 
 const MAX_FILES = 3;
 
 export default function ProcurementPage() {
+  const router = useRouter();
   const {
     state,
     thinkingLogs,
@@ -29,6 +33,7 @@ export default function ProcurementPage() {
     isConnected,
     isChatLoading,
     isChatInFlight,
+    threadId,
     uploadFiles,
     generateReport,
     declineReport,
@@ -158,6 +163,15 @@ export default function ProcurementPage() {
     setShowChat(true);
     declineReport();
     toast.info('Tokens saved. You can now chat about the document.');
+  };
+
+  const handleFormGenerate = (selectedKeys: FormKey[]) => {
+    if (!threadId) {
+      toast.error('No session ID available');
+      return;
+    }
+    const formKeysParam = selectedKeys.join(',');
+    router.push(`/forms/review?session=${threadId}&forms=${formKeysParam}`);
   };
 
   // Split view layout
@@ -296,6 +310,25 @@ export default function ProcurementPage() {
               />
             )}
           </MessageList>
+        )}
+
+        {/* Form Generator Section - shown after file upload */}
+        {threadId && state !== 'idle' && (
+          <div className="max-w-2xl mx-auto px-4 pb-6">
+            <div className="bg-white border border-zinc-200 rounded-2xl p-7">
+              <div className="text-xs font-semibold tracking-wider uppercase text-zinc-400 flex items-center gap-2 mb-5">
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-zinc-100 text-zinc-700 text-[11px] font-bold">
+                  2
+                </span>
+                Generate forms
+              </div>
+              <FormGenerator
+                threadId={threadId}
+                hasDocs={true}
+                onGenerate={handleFormGenerate}
+              />
+            </div>
+          </div>
         )}
 
         <InputArea

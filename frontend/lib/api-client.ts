@@ -1,4 +1,5 @@
 import { VerdictData } from '@/types/procurement';
+import type { FormCatalogItem, DetectResult, FormKey } from '@/types/forms';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -20,6 +21,19 @@ export interface StatusResponse {
   status: string;
   verdict?: VerdictData;
   gamma_link?: string;
+}
+
+export interface ExtractResponse {
+  [formKey: string]: {
+    fields: Record<string, string | null>;
+    warning: boolean;
+    group: 'A_rich' | 'B_annex';
+  };
+}
+
+export interface GenerateResult {
+  blob: Blob;
+  filename: string;
 }
 
 export interface StreamCallbacks {
@@ -357,6 +371,96 @@ class APIClient {
     const response = await fetch(`${this.baseUrl}/health`);
     return this.handleResponse<{ status: string }>(response);
   }
+
+  async getFormCatalog(): Promise<FormCatalogItem[]> {
+    const response = await fetch(`${this.baseUrl}/forms/catalog`);
+    return this.handleResponse<FormCatalogItem[]>(response);
+  }
+
+  async detectForms(threadId: string): Promise<DetectResult> {
+    const response = await fetch(`${this.baseUrl}/forms/detect`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ thread_id: threadId }),
+    });
+    return this.handleResponse<DetectResult>(response);
+  }
+
+  async extractForms(
+    threadId: string,
+    formKeys: FormKey[]
+  ): Promise<ExtractResponse> {
+    const response = await fetch(`${this.baseUrl}/forms/extract`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        thread_id: threadId,
+        form_keys: formKeys,
+      }),
+    });
+    return this.handleResponse<ExtractResponse>(response);
+  }
+
+  async generateForms(
+    threadId: string,
+    formKeys: FormKey[],
+    overrides?: Record<FormKey, Record<string, string | null>>
+  ): Promise<GenerateResult> {
+    const response = await fetch(`${this.baseUrl}/forms/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        thread_id: threadId,
+        form_keys: formKeys,
+        overrides: overrides || {},
+      }),
+    });
+
+    if (!response.ok) {
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      let details;
+
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorData.detail || errorMessage;
+        details = errorData;
+      } catch {
+        // If parsing JSON fails, use the status text
+      }
+
+      throw new APIError(errorMessage, response.status, details);
+    }
+
+    const blob = await response.blob();
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = 'download';
+
+    if (contentDisposition) {
+      const matches = /filename="?([^"]+)"?/.exec(contentDisposition);
+      if (matches && matches[1]) {
+        filename = matches[1];
+      }
+    }
+
+    return { blob, filename };
+  }
 }
 
 export const apiClient = new APIClient();
+
+export function triggerDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}

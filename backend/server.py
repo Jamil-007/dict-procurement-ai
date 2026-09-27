@@ -5,6 +5,7 @@ Implements SSE streaming, human-in-the-loop workflow, and chat.
 
 import asyncio
 import json
+import logging
 import time
 import uuid
 from typing import Any, AsyncGenerator, List
@@ -28,7 +29,35 @@ from graph import graph, create_initial_state
 from prompts import CHAT_PROMPT, RA_12009_DIRECTIVE
 from config import settings
 from forms import service as forms_service
+from forms.service import FormGenerationError
 from forms.registry import FORM_REGISTRY
+
+import re as _re
+import unicodedata as _unicodedata
+from urllib.parse import quote as _urlquote
+
+
+def _slugify_filename(filename: str) -> str:
+    """ASCII-fold a filename so it is safe for a latin-1 Content-Disposition header.
+    Non-ASCII chars (e.g. em-dash U+2014) and spaces collapse to underscores; the
+    extension is preserved."""
+    stem, dot, ext = filename.rpartition(".")
+    if not dot:
+        stem, ext = filename, ""
+    stem = _unicodedata.normalize("NFKD", stem).encode("ascii", "ignore").decode("ascii")
+    stem = _re.sub(r"[^A-Za-z0-9]+", "_", stem).strip("_") or "form"
+    ext = _re.sub(r"[^A-Za-z0-9]+", "", ext)
+    return f"{stem}.{ext}" if ext else stem
+
+
+def _content_disposition(filename: str) -> str:
+    """Build a Content-Disposition value with an ASCII `filename=` (latin-1 safe) plus an
+    RFC 5987 `filename*=UTF-8''` for clients that support the original name."""
+    ascii_name = _slugify_filename(filename)
+    return (
+        f'attachment; filename="{ascii_name}"; '
+        f"filename*=UTF-8''{_urlquote(filename)}"
+    )
 
 
 app = FastAPI(
@@ -53,6 +82,8 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization"],
     expose_headers=["Content-Disposition"],
 )
+
+logger = logging.getLogger(__name__)
 
 # Store for tracking background tasks
 analysis_tasks = {}
@@ -572,11 +603,18 @@ async def generate_forms(request: FormGenerateRequest):
             raise HTTPException(status_code=400, detail=f"Unknown form key: {key}")
 
     # Generate files
-    files = forms_service.generate(
-        request.thread_id,
-        request.form_keys,
-        request.overrides or {}
-    )
+    try:
+        files = forms_service.generate(
+            request.thread_id,
+            request.form_keys,
+            request.overrides or {}
+        )
+    except FormGenerationError as exc:
+        logger.error("Form generation failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to generate one or more forms.")
+    except Exception as exc:  # noqa: BLE001 - never leak a stack trace to the client
+        logger.exception("Unexpected error during form generation: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to generate one or more forms.")
 
     if len(files) == 1:
         # Single file: stream directly
@@ -594,7 +632,7 @@ async def generate_forms(request: FormGenerateRequest):
         return StreamingResponse(
             io.BytesIO(file_bytes),
             media_type=media_type,
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            headers={"Content-Disposition": _content_disposition(filename)},
         )
     else:
         # Multiple files: create zip
@@ -608,5 +646,5 @@ async def generate_forms(request: FormGenerateRequest):
         return StreamingResponse(
             zip_buffer,
             media_type="application/zip",
-            headers={"Content-Disposition": 'attachment; filename="procurement_forms.zip"'},
+            headers={"Content-Disposition": _content_disposition("procurement_forms.zip")},
         )

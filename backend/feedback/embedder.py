@@ -3,7 +3,7 @@ import math
 import re
 
 from config import settings
-from feedback.models import EMBEDDING_DIM
+from feedback.models import EMBEDDING_DIM, EMBED_INPUT_LIMIT
 
 _TOKEN = re.compile(r"[a-z0-9]+")
 
@@ -31,7 +31,7 @@ def _vertex_embed(text: str) -> list[float]:
         project=settings.FIRESTORE_PROJECT or settings.GOOGLE_CLOUD_PROJECT,
         location=settings.GOOGLE_CLOUD_LOCATION,
     )
-    return emb.embed_query(text[:20000])
+    return emb.embed_query(text[:EMBED_INPUT_LIMIT])
 
 
 def embed_text(text: str) -> list[float]:

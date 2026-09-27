@@ -36,3 +36,13 @@ def test_empty_text_is_safe_zero_vector():
 def test_embed_text_uses_local_when_backend_local(monkeypatch):
     monkeypatch.setattr("feedback.embedder.settings.FEEDBACK_BACKEND", "local")
     assert embed_text("hello") == local_embed("hello")
+
+
+def test_embed_text_uses_vertex_when_backend_firestore(monkeypatch):
+    monkeypatch.setattr("feedback.embedder.settings.FEEDBACK_BACKEND", "firestore")
+    called = {}
+    monkeypatch.setattr("feedback.embedder._vertex_embed",
+                        lambda text: (called.setdefault("text", text), [0.1] * 768)[1])
+    result = embed_text("hello")
+    assert called["text"] == "hello"
+    assert len(result) == 768

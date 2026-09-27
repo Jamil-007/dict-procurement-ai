@@ -31,3 +31,10 @@ temp/
 *.zip
 *.tar.gz
 *.rar
+
+# Local docs, specs, plans, mockups and source form templates — not committed
+docs/
+
+# Agent worktrees and orchestration scratch — not committed
+.claude/
+.superpowers/

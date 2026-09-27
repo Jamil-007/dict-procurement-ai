@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ReportSkeleton } from './report-skeleton';
+import { FindingDetailCard } from './finding-detail';
 import { VerdictData } from '@/types/procurement';
 import { cn } from '@/lib/utils';
 import { jsPDF } from 'jspdf';
@@ -22,6 +23,21 @@ const formatText = (text: string) => {
     return <span key={i}>{part}</span>;
   });
 };
+
+// Node names as the router emits them, in the user's words.
+const CHECKER_LABELS: Record<string, string> = {
+  rule_checks: 'Rule compliance',
+  consistency_checks: 'Cross-document consistency',
+  spec_validator: 'Specification review',
+  lcca_analyzer: 'Life-cycle cost',
+  market_researcher: 'Market research',
+  sustainability_analyst: 'Sustainability',
+  domestic_preference_checker: 'Tatak Pinoy preference',
+  modality_advisor: 'Modality advisory',
+};
+
+const checkerLabel = (name: string) =>
+  CHECKER_LABELS[name] ?? name.replace(/_/g, ' ');
 
 interface ReportPreviewProps {
   isLoading: boolean;
@@ -59,7 +75,47 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
     doc.text(`Confidence: ${verdictData.confidence}%`, margin, yPos);
     yPos += 7;
     doc.text(`Analysis Date: ${new Date().toLocaleDateString()}`, margin, yPos);
-    yPos += 12;
+    yPos += 7;
+    if (verdictData.summary) {
+      const s = verdictData.summary;
+      doc.text(
+        `Checks: ${s.total} run, ${s.passed} passed, ${s.failed} flagged, ${s.skipped} not verified`,
+        margin,
+        yPos
+      );
+      yPos += 7;
+    }
+    yPos += 5;
+
+    // Which documents this verdict is about -- a report that names its inputs
+    // can be re-run and disputed; one that does not, cannot.
+    if (verdictData.documents?.length) {
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Documents Reviewed', margin, yPos);
+      yPos += 8;
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      verdictData.documents.forEach((d) => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        const lines = doc.splitTextToSize(
+          `• ${d.file} — ${d.label || d.doc_type} (${Math.round((d.confidence ?? 0) * 100)}% match)`,
+          pageWidth - margin * 2 - 5
+        );
+        lines.forEach((line: string) => {
+          if (yPos > 270) {
+            doc.addPage();
+            yPos = 20;
+          }
+          doc.text(line, margin + 5, yPos);
+          yPos += 6;
+        });
+      });
+      yPos += 6;
+    }
 
     // Title of report
     doc.setFontSize(14);
@@ -109,13 +165,29 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
-      finding.items.forEach((item) => {
+
+      // The downloaded report is what gets attached to a COA response, so it
+      // carries the citation and the page reference, not just the sentence.
+      const bullets: string[] =
+        finding.details && finding.details.length > 0
+          ? finding.details.map((d) => {
+              const where = d.evidence
+                ?.map((e) => `${e.document}${e.page ? ` p.${e.page}` : ''}`)
+                .join('; ');
+              const authority = d.authority
+                ? ` [${d.authority.citation}${d.authority.unverified ? ' — unverified' : ''}]`
+                : '';
+              return `${d.detail}${where ? ` (${where})` : ''}${authority}`;
+            })
+          : finding.items;
+
+      bullets.forEach((item) => {
         if (yPos > 270) {
           doc.addPage();
           yPos = 20;
         }
         const lines = doc.splitTextToSize(`• ${item}`, pageWidth - margin * 2 - 5);
-        lines.forEach((line: string, lineIndex: number) => {
+        lines.forEach((line: string) => {
           if (yPos > 270) {
             doc.addPage();
             yPos = 20;
@@ -252,6 +324,10 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
 
   if (!verdictData) return null;
 
+  const documents = verdictData.documents ?? [];
+  const checkersRun = verdictData.checkers_run ?? [];
+  const summary = verdictData.summary;
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -306,24 +382,64 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
 
         <Separator className="bg-gray-200" />
 
-        {/* Document Information */}
+        {/* Documents reviewed. The detected type is shown per file because the
+            router picks its checkers from it -- if a document was misread, the
+            user needs to see that here rather than wonder why a check is
+            missing. */}
         <Card className="border-2 border-gray-200 rounded-2xl">
           <CardHeader>
-            <CardTitle className="text-lg text-black">Document Information</CardTitle>
+            <CardTitle className="text-lg text-black">
+              Documents Reviewed
+              {documents.length > 0 && (
+                <span className="ml-2 text-sm font-normal text-gray-500">
+                  {documents.length}
+                </span>
+              )}
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <div className="flex justify-between">
+          <CardContent className="space-y-3 text-sm">
+            {documents.length > 0 ? (
+              documents.map((doc, index) => (
+                <div
+                  key={index}
+                  className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-gray-100 pb-2 last:border-0 last:pb-0"
+                >
+                  <span className="min-w-0 break-all font-medium text-black">
+                    {doc.file}
+                  </span>
+                  <span className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-800">
+                      {doc.label || doc.doc_type}
+                    </span>
+                    <span>{Math.round((doc.confidence ?? 0) * 100)}% match</span>
+                    {doc.total_pages ? (
+                      <span>
+                        {doc.pages_read ?? doc.total_pages}/{doc.total_pages} pp
+                      </span>
+                    ) : null}
+                    {doc.ingest_source === 'ocr' && (
+                      <span className="text-gray-500">scanned · OCR</span>
+                    )}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-600">
+                No document details were recorded for this analysis.
+              </p>
+            )}
+            <div className="flex justify-between pt-1">
               <span className="text-gray-600">Analysis Date:</span>
               <span className="font-medium text-black">{new Date().toLocaleDateString()}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Document Type:</span>
-              <span className="font-medium text-black">Procurement Terms of Reference</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Analysis Model:</span>
-              <span className="font-medium text-black">Multi-Agent AI System v1.0</span>
-            </div>
+            {checkersRun.length > 0 && (
+              <div className="flex flex-wrap justify-between gap-2">
+                <span className="text-gray-600">Checks Applied:</span>
+                <span className="text-right font-medium text-black">
+                  {checkersRun.map(checkerLabel).join(', ')}
+                </span>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -343,6 +459,27 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
               <strong className="text-black">{verdictData.confidence}% confidence</strong>, based on comprehensive
               evaluation of {verdictData.findings.length} major categories.
             </p>
+            {/* How much was actually checked. "No findings" over 3 checks and
+                "no findings" over 169 checks are not the same result, and the
+                verdict alone cannot tell them apart. */}
+            {summary && (
+              <div className="flex flex-wrap gap-2 pt-1">
+                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-800">
+                  {summary.total} check{summary.total === 1 ? '' : 's'} run
+                </span>
+                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-800">
+                  {summary.passed} passed
+                </span>
+                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-800">
+                  {summary.failed} flagged
+                </span>
+                {summary.skipped > 0 && (
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs text-amber-900">
+                    {summary.skipped} not verified
+                  </span>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -368,11 +505,25 @@ export function ReportPreview({ isLoading, verdictData, gammaLink, onGenerateRep
                     {finding.severity.toUpperCase()}
                   </Badge>
                 </div>
-                <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 pl-4">
-                  {finding.items.map((item, itemIndex) => (
-                    <li key={itemIndex} className="break-words">{formatText(item)}</li>
-                  ))}
-                </ul>
+                {/* Rule and consistency findings carry evidence, citations and
+                    a comparison. The advisory agents carry prose only, so they
+                    keep the plain list. */}
+                {finding.details && finding.details.length > 0 ? (
+                  <div className="space-y-2">
+                    {finding.details.map((detail, detailIndex) => (
+                      <FindingDetailCard
+                        key={detail.rule_id ?? detailIndex}
+                        finding={detail}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 pl-4">
+                    {finding.items.map((item, itemIndex) => (
+                      <li key={itemIndex} className="break-words">{formatText(item)}</li>
+                    ))}
+                  </ul>
+                )}
                 {index < verdictData.findings.length - 1 && <Separator className="mt-4 bg-gray-200" />}
               </div>
             ))}

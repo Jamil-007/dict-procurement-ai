@@ -20,6 +20,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { FindingDetailCard } from './finding-detail';
 import { VerdictData, FindingSeverity } from '@/types/procurement';
 import { cn } from '@/lib/utils';
 import { jsPDF } from 'jspdf';
@@ -64,6 +65,8 @@ const getSeverityIcon = (severity: FindingSeverity) => {
       return <AlertTriangle className="h-4 w-4 text-gray-700" />;
     case 'low':
       return <Info className="h-4 w-4 text-gray-500" />;
+    default:
+      return <Info className="h-4 w-4 text-gray-400" />;
   }
 };
 
@@ -75,6 +78,8 @@ const getSeverityColor = (severity: FindingSeverity): string => {
       return 'bg-gray-700 text-white border-gray-700';
     case 'low':
       return 'bg-gray-300 text-black border-gray-300';
+    default:
+      return 'bg-gray-100 text-gray-700 border-gray-200';
   }
 };
 
@@ -86,6 +91,10 @@ const getSeverityLabel = (severity: FindingSeverity): string => {
       return 'Moderate Risk';
     case 'low':
       return 'Minor Issue';
+    // 'info' covers the Not Verified group: nothing is wrong, the check
+    // simply could not run on what was uploaded.
+    default:
+      return 'For Information';
   }
 };
 
@@ -148,7 +157,23 @@ export function VerdictCard({
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
-      finding.items.forEach((item) => {
+
+      // Mirrors the on-screen finding: sentence, where it was seen, and the
+      // provision it rests on.
+      const bullets: string[] =
+        finding.details && finding.details.length > 0
+          ? finding.details.map((d) => {
+              const where = d.evidence
+                ?.map((e) => `${e.document}${e.page ? ` p.${e.page}` : ''}`)
+                .join('; ');
+              const authority = d.authority
+                ? ` [${d.authority.citation}${d.authority.unverified ? ' — unverified' : ''}]`
+                : '';
+              return `${d.detail}${where ? ` (${where})` : ''}${authority}`;
+            })
+          : finding.items;
+
+      bullets.forEach((item) => {
         if (yPos > 270) {
           doc.addPage();
           yPos = 20;
@@ -242,14 +267,25 @@ export function VerdictCard({
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="px-4 pb-4">
-                    <ul className="space-y-2">
-                      {finding.items.map((item, itemIndex) => (
-                        <li key={itemIndex} className="flex items-start gap-2 text-sm text-black">
-                          <ChevronRight className="h-4 w-4 mt-0.5 text-gray-500 shrink-0" />
-                          <span className="break-words flex-1">{formatText(item)}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    {finding.details && finding.details.length > 0 ? (
+                      <div className="space-y-2">
+                        {finding.details.map((detail, detailIndex) => (
+                          <FindingDetailCard
+                            key={detail.rule_id ?? detailIndex}
+                            finding={detail}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <ul className="space-y-2">
+                        {finding.items.map((item, itemIndex) => (
+                          <li key={itemIndex} className="flex items-start gap-2 text-sm text-black">
+                            <ChevronRight className="h-4 w-4 mt-0.5 text-gray-500 shrink-0" />
+                            <span className="break-words flex-1">{formatText(item)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </AccordionContent>
                 </AccordionItem>
               ))}

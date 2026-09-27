@@ -1,4 +1,8 @@
-import { VerdictData } from '@/types/procurement';
+import {
+  ArchivedSession,
+  SessionSummary,
+  VerdictData,
+} from '@/types/procurement';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -351,6 +355,30 @@ class APIClient {
   async getStatus(threadId: string): Promise<StatusResponse> {
     const response = await fetch(`${this.baseUrl}/status/${threadId}`);
     return this.handleResponse<StatusResponse>(response);
+  }
+
+  /** Past reviews, most recent first. */
+  async getSessions(limit = 50, offset = 0): Promise<SessionSummary[]> {
+    const response = await fetch(
+      `${this.baseUrl}/sessions?limit=${limit}&offset=${offset}`
+    );
+    const data = await this.handleResponse<{ sessions: SessionSummary[] }>(
+      response
+    );
+    return data.sessions ?? [];
+  }
+
+  /** One archived review in full: verdict, documents and findings. */
+  async getSession(threadId: string): Promise<ArchivedSession> {
+    const response = await fetch(`${this.baseUrl}/sessions/${threadId}`);
+    return this.handleResponse<ArchivedSession>(response);
+  }
+
+  async deleteSession(threadId: string): Promise<{ status: string }> {
+    const response = await fetch(`${this.baseUrl}/sessions/${threadId}`, {
+      method: 'DELETE',
+    });
+    return this.handleResponse<{ status: string }>(response);
   }
 
   async healthCheck(): Promise<{ status: string }> {

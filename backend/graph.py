@@ -1,61 +1,88 @@
 """
 LangGraph state graph definition for the procurement analysis workflow.
-Manages the multi-agent pipeline with human-in-the-loop capabilities.
+
+    ingest -> classify -> extract -> route -> [selected checkers] -> compile
+
+`route` is a conditional edge that returns a *list* of node names, so the
+selected checkers run in parallel and converge on the compiler. Which ones
+get selected depends on the document types actually detected in the upload --
+see `pipeline.plan_route`.
+
+The six original advisory agents are still here, unchanged. They are now one
+of the routed branches rather than the whole pipeline, and fire only for
+planning documents.
 """
 
 from typing import List
+
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
+
 from agents import (
-    AgentState,
-    pdf_parser_node,
     specification_validator_agent,
     lcca_agent,
     market_scoping_agent,
     green_sustainable_agent,
     tatak_pinoy_agent,
     compliance_modality_agent,
-    compiler_agent,
     gamma_generator_node,
 )
+from persistence.checkpoint import get_checkpointer
+from pipeline import (
+    CHECKER_NODES,
+    classify_node,
+    compile_node,
+    consistency_checks_node,
+    extract_node,
+    ingest_node,
+    route,
+    route_node,
+    rule_checks_node,
+)
+from state import AgentState
 
 
-# Create the state graph
 workflow = StateGraph(AgentState)
 
-# Add all nodes
-workflow.add_node("pdf_parser", pdf_parser_node)
+# -- ingestion and fact extraction ----------------------------------------
+workflow.add_node("ingest", ingest_node)
+workflow.add_node("classify", classify_node)
+workflow.add_node("extract", extract_node)
+workflow.add_node("route", route_node)
+
+# -- checkers --------------------------------------------------------------
+workflow.add_node("rule_checks", rule_checks_node)  # T1, T2, T3
+workflow.add_node("consistency_checks", consistency_checks_node)  # T4, T5, T6
+
+# The original six, preserved as the planning advisory branch.
 workflow.add_node("spec_validator", specification_validator_agent)
 workflow.add_node("lcca_analyzer", lcca_agent)
 workflow.add_node("market_researcher", market_scoping_agent)
 workflow.add_node("sustainability_analyst", green_sustainable_agent)
 workflow.add_node("domestic_preference_checker", tatak_pinoy_agent)
 workflow.add_node("modality_advisor", compliance_modality_agent)
-workflow.add_node("report_compiler", compiler_agent)
+
+workflow.add_node("report_compiler", compile_node)
 workflow.add_node("gamma_generator", gamma_generator_node)
 
-# Set entry point
-workflow.set_entry_point("pdf_parser")
+workflow.set_entry_point("ingest")
+workflow.add_edge("ingest", "classify")
+workflow.add_edge("classify", "extract")
+workflow.add_edge("extract", "route")
 
-# Define edges
-# pdf_parser fans out to 6 parallel analysis agents
-workflow.add_edge("pdf_parser", "spec_validator")
-workflow.add_edge("pdf_parser", "lcca_analyzer")
-workflow.add_edge("pdf_parser", "market_researcher")
-workflow.add_edge("pdf_parser", "sustainability_analyst")
-workflow.add_edge("pdf_parser", "domestic_preference_checker")
-workflow.add_edge("pdf_parser", "modality_advisor")
+# Fan out to whichever checkers the router selected. `report_compiler` is in
+# the path map because a packet with nothing readable routes straight to it,
+# so the run still produces a report saying why.
+workflow.add_conditional_edges(
+    "route",
+    route,
+    {name: name for name in CHECKER_NODES} | {"report_compiler": "report_compiler"},
+)
 
-# All 6 parallel agents converge to report_compiler
-workflow.add_edge("spec_validator", "report_compiler")
-workflow.add_edge("lcca_analyzer", "report_compiler")
-workflow.add_edge("market_researcher", "report_compiler")
-workflow.add_edge("sustainability_analyst", "report_compiler")
-workflow.add_edge("domestic_preference_checker", "report_compiler")
-workflow.add_edge("modality_advisor", "report_compiler")
+# Every checker converges on the compiler.
+for _checker in CHECKER_NODES:
+    workflow.add_edge(_checker, "report_compiler")
 
 
-# Conditional edge for gamma generation
 def should_generate_gamma(state: AgentState) -> str:
     """Determine if Gamma presentation should be generated."""
     if state.get("generate_gamma", False):
@@ -70,11 +97,11 @@ workflow.add_conditional_edges(
     {"gamma_generator": "gamma_generator", END: END},
 )
 
-# Gamma generator goes to END
 workflow.add_edge("gamma_generator", END)
 
-# Compile the graph with memory checkpointer
-checkpointer = MemorySaver()
+# A persistent checkpointer, so a session survives a backend restart -- the
+# archive depends on it, and so does resuming a paused review.
+checkpointer = get_checkpointer()
 graph = workflow.compile(checkpointer=checkpointer, interrupt_after=["report_compiler"])
 
 
@@ -84,14 +111,19 @@ def create_initial_state(thread_id: str, pdf_paths: List[str]) -> AgentState:
 
     Args:
         thread_id: Unique identifier for this session
-        pdf_paths: Paths to uploaded PDF files
+        pdf_paths: Paths to uploaded files
 
     Returns:
         Initial AgentState with empty/default values
     """
     return {
         "original_pdf_paths": pdf_paths,
+        "thread_id": thread_id,
+        "loaded_documents": [],
         "parsed_text": "",
+        "documents": [],
+        "routed_checkers": [],
+        "findings": [],
         "analysis_results": {
             "spec_check": {},
             "lcca": {},
@@ -104,7 +136,6 @@ def create_initial_state(thread_id: str, pdf_paths: List[str]) -> AgentState:
         "human_feedback": "",
         "generate_gamma": False,
         "gamma_link": "",
-        "thread_id": thread_id,
         "thinking_logs": [],
     }
 

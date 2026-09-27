@@ -31,3 +31,23 @@ temp/
 *.zip
 *.tar.gz
 *.rar
+
+# Docs
+.docs/
+docs/
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Backend runtime state: uploaded documents, the OCR cache and the
+# sessions/findings database. All of it is reproducible and some of it is
+# real government procurement material.
+backend/uploads/
+backend/cache/
+backend/data/
+*.db
+*.db-shm
+*.db-wal

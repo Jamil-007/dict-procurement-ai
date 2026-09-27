@@ -14,3 +14,16 @@ pydantic-settings>=2.6
 sse-starlette>=2.2.1
 aiofiles>=24.1.0
 anthropic>=0.42.0
+# Ingestion of non-PDF procurement artefacts (PPMP, APP, checklists, templates)
+python-docx>=1.1.2
+openpyxl>=3.1.5
+# Rulepacks and consistency profiles are YAML data, not code
+pyyaml>=6.0.2
+# Deterministic field diffing for the consistency engine
+rapidfuzz>=3.10.0
+# Lexical retrieval over the legal corpus, so citations are retrieved not generated
+rank-bm25>=0.2.2
+# Durable LangGraph checkpoints so sessions survive a backend restart
+langgraph-checkpoint-sqlite>=2.0.0
+# Tests: the labelled defect fixtures in backend/fixtures
+pytest>=8.3.0

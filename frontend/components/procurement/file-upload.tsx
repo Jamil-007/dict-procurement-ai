@@ -3,6 +3,11 @@
 import React, { useCallback, useState, useRef } from 'react';
 import { FileText, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  UPLOAD_ACCEPT,
+  filterSupportedFiles,
+  SUPPORTED_UPLOAD_LABEL,
+} from '@/lib/uploads';
 
 interface FileUploadProps {
   onFilesSelect: (files: File[]) => void;
@@ -31,20 +36,18 @@ export function FileUpload({ onFilesSelect, disabled }: FileUploadProps) {
 
     if (disabled) return;
 
-    const pdfFiles = Array.from(e.dataTransfer.files).filter(
-      (file) => file.type === 'application/pdf'
-    );
-    if (pdfFiles.length > 0) {
-      onFilesSelect(pdfFiles);
+    const { accepted } = filterSupportedFiles(e.dataTransfer.files);
+    if (accepted.length > 0) {
+      onFilesSelect(accepted);
     }
   }, [disabled, onFilesSelect]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const pdfFiles = Array.from(files).filter((file) => file.type === 'application/pdf');
-      if (pdfFiles.length > 0) {
-        onFilesSelect(pdfFiles);
+      const { accepted } = filterSupportedFiles(files);
+      if (accepted.length > 0) {
+        onFilesSelect(accepted);
       }
       e.target.value = '';
     }
@@ -74,7 +77,7 @@ export function FileUpload({ onFilesSelect, disabled }: FileUploadProps) {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".pdf"
+        accept={UPLOAD_ACCEPT}
         onChange={handleFileInput}
         disabled={disabled}
         style={{ display: 'none' }}
@@ -94,7 +97,9 @@ export function FileUpload({ onFilesSelect, disabled }: FileUploadProps) {
 
       <div className="text-center pointer-events-none">
         <p className="text-sm font-medium text-black mb-1">
-          {isDragging ? 'Drop your Procurement PDF here' : 'Drop Procurement PDF here or click to browse'}
+          {isDragging
+            ? 'Drop your procurement documents here'
+            : `Drop ${SUPPORTED_UPLOAD_LABEL} documents here or click to browse`}
         </p>
       </div>
     </div>

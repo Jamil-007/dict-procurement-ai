@@ -1,10 +1,14 @@
-import fitz  # PyMuPDF
+import pymupdf
 from pathlib import Path
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:
     """
-    Extract text content from a PDF file using PyMuPDF.
+    Extract the text layer from a PDF file using PyMuPDF.
+
+    Note: most DICT procurement documents are scanned images and return an
+    empty string here. Use `ingest.load_document()` instead unless you
+    specifically want the raw text layer.
 
     Args:
         pdf_path: Path to the PDF file
@@ -20,7 +24,7 @@ def extract_text_from_pdf(pdf_path: str) -> str:
         raise FileNotFoundError(f"PDF file not found: {pdf_path}")
 
     try:
-        doc = fitz.open(pdf_path)
+        doc = pymupdf.open(pdf_path)
         text_content = []
 
         for page_num in range(len(doc)):
@@ -48,7 +52,7 @@ def get_pdf_metadata(pdf_path: str) -> dict:
         Dictionary containing PDF metadata
     """
     try:
-        doc = fitz.open(pdf_path)
+        doc = pymupdf.open(pdf_path)
         metadata = {
             "pages": len(doc),
             "title": doc.metadata.get("title", ""),

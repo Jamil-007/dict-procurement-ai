@@ -6,10 +6,8 @@ Each agent processes the state and returns updated state with findings.
 import json
 import time
 import uuid
-from typing import TypedDict, List, Dict, Any, Annotated
-from pathlib import Path
+from typing import Dict, Any
 from utils.llm_factory import get_llm
-from utils.pdf_parser import extract_text_from_pdf
 from utils.gamma_client import gamma_client
 from prompts import (
     RA_12009_DIRECTIVE,
@@ -23,43 +21,15 @@ from prompts import (
 )
 
 
-def merge_analysis_results(left: dict, right: dict) -> dict:
-    """Deep merge analysis results from parallel agents."""
-    if not isinstance(left, dict):
-        left = {}
-    if not isinstance(right, dict):
-        right = {}
-    # Deep merge for nested dictionaries
-    result = left.copy()
-    for key, value in right.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = {**result[key], **value}
-        else:
-            result[key] = value
-    return result
-
-
-def append_thinking_logs(left: list, right: list) -> list:
-    """Concatenate thinking logs from parallel agents."""
-    if not isinstance(left, list):
-        left = []
-    if not isinstance(right, list):
-        right = []
-    return left + right
-
-
-class AgentState(TypedDict, total=False):
-    """State structure for the LangGraph workflow."""
-
-    original_pdf_paths: List[str]
-    parsed_text: str
-    analysis_results: Annotated[dict, merge_analysis_results]
-    compiled_report: str
-    human_feedback: str
-    generate_gamma: bool
-    gamma_link: str
-    thread_id: str
-    thinking_logs: Annotated[list, append_thinking_logs]
+# The state and its reducers moved to `state.py` so that the checker nodes in
+# `pipeline.py` can share them with these agents without a circular import.
+# Re-exported here because callers have been importing them from `agents`.
+from state import (  # noqa: E402,F401
+    AgentState,
+    append_findings,
+    append_thinking_logs,
+    merge_analysis_results,
+)
 
 
 def create_thinking_log(
@@ -100,38 +70,10 @@ def with_active_log(agent_name: str, active_message: str):
     return decorator
 
 
-@with_active_log("PDF Parser", "Extracting text from PDF...")
-def pdf_parser_node(state: AgentState) -> Dict[str, Any]:
-    """
-    Extract text from the uploaded PDF document.
-    """
-    logs = []
-
-    try:
-        parsed_documents = []
-        pdf_paths = state.get("original_pdf_paths", [])
-        if not pdf_paths:
-            raise ValueError("No PDF files found for parsing")
-
-        for index, pdf_path in enumerate(pdf_paths, start=1):
-            document_text = extract_text_from_pdf(pdf_path)
-            file_name = Path(pdf_path).name
-            parsed_documents.append(
-                f"===== Document {index}: {file_name} =====\n{document_text}"
-            )
-
-        parsed_text = "\n\n".join(parsed_documents)
-        logs.append(
-            create_thinking_log(
-                "PDF Parser", "PDF text extraction complete", "complete"
-            )
-        )
-
-        return {"parsed_text": parsed_text, "thinking_logs": logs}
-    except Exception as e:
-        logs.append(create_thinking_log("PDF Parser", f"Error: {str(e)}", "complete"))
-
-        return {"parsed_text": f"Error parsing PDF: {str(e)}", "thinking_logs": logs}
+# Ingestion moved to `pipeline.ingest_node`, which handles scanned PDFs via
+# vision OCR and keeps each file separate instead of concatenating them into
+# one blob. The advisory agents below still read `parsed_text`, which that
+# node continues to populate.
 
 
 @with_active_log("Specification Validator", "Checking specification compliance...")
@@ -520,114 +462,53 @@ def compliance_modality_agent(state: AgentState) -> Dict[str, Any]:
         return {"analysis_results": {"compliance": result}, "thinking_logs": logs}
 
 
-@with_active_log("Report Compiler", "Compiling final report...")
-def compiler_agent(state: AgentState) -> Dict[str, Any]:
+def advisory_verdict(analysis_results: Dict[str, Any]) -> Dict[str, Any]:
+    """Ask the LLM to synthesise the six advisory agents into one verdict.
+
+    This is the original compiler, reduced to a pure function. The graph's
+    compiler node now builds the verdict from deterministic findings and
+    folds this in as advisory commentary, so a failure here degrades the
+    narrative rather than the whole report -- hence the dict return with an
+    `error` key instead of an exception.
     """
-    Compile all analysis results into a cohesive verdict report.
-    """
-    logs = []
+    if not analysis_results:
+        return {"error": "No advisory analysis was produced."}
 
     try:
         llm = get_llm()
-
-        # Format analysis results for the compiler
-        analysis_results = state.get("analysis_results", {})
-        if not analysis_results:
-            # If no analysis results, create error verdict immediately
-            raise ValueError("No analysis results found in state")
-
         analysis_summary = json.dumps(analysis_results, indent=2)
-
-        prompt = COMPILER_PROMPT.format(analysis_results=analysis_summary, ra_12009_directive=RA_12009_DIRECTIVE)
+        prompt = COMPILER_PROMPT.format(
+            analysis_results=analysis_summary,
+            ra_12009_directive=RA_12009_DIRECTIVE,
+        )
         response = llm.invoke(prompt)
-
         content = response.content if hasattr(response, "content") else str(response)
+    except Exception as e:  # network, credentials, rate limit
+        return {"error": f"Advisory analysis unavailable: {e}"}
 
-        # Extract JSON verdict
-        try:
-            # Clean up the content
-            if "```json" in content:
-                content = content.split("```json")[1].split("```")[0]
-            elif "```" in content:
-                content = content.split("```")[1].split("```")[0]
+    # The model is asked for JSON but does not always send only JSON.
+    if "```json" in content:
+        content = content.split("```json")[1].split("```")[0]
+    elif "```" in content:
+        content = content.split("```")[1].split("```")[0]
+    content = content.strip()
+    if not content.startswith("{"):
+        start_idx = content.find("{")
+        if start_idx != -1:
+            content = content[start_idx:]
+    if not content.endswith("}"):
+        end_idx = content.rfind("}")
+        if end_idx != -1:
+            content = content[: end_idx + 1]
 
-            # Strip whitespace and try to find JSON object
-            content = content.strip()
+    try:
+        verdict = json.loads(content)
+    except json.JSONDecodeError as e:
+        return {"error": f"Advisory verdict was not valid JSON: {e}"}
 
-            # If content doesn't start with {, try to find the first {
-            if not content.startswith("{"):
-                start_idx = content.find("{")
-                if start_idx != -1:
-                    content = content[start_idx:]
-
-            # If content doesn't end with }, try to find the last }
-            if not content.endswith("}"):
-                end_idx = content.rfind("}")
-                if end_idx != -1:
-                    content = content[: end_idx + 1]
-
-            verdict = json.loads(content)
-
-            # Validate structure
-            if "status" not in verdict or "title" not in verdict:
-                raise ValueError("Invalid verdict structure")
-
-            compiled_report = json.dumps(verdict, indent=2)
-
-        except (json.JSONDecodeError, ValueError) as e:
-            # Log the problematic content for debugging
-            print(f"ERROR: Failed to parse compiler response. Error: {str(e)}")
-            print(f"Content that failed to parse: {repr(content[:500])}")
-
-            # Fallback verdict if parsing fails
-            verdict = {
-                "status": "FAIL",
-                "title": "Analysis Incomplete",
-                "confidence": 50,
-                "findings": [
-                    {
-                        "category": "System Error",
-                        "items": [f"Failed to compile report: {str(e)}"],
-                        "severity": "high",
-                    }
-                ],
-            }
-            compiled_report = json.dumps(verdict, indent=2)
-
-        logs.append(
-            create_thinking_log(
-                "Report Compiler", "Report compilation complete", "complete"
-            )
-        )
-
-        return {"compiled_report": compiled_report, "thinking_logs": logs}
-
-    except Exception as e:
-        # Log the full error for debugging
-        import traceback
-
-        print(f"ERROR: Critical error in compiler_agent: {str(e)}")
-        print(traceback.format_exc())
-
-        # Emergency fallback
-        verdict = {
-            "status": "FAIL",
-            "title": "System Error During Analysis",
-            "confidence": 0,
-            "findings": [
-                {
-                    "category": "System Error",
-                    "items": [f"Critical error: {str(e)}"],
-                    "severity": "high",
-                }
-            ],
-        }
-        compiled_report = json.dumps(verdict, indent=2)
-        logs.append(
-            create_thinking_log("Report Compiler", f"Error: {str(e)}", "complete")
-        )
-
-        return {"compiled_report": compiled_report, "thinking_logs": logs}
+    if not isinstance(verdict, dict) or "findings" not in verdict:
+        return {"error": "Advisory verdict had an unexpected shape."}
+    return verdict
 
 
 def gamma_generator_node(state: AgentState) -> Dict[str, Any]:

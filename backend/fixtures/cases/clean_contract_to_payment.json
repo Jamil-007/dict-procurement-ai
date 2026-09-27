@@ -1,0 +1,683 @@
+{
+  "id": "clean_contract_to_payment",
+  "task": "T4",
+  "description": "Contract and payment packet agree on every compared field.",
+  "expect_rules": [],
+  "expect_discrepancies": [],
+  "forbid_rules": [],
+  "max_severity": "low",
+  "documents": [
+    {
+      "doc_type": "contract",
+      "doc_type_confidence": 0.95,
+      "project_title": "Supply, Delivery and Installation of Government Emergency Communications System (GECS) Equipment",
+      "entity_name": "Department of Information and Communications Technology",
+      "extraction_confidence": 0.9,
+      "doc_number": "DICT-GECS-2024-001",
+      "contract_no": "DICT-GECS-2024-001",
+      "po_no": "PO-2024-0089",
+      "supplier": "Northbridge Telecom Solutions, Inc.",
+      "mode_of_procurement": "Competitive Bidding",
+      "amounts": {
+        "contract_amount": 7000000.0,
+        "total": 7000000.0
+      },
+      "items": [
+        {
+          "line_no": "1",
+          "description": "VHF Base Radio Transceiver, 50W, with power supply",
+          "qty": 25.0,
+          "unit": "unit",
+          "unit_price": 145000.0,
+          "amount": 3625000.0,
+          "serial_numbers": [
+            "NBT-VHF-24001",
+            "NBT-VHF-24002",
+            "NBT-VHF-24003"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "2",
+          "description": "Portable VHF Handheld Radio, IP67, with spare battery",
+          "qty": 60.0,
+          "unit": "unit",
+          "unit_price": 32500.0,
+          "amount": 1950000.0,
+          "serial_numbers": [
+            "NBT-HH-24101",
+            "NBT-HH-24102"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "3",
+          "description": "Repeater Station with Antenna System and Mast",
+          "qty": 5.0,
+          "unit": "set",
+          "unit_price": 285000.0,
+          "amount": 1425000.0,
+          "serial_numbers": [
+            "NBT-RPT-24201"
+          ],
+          "page": 2
+        }
+      ],
+      "delivery_period": "Ninety (90) calendar days from receipt of the Notice to Proceed",
+      "warranty_period": "One (1) year from the date of acceptance",
+      "dates": {
+        "document": "September 10, 2024",
+        "contract_signed": "September 10, 2024",
+        "noa": "September 3, 2024",
+        "ntp": "September 16, 2024",
+        "delivery_due": "December 15, 2024"
+      },
+      "signatories": [
+        {
+          "role": "For the Procuring Entity",
+          "name": "M. Santiago",
+          "position": "Undersecretary",
+          "signed": true,
+          "date": "September 10, 2024",
+          "page": 1
+        },
+        {
+          "role": "For the Supplier",
+          "name": "J. Ocampo",
+          "position": "President and General Manager",
+          "signed": true,
+          "date": "September 10, 2024",
+          "page": 1
+        }
+      ],
+      "source": {
+        "file": "fixtures/06 Contract Agreement.pdf",
+        "filename": "06 Contract Agreement.pdf",
+        "total_pages": 12,
+        "pages_read": 12,
+        "skipped_pages": [],
+        "ingest_source": "fixture"
+      }
+    },
+    {
+      "doc_type": "noa",
+      "doc_type_confidence": 0.95,
+      "project_title": "Supply, Delivery and Installation of Government Emergency Communications System (GECS) Equipment",
+      "entity_name": "Department of Information and Communications Technology",
+      "extraction_confidence": 0.9,
+      "doc_number": "NOA-GECS-2024-001",
+      "contract_no": "DICT-GECS-2024-001",
+      "supplier": "Northbridge Telecom Solutions, Inc.",
+      "amounts": {
+        "contract_amount": 7000000.0
+      },
+      "dates": {
+        "document": "September 3, 2024",
+        "noa": "September 3, 2024"
+      },
+      "signatories": [
+        {
+          "role": "Approved by",
+          "name": "M. Santiago",
+          "position": "Undersecretary",
+          "signed": true,
+          "date": "September 3, 2024",
+          "page": 1
+        }
+      ],
+      "source": {
+        "file": "fixtures/07 Notice of Award.pdf",
+        "filename": "07 Notice of Award.pdf",
+        "total_pages": 1,
+        "pages_read": 1,
+        "skipped_pages": [],
+        "ingest_source": "fixture"
+      }
+    },
+    {
+      "doc_type": "disbursement_voucher",
+      "doc_type_confidence": 0.95,
+      "project_title": "Supply, Delivery and Installation of Government Emergency Communications System (GECS) Equipment",
+      "entity_name": "Department of Information and Communications Technology",
+      "extraction_confidence": 0.9,
+      "doc_number": "DV-2024-11-0412",
+      "dv_no": "DV-2024-11-0412",
+      "ors_no": "ORS-2024-101-0356",
+      "contract_no": "DICT-GECS-2024-001",
+      "po_no": "PO-2024-0089",
+      "payee": "Northbridge Telecom Solutions, Inc.",
+      "supplier": "Northbridge Telecom Solutions, Inc.",
+      "amounts": {
+        "gross": 7000000.0,
+        "tax": 375000.0,
+        "retention": 70000.0,
+        "net": 6555000.0,
+        "contract_amount": 7000000.0
+      },
+      "amount_in_words": "SIX MILLION FIVE HUNDRED FIFTY FIVE THOUSAND PESOS ONLY",
+      "items": [
+        {
+          "line_no": "1",
+          "description": "VHF Base Radio Transceiver, 50W, with power supply",
+          "qty": 25.0,
+          "unit": "unit",
+          "unit_price": 145000.0,
+          "amount": 3625000.0,
+          "serial_numbers": [
+            "NBT-VHF-24001",
+            "NBT-VHF-24002",
+            "NBT-VHF-24003"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "2",
+          "description": "Portable VHF Handheld Radio, IP67, with spare battery",
+          "qty": 60.0,
+          "unit": "unit",
+          "unit_price": 32500.0,
+          "amount": 1950000.0,
+          "serial_numbers": [
+            "NBT-HH-24101",
+            "NBT-HH-24102"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "3",
+          "description": "Repeater Station with Antenna System and Mast",
+          "qty": 5.0,
+          "unit": "set",
+          "unit_price": 285000.0,
+          "amount": 1425000.0,
+          "serial_numbers": [
+            "NBT-RPT-24201"
+          ],
+          "page": 2
+        }
+      ],
+      "attachments_referenced": [
+        "Purchase Request",
+        "Sales Invoice",
+        "Delivery Receipt",
+        "Inspection and Acceptance Report",
+        "Property Acknowledgement Receipt",
+        "Warranty Certificate",
+        "BIR Tax Receipt"
+      ],
+      "dates": {
+        "document": "November 20, 2024",
+        "delivery": "November 8, 2024",
+        "inspection": "November 12, 2024",
+        "acceptance": "November 14, 2024",
+        "payment": "December 4, 2024"
+      },
+      "signatories": [
+        {
+          "role": "Prepared by",
+          "name": "C. Reyes",
+          "position": "Accounting Staff",
+          "signed": true,
+          "date": "November 18, 2024",
+          "page": 1
+        },
+        {
+          "role": "Certified by",
+          "name": "R. Villanueva",
+          "position": "Chief Accountant",
+          "signed": true,
+          "date": "November 19, 2024",
+          "page": 1
+        },
+        {
+          "role": "Approved for Payment by",
+          "name": "M. Santiago",
+          "position": "Undersecretary",
+          "signed": true,
+          "date": "November 20, 2024",
+          "page": 1
+        },
+        {
+          "role": "Received Payment by",
+          "name": "J. Ocampo",
+          "position": "President and General Manager",
+          "signed": true,
+          "date": "December 4, 2024",
+          "page": 1
+        }
+      ],
+      "page_refs": {
+        "amounts.net": 1,
+        "amount_in_words": 1,
+        "payee": 1,
+        "dv_no": 1
+      },
+      "source": {
+        "file": "fixtures/13 Disbursement Voucher.pdf",
+        "filename": "13 Disbursement Voucher.pdf",
+        "total_pages": 1,
+        "pages_read": 1,
+        "skipped_pages": [],
+        "ingest_source": "fixture"
+      }
+    },
+    {
+      "doc_type": "invoice",
+      "doc_type_confidence": 0.95,
+      "project_title": "Supply, Delivery and Installation of Government Emergency Communications System (GECS) Equipment",
+      "entity_name": "Department of Information and Communications Technology",
+      "extraction_confidence": 0.9,
+      "doc_number": "SI-20418",
+      "invoice_no": "SI-20418",
+      "contract_no": "DICT-GECS-2024-001",
+      "po_no": "PO-2024-0089",
+      "supplier": "Northbridge Telecom Solutions, Inc.",
+      "amounts": {
+        "total": 7000000.0
+      },
+      "items": [
+        {
+          "line_no": "1",
+          "description": "VHF Base Radio Transceiver, 50W, with power supply",
+          "qty": 25.0,
+          "unit": "unit",
+          "unit_price": 145000.0,
+          "amount": 3625000.0,
+          "serial_numbers": [
+            "NBT-VHF-24001",
+            "NBT-VHF-24002",
+            "NBT-VHF-24003"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "2",
+          "description": "Portable VHF Handheld Radio, IP67, with spare battery",
+          "qty": 60.0,
+          "unit": "unit",
+          "unit_price": 32500.0,
+          "amount": 1950000.0,
+          "serial_numbers": [
+            "NBT-HH-24101",
+            "NBT-HH-24102"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "3",
+          "description": "Repeater Station with Antenna System and Mast",
+          "qty": 5.0,
+          "unit": "set",
+          "unit_price": 285000.0,
+          "amount": 1425000.0,
+          "serial_numbers": [
+            "NBT-RPT-24201"
+          ],
+          "page": 2
+        }
+      ],
+      "dates": {
+        "document": "November 8, 2024",
+        "invoice": "November 8, 2024"
+      },
+      "source": {
+        "file": "fixtures/08 Sales Invoice.pdf",
+        "filename": "08 Sales Invoice.pdf",
+        "total_pages": 1,
+        "pages_read": 1,
+        "skipped_pages": [],
+        "ingest_source": "fixture"
+      }
+    },
+    {
+      "doc_type": "delivery_receipt",
+      "doc_type_confidence": 0.95,
+      "project_title": "Supply, Delivery and Installation of Government Emergency Communications System (GECS) Equipment",
+      "entity_name": "Department of Information and Communications Technology",
+      "extraction_confidence": 0.9,
+      "doc_number": "DR-11284",
+      "contract_no": "DICT-GECS-2024-001",
+      "po_no": "PO-2024-0089",
+      "supplier": "Northbridge Telecom Solutions, Inc.",
+      "recipient": "L. Bermudez",
+      "delivery_place": "DICT Central Office Warehouse, C.P. Garcia Avenue, Diliman, Quezon City",
+      "items": [
+        {
+          "line_no": "1",
+          "description": "VHF Base Radio Transceiver, 50W, with power supply",
+          "qty": 25.0,
+          "unit": "unit",
+          "unit_price": 145000.0,
+          "amount": 3625000.0,
+          "serial_numbers": [
+            "NBT-VHF-24001",
+            "NBT-VHF-24002",
+            "NBT-VHF-24003"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "2",
+          "description": "Portable VHF Handheld Radio, IP67, with spare battery",
+          "qty": 60.0,
+          "unit": "unit",
+          "unit_price": 32500.0,
+          "amount": 1950000.0,
+          "serial_numbers": [
+            "NBT-HH-24101",
+            "NBT-HH-24102"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "3",
+          "description": "Repeater Station with Antenna System and Mast",
+          "qty": 5.0,
+          "unit": "set",
+          "unit_price": 285000.0,
+          "amount": 1425000.0,
+          "serial_numbers": [
+            "NBT-RPT-24201"
+          ],
+          "page": 2
+        }
+      ],
+      "dates": {
+        "document": "November 8, 2024",
+        "delivery": "November 8, 2024"
+      },
+      "signatories": [
+        {
+          "role": "Delivered by",
+          "name": "R. Cruz",
+          "position": "Logistics Officer, Northbridge",
+          "signed": true,
+          "date": "November 8, 2024",
+          "page": 1
+        },
+        {
+          "role": "Received by",
+          "name": "L. Bermudez",
+          "position": "Supply Officer III",
+          "signed": true,
+          "date": "November 8, 2024",
+          "page": 1
+        }
+      ],
+      "source": {
+        "file": "fixtures/09 Delivery Receipt.pdf",
+        "filename": "09 Delivery Receipt.pdf",
+        "total_pages": 1,
+        "pages_read": 1,
+        "skipped_pages": [],
+        "ingest_source": "fixture"
+      }
+    },
+    {
+      "doc_type": "iar",
+      "doc_type_confidence": 0.95,
+      "project_title": "Supply, Delivery and Installation of Government Emergency Communications System (GECS) Equipment",
+      "entity_name": "Department of Information and Communications Technology",
+      "extraction_confidence": 0.9,
+      "doc_number": "IAR-2024-0311",
+      "contract_no": "DICT-GECS-2024-001",
+      "po_no": "PO-2024-0089",
+      "supplier": "Northbridge Telecom Solutions, Inc.",
+      "items": [
+        {
+          "line_no": "1",
+          "description": "VHF Base Radio Transceiver, 50W, with power supply",
+          "qty": 25.0,
+          "unit": "unit",
+          "unit_price": 145000.0,
+          "amount": 3625000.0,
+          "serial_numbers": [
+            "NBT-VHF-24001",
+            "NBT-VHF-24002",
+            "NBT-VHF-24003"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "2",
+          "description": "Portable VHF Handheld Radio, IP67, with spare battery",
+          "qty": 60.0,
+          "unit": "unit",
+          "unit_price": 32500.0,
+          "amount": 1950000.0,
+          "serial_numbers": [
+            "NBT-HH-24101",
+            "NBT-HH-24102"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "3",
+          "description": "Repeater Station with Antenna System and Mast",
+          "qty": 5.0,
+          "unit": "set",
+          "unit_price": 285000.0,
+          "amount": 1425000.0,
+          "serial_numbers": [
+            "NBT-RPT-24201"
+          ],
+          "page": 2
+        }
+      ],
+      "dates": {
+        "document": "November 14, 2024",
+        "delivery": "November 8, 2024",
+        "inspection": "November 12, 2024",
+        "acceptance": "November 14, 2024"
+      },
+      "signatories": [
+        {
+          "role": "Inspected by",
+          "name": "E. Pascual",
+          "position": "Property Inspector",
+          "signed": true,
+          "date": "November 12, 2024",
+          "page": 1
+        },
+        {
+          "role": "Accepted by",
+          "name": "L. Bermudez",
+          "position": "Supply Officer III",
+          "signed": true,
+          "date": "November 14, 2024",
+          "page": 1
+        }
+      ],
+      "source": {
+        "file": "fixtures/10 Inspection and Acceptance Report.pdf",
+        "filename": "10 Inspection and Acceptance Report.pdf",
+        "total_pages": 2,
+        "pages_read": 2,
+        "skipped_pages": [],
+        "ingest_source": "fixture"
+      }
+    },
+    {
+      "doc_type": "par",
+      "doc_type_confidence": 0.95,
+      "project_title": "Supply, Delivery and Installation of Government Emergency Communications System (GECS) Equipment",
+      "entity_name": "Department of Information and Communications Technology",
+      "extraction_confidence": 0.9,
+      "doc_number": "PAR-2024-0498",
+      "contract_no": "DICT-GECS-2024-001",
+      "recipient": "T. Aguilar",
+      "items": [
+        {
+          "line_no": "1",
+          "description": "VHF Base Radio Transceiver, 50W, with power supply",
+          "qty": 25.0,
+          "unit": "unit",
+          "unit_price": 145000.0,
+          "amount": 3625000.0,
+          "serial_numbers": [
+            "NBT-VHF-24001",
+            "NBT-VHF-24002",
+            "NBT-VHF-24003"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "2",
+          "description": "Portable VHF Handheld Radio, IP67, with spare battery",
+          "qty": 60.0,
+          "unit": "unit",
+          "unit_price": 32500.0,
+          "amount": 1950000.0,
+          "serial_numbers": [
+            "NBT-HH-24101",
+            "NBT-HH-24102"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "3",
+          "description": "Repeater Station with Antenna System and Mast",
+          "qty": 5.0,
+          "unit": "set",
+          "unit_price": 285000.0,
+          "amount": 1425000.0,
+          "serial_numbers": [
+            "NBT-RPT-24201"
+          ],
+          "page": 2
+        }
+      ],
+      "amounts": {
+        "total": 7000000.0
+      },
+      "dates": {
+        "document": "November 14, 2024",
+        "received": "November 14, 2024"
+      },
+      "signatories": [
+        {
+          "role": "Issued by",
+          "name": "L. Bermudez",
+          "position": "Supply Officer III",
+          "signed": true,
+          "date": "November 14, 2024",
+          "page": 1
+        },
+        {
+          "role": "Received by",
+          "name": "T. Aguilar",
+          "position": "Network Engineer II",
+          "signed": true,
+          "date": "November 14, 2024",
+          "page": 1
+        }
+      ],
+      "source": {
+        "file": "fixtures/11 Property Acknowledgement Receipt.pdf",
+        "filename": "11 Property Acknowledgement Receipt.pdf",
+        "total_pages": 2,
+        "pages_read": 2,
+        "skipped_pages": [],
+        "ingest_source": "fixture"
+      }
+    },
+    {
+      "doc_type": "warranty_certificate",
+      "doc_type_confidence": 0.95,
+      "project_title": "Supply, Delivery and Installation of Government Emergency Communications System (GECS) Equipment",
+      "entity_name": "Department of Information and Communications Technology",
+      "extraction_confidence": 0.9,
+      "doc_number": "WC-NBT-2024-0087",
+      "contract_no": "DICT-GECS-2024-001",
+      "supplier": "Northbridge Telecom Solutions, Inc.",
+      "warranty_period": "One (1) year from the date of acceptance",
+      "items": [
+        {
+          "line_no": "1",
+          "description": "VHF Base Radio Transceiver, 50W, with power supply",
+          "qty": 25.0,
+          "unit": "unit",
+          "unit_price": 145000.0,
+          "amount": 3625000.0,
+          "serial_numbers": [
+            "NBT-VHF-24001",
+            "NBT-VHF-24002",
+            "NBT-VHF-24003"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "2",
+          "description": "Portable VHF Handheld Radio, IP67, with spare battery",
+          "qty": 60.0,
+          "unit": "unit",
+          "unit_price": 32500.0,
+          "amount": 1950000.0,
+          "serial_numbers": [
+            "NBT-HH-24101",
+            "NBT-HH-24102"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "3",
+          "description": "Repeater Station with Antenna System and Mast",
+          "qty": 5.0,
+          "unit": "set",
+          "unit_price": 285000.0,
+          "amount": 1425000.0,
+          "serial_numbers": [
+            "NBT-RPT-24201"
+          ],
+          "page": 2
+        }
+      ],
+      "dates": {
+        "document": "November 14, 2024",
+        "warranty_start": "November 14, 2024",
+        "warranty_end": "November 14, 2025"
+      },
+      "signatories": [
+        {
+          "role": "Issued by",
+          "name": "J. Ocampo",
+          "position": "President and General Manager",
+          "signed": true,
+          "date": "November 14, 2024",
+          "page": 1
+        }
+      ],
+      "source": {
+        "file": "fixtures/12 Warranty Certificate.pdf",
+        "filename": "12 Warranty Certificate.pdf",
+        "total_pages": 1,
+        "pages_read": 1,
+        "skipped_pages": [],
+        "ingest_source": "fixture"
+      }
+    },
+    {
+      "doc_type": "tax_receipt",
+      "doc_type_confidence": 0.95,
+      "project_title": "Supply, Delivery and Installation of Government Emergency Communications System (GECS) Equipment",
+      "entity_name": "Department of Information and Communications Technology",
+      "extraction_confidence": 0.9,
+      "doc_number": "BIR-2306-2024-11-0412",
+      "supplier": "Northbridge Telecom Solutions, Inc.",
+      "amounts": {
+        "total": 375000.0
+      },
+      "dates": {
+        "document": "December 4, 2024"
+      },
+      "source": {
+        "file": "fixtures/14 BIR Form 2306.pdf",
+        "filename": "14 BIR Form 2306.pdf",
+        "total_pages": 1,
+        "pages_read": 1,
+        "skipped_pages": [],
+        "ingest_source": "fixture"
+      }
+    }
+  ]
+}

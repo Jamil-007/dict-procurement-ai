@@ -1,0 +1,265 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { apiClient, triggerDownload, ExtractResponse } from '@/lib/api-client';
+import type { FormKey } from '@/types/forms';
+
+interface FormReviewProps {
+  threadId: string;
+  formKeys: FormKey[];
+}
+
+const ANNEX_DISCLAIMER =
+  'DRAFT — issued blank for completion by the bidder. Not an executed or notarized document.';
+
+export function FormReview({ threadId, formKeys }: FormReviewProps) {
+  const [extractedData, setExtractedData] = useState<ExtractResponse | null>(null);
+  const [editedFields, setEditedFields] = useState<Record<FormKey, Record<string, string>>>({} as any);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<FormKey | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    async function loadExtractedData() {
+      try {
+        setLoading(true);
+        const data = await apiClient.extractForms(threadId, formKeys);
+        setExtractedData(data);
+
+        // Initialize edited fields
+        const initial: Record<string, Record<string, string>> = {};
+        Object.entries(data).forEach(([key, formData]) => {
+          initial[key] = { ...formData.fields } as Record<string, string>;
+        });
+        setEditedFields(initial as any);
+
+        if (formKeys.length > 0 && !activeTab) {
+          setActiveTab(formKeys[0]);
+        }
+      } catch (error) {
+        console.error('Failed to extract forms:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (threadId && formKeys.length > 0) {
+      loadExtractedData();
+    }
+  }, [threadId, formKeys]);
+
+  const handleFieldChange = (formKey: FormKey, fieldName: string, value: string) => {
+    setEditedFields((prev) => ({
+      ...prev,
+      [formKey]: {
+        ...prev[formKey],
+        [fieldName]: value,
+      },
+    }));
+  };
+
+  const downloadForm = async (formKey: FormKey) => {
+    try {
+      setDownloading(true);
+      const overrides = {
+        [formKey]: editedFields[formKey],
+      };
+      const result = await apiClient.generateForms(threadId, [formKey], overrides as any);
+      triggerDownload(result.blob, result.filename);
+    } catch (error) {
+      console.error('Failed to download form:', error);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const downloadAll = async () => {
+    try {
+      setDownloading(true);
+      const overrides: any = {};
+      formKeys.forEach((key) => {
+        overrides[key] = editedFields[key];
+      });
+      const result = await apiClient.generateForms(threadId, formKeys, overrides);
+      triggerDownload(result.blob, result.filename);
+    } catch (error) {
+      console.error('Failed to download all forms:', error);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="text-zinc-500 text-sm py-4">Loading forms...</div>;
+  }
+
+  if (!extractedData || formKeys.length === 0) {
+    return <div className="text-zinc-500 text-sm py-4">No forms to review</div>;
+  }
+
+  const currentFormData = activeTab && extractedData[activeTab];
+  const isAnnex = currentFormData?.group === 'B_annex';
+  const fields = activeTab && editedFields[activeTab];
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-zinc-500">Step 2 of 2</span>
+        </div>
+        <button
+          onClick={downloadAll}
+          disabled={downloading}
+          className="px-[18px] py-[9px] text-sm font-medium rounded-md bg-black text-white hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        >
+          {downloading ? 'Downloading...' : 'Download all'}
+        </button>
+      </div>
+
+      <Tabs value={activeTab || undefined} onValueChange={(v) => setActiveTab(v as FormKey)}>
+        <TabsList className="w-full justify-start mb-6 overflow-x-auto flex-nowrap">
+          {formKeys.map((key) => (
+            <TabsTrigger key={key} value={key} className="capitalize">
+              <span className={`w-[5px] h-[5px] rounded-full border ${
+                editedFields[key] && Object.values(editedFields[key]).some((v) => v && v !== '[TBD]')
+                  ? 'bg-zinc-600 border-zinc-600'
+                  : 'border-zinc-400'
+              } mr-2`} />
+              {getFormDisplayName(key)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        {formKeys.map((key) => (
+          <TabsContent key={key} value={key}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-[11px] font-semibold tracking-wider uppercase text-zinc-400">
+                    Edit fields
+                  </div>
+                </div>
+
+                {isAnnex && (
+                  <div className="text-xs text-zinc-600 bg-zinc-50 border border-zinc-200 border-l-[3px] border-l-zinc-400 rounded-lg p-3 mb-5">
+                    {ANNEX_DISCLAIMER}
+                  </div>
+                )}
+
+                {fields && Object.keys(fields).length > 0 ? (
+                  <div className="flex flex-col">
+                    {Object.entries(fields).map(([fieldName, value]) => (
+                      <div key={fieldName} className="mb-4">
+                        <label className="block text-[11px] font-semibold text-zinc-600 mb-2 tracking-wide">
+                          {formatFieldName(fieldName)}
+                        </label>
+                        <input
+                          type="text"
+                          value={value || ''}
+                          onChange={(e) => handleFieldChange(key, fieldName, e.target.value)}
+                          placeholder="[TBD]"
+                          className={`w-full border rounded-md px-[11px] py-[9px] text-sm transition-all ${
+                            value === '[TBD]' || !value
+                              ? 'bg-zinc-50 text-zinc-600 border-zinc-200'
+                              : 'bg-white text-black border-zinc-300'
+                          } focus:outline-none focus:border-black`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-zinc-600 py-5 border border-dashed border-zinc-300 rounded-lg text-center">
+                    This form is issued as a blank annex — no fields to fill. Download and provide to
+                    bidders.
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-[11px] font-semibold tracking-wider uppercase text-zinc-400">
+                    Preview
+                  </div>
+                  <button
+                    onClick={() => downloadForm(key)}
+                    disabled={downloading}
+                    className="px-3 py-1.5 text-xs font-medium rounded-md border border-zinc-300 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                  >
+                    Download this
+                  </button>
+                </div>
+
+                <div className="border border-zinc-200 rounded-xl overflow-hidden bg-zinc-50 sticky top-32">
+                  <div className="bg-white border-b border-zinc-200 px-4 py-3 text-xs font-medium flex items-center justify-between text-zinc-600">
+                    <span>{getFormDisplayName(key)}.{getFormExtension(key)}</span>
+                  </div>
+                  <div className="p-4 max-h-[520px] overflow-auto">
+                    <div className="bg-white border border-zinc-200 p-4 text-[10.5px] text-zinc-700">
+                      {isAnnex && (
+                        <div className="text-center text-[9px] tracking-widest text-zinc-400 border border-zinc-300 rounded p-1 mb-2">
+                          DRAFT · FOR BIDDER COMPLETION · NOT NOTARIZED
+                        </div>
+                      )}
+                      <div className="text-center text-zinc-400 italic text-[9.5px] border border-dashed border-zinc-300 p-2 mb-3">
+                        [Agency Letterhead]
+                      </div>
+                      <div className="text-center font-bold text-[11.5px] uppercase tracking-wide text-black mb-3">
+                        {getFormDisplayName(key)}
+                      </div>
+                      {fields &&
+                        Object.entries(fields).map(([fieldName, value]) => (
+                          <div key={fieldName} className="my-1">
+                            <b className="inline-block min-w-[120px] text-zinc-600 font-medium">
+                              {formatFieldName(fieldName)}:
+                            </b>
+                            {value === '[TBD]' || !value ? (
+                              <span className="text-zinc-400 border-b border-dotted border-zinc-400">
+                                [TBD]
+                              </span>
+                            ) : (
+                              <span>{value}</span>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
+  );
+}
+
+function getFormDisplayName(key: string): string {
+  const names: Record<string, string> = {
+    ppmp: 'PPMP',
+    market: 'Market Scoping',
+    app: 'APP',
+    contract: 'Contract',
+    bidform: 'Bid Form',
+    price_local: 'Price Schedule (PH)',
+    price_abroad: 'Price Schedule (Abroad)',
+    bsd: 'Bid Securing Declaration',
+    oss: 'Omnibus Sworn Statement',
+    psd: 'Performance Securing Declaration',
+  };
+  return names[key] || key;
+}
+
+function getFormExtension(key: string): string {
+  const exts: Record<string, string> = {
+    ppmp: 'xlsx',
+    app: 'xlsx',
+  };
+  return exts[key] || 'docx';
+}
+
+function formatFieldName(name: string): string {
+  return name
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (l) => l.toUpperCase());
+}

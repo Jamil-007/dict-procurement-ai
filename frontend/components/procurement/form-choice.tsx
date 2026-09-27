@@ -10,20 +10,16 @@ interface FormChoiceProps {
 }
 
 export function FormChoice({ form, isSelected, isRecommended, onToggle }: FormChoiceProps) {
-  const isAnnex = form.group === 'B_annex';
-
   return (
     <div
-      className={`flex gap-3 items-start border rounded-lg p-4 cursor-pointer transition-all bg-white hover:bg-zinc-50 ${
+      className={`flex gap-3 items-center border rounded-lg p-4 cursor-pointer transition-all bg-white hover:bg-zinc-50 ${
         isSelected ? 'border-black' : 'border-zinc-200 hover:border-zinc-300'
       }`}
       onClick={onToggle}
     >
       <div
-        className={`w-[18px] h-[18px] rounded border flex-shrink-0 mt-0.5 grid place-items-center text-[11px] text-white transition-all ${
-          isSelected
-            ? 'bg-black border-black'
-            : 'border-zinc-300'
+        className={`w-[18px] h-[18px] rounded border flex-shrink-0 grid place-items-center text-[11px] text-white transition-all ${
+          isSelected ? 'bg-black border-black' : 'border-zinc-300'
         }`}
       >
         {isSelected && '✓'}
@@ -39,30 +35,23 @@ export function FormChoice({ form, isSelected, isRecommended, onToggle }: FormCh
               Recommended
             </span>
           )}
-          {isAnnex && (
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex w-[15px] h-[15px] border border-zinc-300 rounded-full text-zinc-500 text-[10px] font-semibold items-center justify-center hover:text-black hover:border-zinc-500 transition-all"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    ?
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="max-w-[220px]">
-                    Issued as a BLANK annex for the bidding documents. Only the project header is
-                    stamped; the bidder completes, signs and notarizes it.
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-        </div>
-        <div className="text-zinc-600 text-[12.5px] mt-0.5">
-          {getFormDescription(form.key)}
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`About ${form.name}`}
+                  className="inline-flex w-[15px] h-[15px] border border-zinc-300 rounded-full text-zinc-500 text-[10px] font-semibold items-center justify-center hover:text-black hover:border-zinc-500 transition-all"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  ?
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-[240px]">{getFormDescription(form.key)}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
     </div>

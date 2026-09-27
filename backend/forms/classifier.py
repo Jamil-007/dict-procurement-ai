@@ -46,11 +46,30 @@ DOC_FORM_MAP = {
     },
 }
 
+ALLOWED_DOC_TYPES = {
+    "Terms of Reference",
+    "Market Study",
+    "Cost Breakdown",
+    "Contract",
+    "Other",
+}
+
+
+def _constrain(types: list) -> list[str]:
+    """Keep only allowed labels, preserving order and dropping duplicates/unknowns."""
+    seen = []
+    for t in types:
+        if isinstance(t, str) and t in ALLOWED_DOC_TYPES and t not in seen:
+            seen.append(t)
+    return seen
+
+
 def classify_documents(parsed_text: str) -> list[str]:
     """
     Classify documents into types using LLM with keyword fallback.
 
-    Returns list of document types: Terms of Reference, Market Study, Cost Breakdown, Contract, Other
+    Returns list of document types constrained to the allowed set:
+    Terms of Reference, Market Study, Cost Breakdown, Contract, Other
     """
     if not parsed_text.strip():
         return ["Other"]
@@ -72,8 +91,10 @@ def classify_documents(parsed_text: str) -> list[str]:
             end = content.rfind("]") + 1
             import json
             types = json.loads(content[start:end])
-            if isinstance(types, list) and types:
-                return types
+            if isinstance(types, list):
+                constrained = _constrain(types)
+                if constrained:
+                    return constrained
     except Exception:
         pass
 

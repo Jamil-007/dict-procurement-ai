@@ -31,6 +31,13 @@ export interface FormRecommendation {
 export interface DetectResult {
   doc_types: string[];
   forms: Record<FormKey, FormRecommendation>;
+  documents?: { filename: string; doc_types: string[] }[];
+}
+
+export interface UploadFormsResult {
+  thread_id: string;
+  has_docs: boolean;
+  filenames: string[];
 }
 
 export interface FormFieldValue {
@@ -44,16 +51,4 @@ export interface GenerateRequest {
   thread_id: string;
   form_keys: FormKey[];
   overrides?: Partial<Record<FormKey, Record<string, string | null>>>;
-}
-
-export interface FeedbackItem {
-  feature: string;
-  context_key: string;
-  field_path?: string | null;
-  thread_id: string;
-  signal_type: 'implicit' | 'explicit';
-  ai_value?: string | null;
-  corrected_value?: string | null;
-  rating?: 'up' | 'down' | null;
-  note?: string | null;
 }

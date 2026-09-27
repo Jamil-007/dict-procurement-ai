@@ -7,46 +7,55 @@ import { apiClient } from '@/lib/api-client';
 import type { FormCatalogItem, DetectResult, FormKey } from '@/types/forms';
 
 interface FormGeneratorProps {
-  threadId: string | null;
-  hasDocs: boolean;
+  detectResult?: DetectResult | null;
   onGenerate: (selectedKeys: FormKey[]) => void;
+  onSelectionChange?: (count: number) => void;
 }
 
-export function FormGenerator({ threadId, hasDocs, onGenerate }: FormGeneratorProps) {
+export function FormGenerator({ detectResult, onGenerate, onSelectionChange }: FormGeneratorProps) {
   const [catalog, setCatalog] = useState<FormCatalogItem[]>([]);
-  const [detectResult, setDetectResult] = useState<DetectResult | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<FormKey>>(new Set());
   const [loading, setLoading] = useState(true);
 
+  // Load the catalog once on mount.
   useEffect(() => {
-    async function loadForms() {
+    let cancelled = false;
+    async function loadCatalog() {
       try {
         setLoading(true);
         const catalogData = await apiClient.getFormCatalog();
-        setCatalog(catalogData);
-
-        if (threadId) {
-          const detection = await apiClient.detectForms(threadId);
-          setDetectResult(detection);
-
-          // Pre-select recommended forms
-          const recommended = new Set<FormKey>();
-          Object.entries(detection.forms).forEach(([key, info]) => {
-            if (info.recommended) {
-              recommended.add(key as FormKey);
-            }
-          });
-          setSelectedKeys(recommended);
-        }
+        if (!cancelled) setCatalog(catalogData);
       } catch (error) {
         console.error('Failed to load forms:', error);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
+    loadCatalog();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
-    loadForms();
-  }, [threadId]);
+  // Pre-select recommended forms whenever detection results change.
+  useEffect(() => {
+    if (!detectResult) {
+      setSelectedKeys(new Set());
+      return;
+    }
+    const recommended = new Set<FormKey>();
+    Object.entries(detectResult.forms).forEach(([key, info]) => {
+      if (info.recommended) {
+        recommended.add(key as FormKey);
+      }
+    });
+    setSelectedKeys(recommended);
+  }, [detectResult]);
+
+  // Report the selection count so the page can reflect it (e.g. Step 2 badge).
+  useEffect(() => {
+    onSelectionChange?.(selectedKeys.size);
+  }, [selectedKeys, onSelectionChange]);
 
   const toggleForm = (key: FormKey) => {
     setSelectedKeys((prev) => {

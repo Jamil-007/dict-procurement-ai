@@ -1,5 +1,6 @@
 import { VerdictData } from '@/types/procurement';
-import type { FormCatalogItem, DetectResult, FormKey, FeedbackItem } from '@/types/forms';
+import type { FormCatalogItem, DetectResult, FormKey, UploadFormsResult } from '@/types/forms';
+import type { FeedbackItem } from '@/types/feedback';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -377,9 +378,7 @@ class APIClient {
     return this.handleResponse<FormCatalogItem[]>(response);
   }
 
-  async uploadForms(
-    files: File[]
-  ): Promise<{ thread_id: string; has_docs: boolean }> {
+  async uploadForms(files: File[]): Promise<UploadFormsResult> {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
 
@@ -388,7 +387,7 @@ class APIClient {
       body: formData,
     });
 
-    return this.handleResponse<{ thread_id: string; has_docs: boolean }>(response);
+    return this.handleResponse<UploadFormsResult>(response);
   }
 
   async detectForms(threadId: string): Promise<DetectResult> {

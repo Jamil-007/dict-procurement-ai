@@ -15,7 +15,8 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Message } from '@/types/procurement';
 import { AlertTriangle } from 'lucide-react';
-import type { FormKey } from '@/types/forms';
+import type { FormKey, DetectResult } from '@/types/forms';
+import { apiClient } from '@/lib/api-client';
 
 const MAX_FILES = 3;
 
@@ -46,6 +47,28 @@ export default function ProcurementPage() {
   const [showChat, setShowChat] = useState(false);
   const [showFileLimitModal, setShowFileLimitModal] = useState(false);
   const [isGeneratingActionItems, setIsGeneratingActionItems] = useState(false);
+  const [formsDetection, setFormsDetection] = useState<DetectResult | null>(null);
+
+  // Detect document types for the current analysis thread so the form selector
+  // can pre-select and badge recommended forms.
+  useEffect(() => {
+    if (!threadId || state === 'idle') {
+      setFormsDetection(null);
+      return;
+    }
+    let cancelled = false;
+    apiClient
+      .detectForms(threadId)
+      .then((det) => {
+        if (!cancelled) setFormsDetection(det);
+      })
+      .catch(() => {
+        if (!cancelled) setFormsDetection(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [threadId, state]);
 
   const handleFilesSelect = useCallback((newFiles: File[]) => {
     setPendingFiles((prev) => {
@@ -323,8 +346,7 @@ export default function ProcurementPage() {
                 Generate forms
               </div>
               <FormGenerator
-                threadId={threadId}
-                hasDocs={true}
+                detectResult={formsDetection}
                 onGenerate={handleFormGenerate}
               />
             </div>

@@ -14,6 +14,7 @@ const mockCatalog: FormCatalogItem[] = [
 
 const mockDetectResult: DetectResult = {
   doc_types: ['Terms of Reference'],
+  documents: [{ filename: 'TOR.pdf', doc_types: ['Terms of Reference'] }],
   forms: {
     ppmp: { available: true, recommended: true, reason: 'TOR present' },
     market: { available: true, recommended: false, reason: 'No market study' },
@@ -32,11 +33,10 @@ describe('FormGenerator', () => {
   beforeEach(async () => {
     const { apiClient } = await import('@/lib/api-client');
     vi.mocked(apiClient.getFormCatalog).mockResolvedValue(mockCatalog);
-    vi.mocked(apiClient.detectForms).mockResolvedValue(mockDetectResult);
   });
 
   it('renders and loads forms', async () => {
-    render(<FormGenerator threadId="test-thread" hasDocs={true} onGenerate={() => {}} />);
+    render(<FormGenerator detectResult={mockDetectResult} onGenerate={() => {}} />);
 
     await waitFor(() => {
       expect(screen.getByText('PPMP')).toBeInTheDocument();
@@ -44,7 +44,7 @@ describe('FormGenerator', () => {
   });
 
   it('shows Recommended pill for recommended forms', async () => {
-    render(<FormGenerator threadId="test-thread" hasDocs={true} onGenerate={() => {}} />);
+    render(<FormGenerator detectResult={mockDetectResult} onGenerate={() => {}} />);
 
     await waitFor(() => {
       // PPMP should be recommended
@@ -53,26 +53,31 @@ describe('FormGenerator', () => {
     });
   });
 
-  it('disables Generate button when none selected', async () => {
-    const onGenerate = vi.fn();
-    render(<FormGenerator threadId="test-thread" hasDocs={true} onGenerate={onGenerate} />);
+  it('pre-selects recommended forms from detectResult', async () => {
+    render(<FormGenerator detectResult={mockDetectResult} onGenerate={() => {}} />);
 
     await waitFor(() => {
       expect(screen.getByText('PPMP')).toBeInTheDocument();
     });
 
-    // Clear all selections (assuming recommended are pre-selected)
-    const user = userEvent.setup();
-    const generateBtn = screen.getByRole('button', { name: /generate/i });
+    // ppmp + contract are recommended -> 2 pre-selected
+    expect(screen.getByText('2 selected')).toBeInTheDocument();
+  });
 
-    // Try clicking when nothing is selected - need to deselect first
-    // For this test, let's just check if button exists
-    expect(generateBtn).toBeInTheDocument();
+  it('shows no Recommended pills and nothing pre-selected without detectResult', async () => {
+    render(<FormGenerator detectResult={null} onGenerate={() => {}} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('PPMP')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('0 selected')).toBeInTheDocument();
+    expect(screen.queryByText('Recommended')).not.toBeInTheDocument();
   });
 
   it('calls onGenerate with selected keys', async () => {
     const onGenerate = vi.fn();
-    render(<FormGenerator threadId="test-thread" hasDocs={true} onGenerate={onGenerate} />);
+    render(<FormGenerator detectResult={mockDetectResult} onGenerate={onGenerate} />);
 
     const user = userEvent.setup();
 

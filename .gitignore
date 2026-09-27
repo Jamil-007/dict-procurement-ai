@@ -13,6 +13,9 @@
 Thumbs.db
 *.tmp
 
+# Playwright / MCP scratch output
+.playwright-mcp/
+
 # Environment files
 .env
 .env.local

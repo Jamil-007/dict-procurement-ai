@@ -38,6 +38,7 @@ from config import settings
 from forms import service as forms_service
 from forms.service import FormGenerationError
 from forms.registry import FORM_REGISTRY
+from forms.text_source import get_source_text
 from feedback import service as feedback_service
 from feedback.models import FeedbackItem
 
@@ -738,11 +739,11 @@ async def submit_feedback(request: FeedbackRequest):
     items = []
     for item in request.items:
         if item.input_context:
-            ctx = feedback_service.resolve_input_context(item.thread_id, item.input_context)
+            ctx = feedback_service.resolve_input_context(item.thread_id, item.input_context, source_resolver=get_source_text)
         else:
             ctx = ctx_cache.get(item.thread_id)
             if ctx is None:
-                ctx = feedback_service.resolve_input_context(item.thread_id, None)
+                ctx = feedback_service.resolve_input_context(item.thread_id, None, source_resolver=get_source_text)
                 ctx_cache[item.thread_id] = ctx
         data = item.model_dump()
         data["input_context"] = ctx

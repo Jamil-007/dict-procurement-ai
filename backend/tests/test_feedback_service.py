@@ -57,11 +57,9 @@ def test_resolve_input_context_uses_provided():
 
 
 def test_resolve_input_context_falls_back_to_source(monkeypatch):
-    monkeypatch.setattr(svc, "get_source_text", lambda tid: "SOURCE DOC TEXT")
-    assert svc.resolve_input_context("t1", "") == "SOURCE DOC TEXT"
+    assert svc.resolve_input_context("t1", "", source_resolver=lambda tid: "SOURCE DOC TEXT") == "SOURCE DOC TEXT"
 
 
 def test_resolve_input_context_composed_fallback_when_no_source(monkeypatch):
-    monkeypatch.setattr(svc, "get_source_text", lambda tid: "")
-    out = svc.resolve_input_context("t1", None)
+    out = svc.resolve_input_context("t1", None, source_resolver=lambda tid: "")
     assert out.strip() != ""  # never empty

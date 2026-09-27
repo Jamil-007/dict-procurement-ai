@@ -118,3 +118,40 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Document preview (DocumentPreview component): docx-preview + SheetJS output */
+.xlsx-sheet + .xlsx-sheet {
+  margin-top: 20px;
+}
+
+.xlsx-sheet-name {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.docx-preview-host .xlsx-sheet table {
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.docx-preview-host .xlsx-sheet td,
+.docx-preview-host .xlsx-sheet th {
+  border: 1px solid #d4d4d8;
+  padding: 4px 7px;
+  white-space: nowrap;
+}
+
+/* docx-preview wraps rendered pages in its own chrome; keep it snug in-panel. */
+.docx-preview-host .docx-wrapper {
+  background: transparent;
+  padding: 0;
+}
+
+.docx-preview-host .docx-wrapper > section.docx {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  margin-bottom: 16px;
+}

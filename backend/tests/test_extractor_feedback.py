@@ -20,8 +20,8 @@ def _fb():
 
 def test_fewshot_injected_when_enabled(monkeypatch):
     cap = _CapLLM()
-    monkeypatch.setattr(ex.settings, "FEEDBACK_BANK_ENABLED", True)
-    monkeypatch.setattr(ex, "retrieve_feedback", lambda *a, **k: _fb())
+    monkeypatch.setattr("feedback.service.settings.FEEDBACK_BANK_ENABLED", True)
+    monkeypatch.setattr("feedback.service.retrieve_feedback", lambda *a, **k: _fb())
     monkeypatch.setattr("forms.extractor.get_llm", lambda temperature=None: cap)
     model, warning = ex.extract_fields("ppmp", "some document text")
     assert isinstance(model, PPMPData) and warning is False
@@ -31,7 +31,7 @@ def test_fewshot_injected_when_enabled(monkeypatch):
 
 def test_no_injection_when_disabled(monkeypatch):
     cap = _CapLLM()
-    monkeypatch.setattr(ex.settings, "FEEDBACK_BANK_ENABLED", False)
+    monkeypatch.setattr("feedback.service.settings.FEEDBACK_BANK_ENABLED", False)
     monkeypatch.setattr("forms.extractor.get_llm", lambda temperature=None: cap)
     ex.extract_fields("ppmp", "some document text")
     assert "correct value was" not in cap.prompt
@@ -39,9 +39,9 @@ def test_no_injection_when_disabled(monkeypatch):
 
 def test_retrieval_error_does_not_break_extraction(monkeypatch):
     cap = _CapLLM()
-    monkeypatch.setattr(ex.settings, "FEEDBACK_BANK_ENABLED", True)
+    monkeypatch.setattr("feedback.service.settings.FEEDBACK_BANK_ENABLED", True)
     def boom(*a, **k): raise RuntimeError("bank down")
-    monkeypatch.setattr(ex, "retrieve_feedback", boom)
+    monkeypatch.setattr("feedback.service.retrieve_feedback", boom)
     monkeypatch.setattr("forms.extractor.get_llm", lambda temperature=None: cap)
     model, warning = ex.extract_fields("ppmp", "some document text")
     assert isinstance(model, PPMPData) and warning is False

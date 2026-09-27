@@ -3,7 +3,6 @@ import logging
 from config import settings
 from feedback.models import FeedbackItem, EMBED_INPUT_LIMIT
 from feedback.store import get_feedback_store
-from forms.text_source import get_source_text
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +36,11 @@ def build_fewshot_block(items: list[FeedbackItem]) -> str:
     if not items:
         return ""
     lines = [
-        "Reference corrections from similar past documents. Prefer these "
+        "Reference corrections from similar past cases. Prefer these "
         "patterns when they apply:"
     ]
     for it in items:
-        field = it.field_path or "(field)"
+        field = it.field_path or "this item"
         if it.corrected_value is not None:
             lines.append(
                 f"- For '{field}', the system extracted "
@@ -56,13 +55,26 @@ def build_fewshot_block(items: list[FeedbackItem]) -> str:
     return "\n".join(lines)
 
 
-def resolve_input_context(thread_id: str, provided) -> str:
+def inject_fewshot(prompt, feature, context_key, input_context, field_path=None, top_k=None):
+    """Prepend a few-shot block of relevant past corrections to `prompt`.
+    Flag-gated + fail-safe via retrieve_feedback; returns `prompt` unchanged
+    when disabled, empty, or on error."""
+    try:
+        items = retrieve_feedback(feature, context_key, input_context, field_path=field_path, top_k=top_k)
+        block = build_fewshot_block(items)
+        return f"{block}\n\n{prompt}" if block else prompt
+    except Exception:
+        return prompt
+
+
+def resolve_input_context(thread_id: str, provided, source_resolver=None) -> str:
     if provided and provided.strip():
         return provided[:EMBED_INPUT_LIMIT]
-    try:
-        text = get_source_text(thread_id)
-    except Exception:
-        text = ""
-    if text and text.strip():
-        return text[:EMBED_INPUT_LIMIT]
+    if source_resolver is not None:
+        try:
+            text = source_resolver(thread_id)
+        except Exception:
+            text = ""
+        if text and text.strip():
+            return text[:EMBED_INPUT_LIMIT]
     return f"thread:{thread_id}"

@@ -19,7 +19,7 @@ def test_feedback_stores_and_returns_count(monkeypatch):
     monkeypatch.setattr("server.feedback_service.record_feedback",
                         lambda items: captured.setdefault("n", len(items)) or len(items))
     monkeypatch.setattr("server.feedback_service.resolve_input_context",
-                        lambda tid, provided: "CTX")
+                        lambda tid, provided, source_resolver=None: "CTX")
     r = client.post("/feedback", json=_payload())
     assert r.status_code == 200
     assert r.json() == {"stored": 1}

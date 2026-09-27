@@ -44,6 +44,7 @@ export function FeedbackControl({ rating, note, onRate, onNote }: FeedbackContro
           value={note}
           onChange={(e) => onNote(e.target.value)}
           placeholder="What's wrong? (optional)"
+          aria-label="What's wrong?"
           className="mt-2 w-full border border-zinc-300 rounded-md px-2.5 py-2 text-[13px] focus:outline-none focus:border-black"
         />
       )}

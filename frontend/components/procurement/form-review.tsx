@@ -3,8 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { apiClient, triggerDownload, ExtractResponse } from '@/lib/api-client';
-import type { FormKey, FeedbackItem } from '@/types/forms';
+import type { FormKey } from '@/types/forms';
+import type { FeedbackItem } from '@/types/feedback';
 import { FeedbackControl } from './feedback-control';
+import { DocumentPreview } from './document-preview';
+import { useFeedbackCapture } from '@/hooks/use-feedback-capture';
 
 interface FormReviewProps {
   threadId: string;
@@ -17,7 +20,7 @@ const ANNEX_DISCLAIMER =
 export function FormReview({ threadId, formKeys }: FormReviewProps) {
   const [extractedData, setExtractedData] = useState<ExtractResponse | null>(null);
   const [editedFields, setEditedFields] = useState<Record<FormKey, Record<string, string>>>({} as any);
-  const [ratings, setRatings] = useState<Record<string, Record<string, { rating: 'up'|'down'|null; note: string }>>>({});
+  const { ratings, setRating, setNote, submit } = useFeedbackCapture();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<FormKey | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -90,7 +93,7 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
         }
       });
     });
-    if (items.length) void apiClient.submitFeedback(items); // fire-and-forget
+    submit(items);
   };
 
   const downloadForm = async (formKey: FormKey) => {
@@ -172,8 +175,11 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <div className="text-[11px] font-semibold tracking-wider uppercase text-zinc-400">
-                    Edit fields
+                  <div className="flex items-center gap-2">
+                    <div className="text-[11px] font-semibold tracking-wider uppercase text-zinc-400">
+                      Edit fields
+                    </div>
+                    <span className="text-[11px] text-zinc-400">hover a field, or tap ⋯</span>
                   </div>
                 </div>
 
@@ -194,30 +200,8 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
                           <FeedbackControl
                             rating={ratings[key]?.[fieldName]?.rating || null}
                             note={ratings[key]?.[fieldName]?.note || ''}
-                            onRate={(r) => {
-                              setRatings((prev) => ({
-                                ...prev,
-                                [key]: {
-                                  ...prev[key],
-                                  [fieldName]: {
-                                    rating: r,
-                                    note: prev[key]?.[fieldName]?.note || '',
-                                  },
-                                },
-                              }));
-                            }}
-                            onNote={(n) => {
-                              setRatings((prev) => ({
-                                ...prev,
-                                [key]: {
-                                  ...prev[key],
-                                  [fieldName]: {
-                                    rating: prev[key]?.[fieldName]?.rating || null,
-                                    note: n,
-                                  },
-                                },
-                              }));
-                            }}
+                            onRate={(r) => setRating(key, fieldName, r)}
+                            onNote={(n) => setNote(key, fieldName, n)}
                           />
                         </div>
                         <input
@@ -261,34 +245,13 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
                     <span>{getFormDisplayName(key)}.{getFormExtension(key)}</span>
                   </div>
                   <div className="p-4 max-h-[520px] overflow-auto">
-                    <div className="bg-white border border-zinc-200 p-4 text-[10.5px] text-zinc-700">
-                      {isAnnex && (
-                        <div className="text-center text-[9px] tracking-widest text-zinc-400 border border-zinc-300 rounded p-1 mb-2">
-                          DRAFT · FOR BIDDER COMPLETION · NOT NOTARIZED
-                        </div>
-                      )}
-                      <div className="text-center text-zinc-400 italic text-[9.5px] border border-dashed border-zinc-300 p-2 mb-3">
-                        [Agency Letterhead]
-                      </div>
-                      <div className="text-center font-bold text-[11.5px] uppercase tracking-wide text-black mb-3">
-                        {getFormDisplayName(key)}
-                      </div>
-                      {fields &&
-                        Object.entries(fields).map(([fieldName, value]) => (
-                          <div key={fieldName} className="my-1">
-                            <b className="inline-block min-w-[120px] text-zinc-600 font-medium">
-                              {formatFieldName(fieldName)}:
-                            </b>
-                            {value === '[TBD]' || !value ? (
-                              <span className="text-zinc-400 border-b border-dotted border-zinc-400">
-                                [TBD]
-                              </span>
-                            ) : (
-                              <span>{value}</span>
-                            )}
-                          </div>
-                        ))}
-                    </div>
+                    <DocumentPreview
+                      threadId={threadId}
+                      formKey={key}
+                      ext={getFormExtension(key) as 'docx' | 'xlsx'}
+                      overrides={editedFields[key] || {}}
+                      isAnnex={extractedData[key]?.group === 'B_annex'}
+                    />
                   </div>
                 </div>
               </div>

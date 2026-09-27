@@ -81,10 +81,10 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        // Plus Jakarta Sans everywhere. The stack after it is what renders
-        // while the webfont loads, and on the rare client that blocks it.
+        // Inter everywhere (this branch's design). The stack after it is what
+        // renders while the webfont loads, and on the rare client that blocks it.
         sans: [
-          "var(--font-jakarta)",
+          "var(--font-inter)",
           "system-ui",
           "-apple-system",
           "BlinkMacSystemFont",

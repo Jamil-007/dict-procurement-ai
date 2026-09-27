@@ -5,8 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 const LINKS = [
-  { href: '/', label: 'Analyze' },
-  { href: '/analyst', label: 'ProcAI' },
+  { href: '/', label: 'ProcAI' },
   { href: '/forms', label: 'Forms' },
   { href: '/items', label: 'Procurements' },
   { href: '/hub', label: 'Knowledge Hub' },

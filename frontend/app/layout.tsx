@@ -12,7 +12,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Procurement AI Analyst",
+  title: "ProcAI — Procurement AI",
   description: "Intelligent document analysis for procurement compliance",
   icons: {
     icon: [

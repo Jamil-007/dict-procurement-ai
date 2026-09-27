@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     FEEDBACK_TOP_K: int = 3
     FEEDBACK_OVERSAMPLE: int = 4
     FEEDBACK_LOCAL_DB: str = "./uploads/feedback.db"
+    # Trust gate: a manual correction is only used as a hint once the same
+    # (field, corrected value) has been recorded at least this many times.
+    # 👍 on the same value adds to the count, 👎 subtracts. This stops one bad
+    # edit from steering future extractions. Set to 1 to trust every correction.
+    FEEDBACK_MIN_REPEATS: int = 3
+    # How many similarity-ranked candidates to scan when counting repeats.
+    FEEDBACK_TRUST_SCAN: int = 200
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore"

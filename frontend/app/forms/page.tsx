@@ -97,17 +97,18 @@ export default function FormsPage() {
   const step1Done = Boolean(detectResult) && !detecting;
 
   return (
-    <main className="mx-auto max-w-2xl px-5 py-16 pb-24">
+    <main className="mx-auto max-w-[1400px] px-8 py-12 pb-24">
       <h1 className="text-2xl font-bold tracking-tight text-zinc-900">
         Generate procurement forms
       </h1>
       <p className="mt-2 text-sm text-zinc-500">
         Upload your procurement documents to auto-fill the matching GPPB forms — or
-        pick a form below to fill in manually.
+        pick a form on the right to fill in manually.
       </p>
 
-      {/* Step 1: upload / detection */}
-      <section className="mt-8 rounded-2xl border border-zinc-200 bg-white p-7">
+      <div className="mt-8 grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(320px,0.9fr)_1.35fr]">
+      {/* Left: upload / detection */}
+      <section className="rounded-2xl border border-zinc-200 bg-white p-7 lg:sticky lg:top-6">
         <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
           <span
             className={cn(
@@ -185,8 +186,8 @@ export default function FormsPage() {
         )}
       </section>
 
-      {/* Step 2: choose + generate — always available */}
-      <section className="mt-5 rounded-2xl border border-zinc-200 bg-white p-7">
+      {/* Right: choose + generate — always available */}
+      <section className="rounded-2xl border border-zinc-200 bg-white p-7">
         <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">
           <span
             className={cn(
@@ -206,6 +207,7 @@ export default function FormsPage() {
           onSelectionChange={setSelectedCount}
         />
       </section>
+      </div>
     </main>
   );
 }

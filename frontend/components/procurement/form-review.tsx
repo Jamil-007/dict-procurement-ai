@@ -130,7 +130,7 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
   };
 
   if (loading) {
-    return <div className="text-zinc-500 text-sm py-4">Loading forms...</div>;
+    return <FormsLoadingSkeleton count={formKeys.length} />;
   }
 
   if (!extractedData || formKeys.length === 0) {
@@ -171,8 +171,8 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
           const keyFields = editedFields[key];
           return (
           <TabsContent key={key} value={key} forceMount className="data-[state=inactive]:hidden">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
+            <div className="grid grid-cols-1 md:grid-cols-[1.45fr_1fr] gap-8">
+              <div className="md:order-2">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="text-[11px] font-semibold tracking-wider uppercase text-zinc-400">
@@ -225,7 +225,7 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
                 )}
               </div>
 
-              <div>
+              <div className="md:order-1">
                 <div className="flex items-center justify-between mb-4">
                   <div className="text-[11px] font-semibold tracking-wider uppercase text-zinc-400">
                     Preview
@@ -251,6 +251,56 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
           );
         })}
       </Tabs>
+    </div>
+  );
+}
+
+function FormsLoadingSkeleton({ count }: { count: number }) {
+  const tabs = Math.min(Math.max(count, 1), 4);
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <span className="text-xs font-medium text-zinc-500">Step 2 of 2</span>
+        <div className="h-9 w-28 rounded-md bg-zinc-100 animate-pulse" />
+      </div>
+
+      <div className="flex gap-2 mb-6 w-fit rounded-lg bg-zinc-50 p-1">
+        {Array.from({ length: tabs }).map((_, i) => (
+          <div key={i} className="h-7 w-24 rounded-md bg-zinc-100 animate-pulse" />
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-[1.45fr_1fr] gap-8">
+        {/* Preview (left) */}
+        <div>
+          <div className="mb-4 h-3 w-16 rounded bg-zinc-100 animate-pulse" />
+          <div className="overflow-hidden rounded-xl border border-zinc-200">
+            <div className="flex items-center gap-2 border-b border-zinc-200 px-3 py-2.5">
+              <div className="h-3.5 w-24 rounded bg-zinc-200 animate-pulse" />
+              <div className="h-4 w-10 rounded bg-zinc-100 animate-pulse" />
+              <div className="ml-auto h-7 w-40 rounded-lg bg-zinc-100 animate-pulse" />
+            </div>
+            <div className="flex h-[520px] flex-col items-center justify-center gap-3 bg-zinc-50">
+              <span className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-500" />
+              <div className="text-sm font-medium text-zinc-600">Reading your documents…</div>
+              <div className="text-xs text-zinc-400">
+                Extracting fields — this usually takes a moment.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Edit fields (right) */}
+        <div>
+          <div className="mb-4 h-3 w-20 rounded bg-zinc-100 animate-pulse" />
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="mb-4">
+              <div className="mb-2 h-3 w-24 rounded bg-zinc-100 animate-pulse" />
+              <div className="h-10 w-full rounded-md bg-zinc-100 animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

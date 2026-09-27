@@ -32,7 +32,7 @@ function ReviewPageContent() {
   return (
     <div>
       <div className="sticky top-0 z-10 bg-white/90 backdrop-blur-sm border-b border-zinc-200">
-        <div className="max-w-[980px] mx-auto px-5 py-4 flex items-center justify-between gap-4">
+        <div className="max-w-[1400px] mx-auto pl-28 pr-8 py-4 flex items-center justify-between gap-4">
           <div className="flex flex-col gap-0.5">
             <span className="text-base font-semibold tracking-tight">Review & download</span>
             <span className="text-xs text-zinc-600">
@@ -49,7 +49,7 @@ function ReviewPageContent() {
         </div>
       </div>
 
-      <div className="max-w-[980px] mx-auto px-5 py-6 pb-24">
+      <div className="max-w-[1400px] mx-auto px-8 py-6 pb-24">
         <FormReview threadId={threadId} formKeys={formKeys} />
       </div>
     </div>

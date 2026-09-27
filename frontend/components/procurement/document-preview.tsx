@@ -26,6 +26,9 @@ const REFRESH_DEBOUNCE_MS = 800;
 const STAGE_PAD = 36; // horizontal padding inside the scroll stage
 const ZOOM_MIN = 0.3;
 const ZOOM_MAX = 2;
+// Floor for fit-to-width so a very wide spreadsheet never collapses to an
+// unreadable few-percent thumbnail; the stage scrolls horizontally instead.
+const FIT_FLOOR = 0.45;
 
 // Module-level cache so switching form tabs never re-hits the backend for an
 // unchanged document. Keyed by threadId + formKey + serialized overrides.
@@ -91,7 +94,7 @@ export function DocumentPreview({
     const stage = stageRef.current;
     const host = containerRef.current;
     if (!stage || !host) return;
-    const scale = fit ? fitScaleFor(stage, 1) : zoom;
+    const scale = fit ? Math.max(FIT_FLOOR, fitScaleFor(stage, 1)) : zoom;
     (host.style as CSSStyleDeclaration & { zoom?: string }).zoom = String(scale);
     setPct(Math.round(scale * 100));
   }, [fit, zoom, fitScaleFor]);
@@ -205,7 +208,7 @@ export function DocumentPreview({
     if (!stage || !host) return;
     const avail = stage.clientWidth - STAGE_PAD;
     const natural = mNaturalRef.current || avail;
-    const scale = mFit ? Math.min(1.6, avail / natural) : mZoom;
+    const scale = mFit ? Math.max(FIT_FLOOR, Math.min(1.6, avail / natural)) : mZoom;
     (host.style as CSSStyleDeclaration & { zoom?: string }).zoom = String(scale);
     setMPct(Math.round(scale * 100));
   }, [mFit, mZoom]);
@@ -399,7 +402,7 @@ function Toolbar({
             disabled={downloading}
             className="rounded-lg px-3 py-1.5 text-[12px] font-semibold border border-zinc-300 bg-white hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
-            {downloading ? 'Downloading…' : 'Download this'}
+            {downloading ? 'Downloading…' : 'Download'}
           </button>
         )}
         {onClose && (

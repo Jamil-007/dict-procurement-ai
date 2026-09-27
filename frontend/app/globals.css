@@ -185,8 +185,14 @@ table.xl td.xl-cell {
   padding: 5px 9px;
   height: 26px;
   vertical-align: middle;
-  white-space: nowrap;
   background: #fff;
+  /* Wrap long content and cap width so a single long cell can't blow the whole
+     table out to thousands of px (which collapsed fit-to-width to ~2%). */
+  white-space: normal;
+  min-width: 72px;
+  max-width: 340px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 table.xl td.xl-title {

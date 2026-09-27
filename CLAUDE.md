@@ -10,6 +10,15 @@ This is an AI-powered procurement document analysis system for Philippine Govern
 - `/backend` - Python FastAPI server with LangGraph agents
 - `/frontend` - Next.js 14 TypeScript application
 
+**Backend `agents/` package (per-feature layout):** Each project feature (from the
+`docs/Proc AI Dev Tracker.xlsx` GROUPING column) is its own subpackage under
+`backend/agents/`. Add a new feature as `backend/agents/<feature>/`. Current folders:
+- `agents/doc_generation/` - form detector + generator AI (classifier, extractor, registry, schemas, service, fillers). Serves the `/forms/*` endpoints.
+- `agents/feedback/` - the feedback bank (models, embedder, store, firestore_store, service). Captures human corrections and injects trusted ones into future extractions. Off by default (`FEEDBACK_BANK_ENABLED`).
+- `agents/analysis.py` - the multi-agent document-analysis pipeline (the `/analyze` verdict flow), imported by `graph.py`.
+
+All agents run inside the single FastAPI backend service (no separate service per agent).
+
 ## Development Commands
 
 ### Backend (Python/FastAPI)
@@ -68,10 +77,10 @@ The backend implements a sophisticated multi-agent workflow using LangGraph:
 
 **Entry Point:** `server.py`
 - FastAPI application with SSE (Server-Sent Events) streaming
-- CORS configured for frontend communication
-- Key endpoints: `/analyze` (SSE), `/review`, `/chat`
+- CORS configured for frontend communication (localhost + this project's `procurement-ai*` Cloud Run origins)
+- Key endpoints: `/analyze` (SSE), `/review`, `/chat`, `/forms/*` (doc generation), `/feedback`
 
-**Agent Pipeline:** `graph.py` + `agents.py`
+**Agent Pipeline:** `graph.py` + `agents/analysis.py`
 
 The workflow follows this pattern:
 1. **PDF Parser** - Extracts text from uploaded procurement documents
@@ -196,3 +205,22 @@ Upload flow:
 2. Sent via multipart/form-data to `/analyze`
 3. Backend saves to `uploads/{thread_id}/{filename}`
 4. PDF parsed using PyMuPDF (`utils/pdf_parser.py`)
+
+## Deployment (Cloud Run)
+
+Two Cloud Run services in project `ai-innov-474401`, region `asia-southeast1`:
+- **`procurement-ai`** - frontend (Next.js). Deploy: `cd frontend && ./deploy.sh`
+- **`procurement-ai-backend`** - backend (FastAPI + all agents). Deploy: `cd backend && ./deploy.sh`
+
+**Order matters:** deploy the backend first, then the frontend. The frontend's
+`NEXT_PUBLIC_API_URL` is baked in at build time, so `frontend/deploy.sh` reads the
+backend's URL and passes it as a Docker build-arg via `frontend/cloudbuild.yaml`.
+
+**Feedback bank in prod** requires (already provisioned): a Firestore Native database
+`proc-feedback-bank` in `asia-southeast1` with a composite vector index on
+`(feature, context_key, embedding[768])`, plus the Cloud Run service account holding
+`roles/datastore.user` and `roles/aiplatform.user`. The backend deploy sets
+`FEEDBACK_BANK_ENABLED=true`, `FEEDBACK_BACKEND=firestore`, `FIRESTORE_DATABASE=proc-feedback-bank`.
+Do not switch `FEEDBACK_BACKEND` between `local` and `firestore` on a populated bank
+(hash vs Vertex embeddings are incompatible). Secrets (`TAVILY_API_KEY`, `GAMMA_API_KEY`)
+come from Secret Manager.

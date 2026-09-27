@@ -1,0 +1,43 @@
+# Cloud Build config for the Procurement AI frontend (Next.js on Cloud Run).
+# NEXT_PUBLIC_API_URL must be baked in at BUILD time (it's a build ARG in the
+# Dockerfile), so we build with --build-arg, push, then deploy.
+# Invoked by frontend/deploy.sh (which fills in the substitutions).
+substitutions:
+  _API_URL: "http://localhost:8000"
+  _REGION: "asia-southeast1"
+  _SERVICE: "procurement-ai"
+  _IMAGE: "asia-southeast1-docker.pkg.dev/ai-innov-474401/cloud-run-source-deploy/procurement-ai:latest"
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --build-arg
+      - NEXT_PUBLIC_API_URL=${_API_URL}
+      - -t
+      - ${_IMAGE}
+      - .
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: ["push", "${_IMAGE}"]
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_IMAGE}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --port=8080
+      - --memory=512Mi
+      - --cpu=1
+      - --min-instances=0
+      - --max-instances=10
+
+images: ["${_IMAGE}"]
+options:
+  logging: CLOUD_LOGGING_ONLY

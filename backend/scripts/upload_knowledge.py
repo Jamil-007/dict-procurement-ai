@@ -20,7 +20,7 @@ Usage:
 
     2. Upload:
            cd backend
-           GCS_BUCKET=ai-procurement GOOGLE_CLOUD_PROJECT=ai-innov-474401 \
+           GCS_BUCKET=proc-ai-staging-files GOOGLE_CLOUD_PROJECT=ai-innov-474401 \
            python scripts/upload_knowledge.py ../Reference
 
 Files land at gs://{bucket}/knowledge/{id}.pdf and the entry's gcs_path is
@@ -35,7 +35,7 @@ document, not the bucket, and nothing set it. Use --link-only instead of a
 folder: it checks gs://{bucket}/knowledge/{id}.pdf for each entry and sets
 gcs_path for whichever ones it finds, without uploading anything itself.
 
-    GCS_BUCKET=ai-procurement GOOGLE_CLOUD_PROJECT=ai-innov-474401 \
+    GCS_BUCKET=proc-ai-staging-files GOOGLE_CLOUD_PROJECT=ai-innov-474401 \
     python scripts/upload_knowledge.py --link-only
 
 Add --write-seed to also patch gcs_path straight into data/knowledge_seed.json
@@ -156,7 +156,7 @@ def main() -> int:
     if not settings.GCS_BUCKET:
         print(
             "GCS_BUCKET is not set, so there is nowhere to put these.\n"
-            "Re-run with GCS_BUCKET=ai-procurement."
+            "Re-run with GCS_BUCKET=proc-ai-staging-files."
         )
         return 1
 

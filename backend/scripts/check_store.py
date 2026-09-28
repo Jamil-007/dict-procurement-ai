@@ -93,7 +93,7 @@ def main() -> None:
         print("\ndocuments")
         doc = ProcurementDocument(
             id="d1", name="TOR.pdf", doc_type="TOR", pages=12,
-            gcs_path="gs://ai-procurement/procurements/x/TOR.pdf",
+            gcs_path="gs://proc-ai-staging-files/procurements/x/TOR.pdf",
         )
         with_doc = store.add_documents(first.ref, [doc])
         check("add_documents attaches", len(with_doc.documents) if with_doc else 0, 1)

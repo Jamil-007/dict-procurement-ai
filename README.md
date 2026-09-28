@@ -348,7 +348,7 @@ Two axes, independent of each other:
 | | Local default | Production |
 |---|---|---|
 | Records — procurements, findings, Knowledge Hub | `STORE_BACKEND=memory`, wiped on restart | `STORE_BACKEND=firestore` |
-| Files — uploaded PDFs | `GCS_BUCKET=` empty, local disk under `UPLOAD_DIR` | `GCS_BUCKET=ai-procurement` |
+| Files — uploaded PDFs | `GCS_BUCKET=` empty, local disk under `UPLOAD_DIR` | `GCS_BUCKET=proc-ai-staging-files` |
 
 For persistence locally, use the Firestore **emulator**, not a real database:
 

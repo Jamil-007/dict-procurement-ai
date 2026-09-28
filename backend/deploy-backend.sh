@@ -5,8 +5,8 @@
 PROJECT_ID="ai-innov-474401"
 REGION="asia-southeast1"
 SERVICE_NAME="procurement-ai-backend"
-FIRESTORE_DB="ai-procurement-db"
-BUCKET="ai-procurement"
+FIRESTORE_DB="proc-ai-staging"
+BUCKET="proc-ai-staging-files"
 
 set -e
 

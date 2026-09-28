@@ -855,7 +855,7 @@ committee's recorded actions and comments. The only warning is the button readin
 ADC (`gcloud auth application-default login`) or the emulator.
 
 **Cloud Run is not ready for GCS.** Do not set `GCS_BUCKET` in the Cloud Run
-environment until `roles/storage.objectAdmin` on `ai-procurement` is granted to
+environment until `roles/storage.objectAdmin` on `proc-ai-staging-files` is granted to
 `623960795683-compute@developer.gserviceaccount.com`. Local dev is unaffected.
 
 **Firestore.** One named database per application. Never point at `(default)` or

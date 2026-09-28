@@ -38,10 +38,8 @@ temp/
 # what belongs here and backend/scripts/build_knowledge_index.py to rebuild.
 Reference/
 
-# docs/ is published, so only the per-dimension briefs belong in it. Internal
-# working notes — agent instructions, infrastructure requests, audience-specific
-# overviews — stay on disk and out of the repo. Ignore everything and allow the
-# briefs back in, so a new internal note is excluded by default rather than
-# having to be remembered.
+# docs/ is working-notes only on the integration branch: agent instructions,
+# infrastructure requests, audience-specific overviews, and the per-dimension
+# specs/briefs all stay on disk and out of the repo. Ignore everything under
+# docs/ so a new note is excluded by default rather than having to be remembered.
 docs/*
-!docs/dimension-*.md

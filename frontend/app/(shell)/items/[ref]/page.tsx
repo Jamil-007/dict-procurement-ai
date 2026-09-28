@@ -138,7 +138,9 @@ export default function WorkspacePage() {
             onGoToDocuments={() => setTab("Documents")}
           />
         )}
-        {tab === "Forms" && <FormsTab procurement={procurement} />}
+        {tab === "Forms" && (
+          <FormsTab procurement={procurement} onChange={setProcurement} />
+        )}
         {tab === "Final Report" && (
           <FinalReportTab
             procurement={procurement}

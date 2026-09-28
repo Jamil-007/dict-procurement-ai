@@ -34,6 +34,22 @@ export interface DetectResult {
   documents?: { filename: string; doc_types: string[] }[];
 }
 
+/**
+ * Response shape of the ref-based `/procurements/{ref}/forms/detect` endpoint
+ * (see backend/server.py). A superset of `FormRecommendation`/`DetectResult`
+ * so it can stand in for them wherever those are expected (e.g. FormGenerator).
+ */
+export interface RefFormRecommendation extends FormRecommendation {
+  source_doc_types: string[];
+  present: string[];
+  missing: string[];
+}
+
+export interface RefDetectResult {
+  doc_types: string[];
+  forms: Record<FormKey, RefFormRecommendation>;
+}
+
 export interface UploadFormsResult {
   thread_id: string;
   has_docs: boolean;

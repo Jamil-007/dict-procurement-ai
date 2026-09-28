@@ -1,5 +1,11 @@
 import { VerdictData } from '@/types/procurement';
-import type { FormCatalogItem, DetectResult, FormKey, UploadFormsResult } from '@/types/forms';
+import type {
+  FormCatalogItem,
+  DetectResult,
+  RefDetectResult,
+  FormKey,
+  UploadFormsResult,
+} from '@/types/forms';
 import type { FeedbackItem } from '@/types/feedback';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -435,6 +441,51 @@ class APIClient {
       }),
     });
 
+    return this.handleFileResponse(response);
+  }
+
+  /**
+   * Ref-based detect: recommends forms from a procurement record's own
+   * (already persisted + classified) documents and AI-Review findings,
+   * instead of a throwaway upload session. See
+   * `POST /procurements/{ref}/forms/detect` in backend/server.py.
+   */
+  async detectFormsForRef(ref: string): Promise<RefDetectResult> {
+    const response = await fetch(`${this.baseUrl}/procurements/${ref}/forms/detect`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    return this.handleResponse<RefDetectResult>(response);
+  }
+
+  /**
+   * Ref-based generate: builds forms straight from a procurement record's own
+   * documents (no upload session needed). See
+   * `POST /procurements/{ref}/forms/generate` in backend/server.py.
+   */
+  async generateFormsForRef(
+    ref: string,
+    formKeys: FormKey[],
+    overrides?: Partial<Record<FormKey, Record<string, string | null>>>
+  ): Promise<GenerateResult> {
+    const response = await fetch(`${this.baseUrl}/procurements/${ref}/forms/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        form_keys: formKeys,
+        overrides: overrides || {},
+      }),
+    });
+
+    return this.handleFileResponse(response);
+  }
+
+  /** Shared by `generateForms`/`generateFormsForRef`: both return the same file-or-zip stream shape. */
+  private async handleFileResponse(response: Response): Promise<GenerateResult> {
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
       let details;

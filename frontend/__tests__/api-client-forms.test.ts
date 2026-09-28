@@ -110,4 +110,59 @@ describe('API Client - Forms', () => {
       apiClient.generateFormsForRef('PR-2026-001', ['bogus' as any], {})
     ).rejects.toThrow('Unknown form key: bogus');
   });
+
+  it('uploadKnowledge posts multipart fields and returns the parsed body', async () => {
+    const body = {
+      entry: {
+        id: 'kb-abc123',
+        title: 'RA 12009 IRR',
+        subtitle: '',
+        category: 'Laws & Issuances',
+        doc_type: '',
+        date: '2026-09-29',
+        pages: 3,
+        excerpt: '',
+        gcs_path: 'uploads/knowledge/kb-abc123/ra12009.pdf',
+      },
+      chunks_indexed: 4,
+      searchable: true,
+    };
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(body), { status: 200 })
+    );
+    global.fetch = fetchMock;
+
+    const file = new File([new Uint8Array([1, 2, 3])], 'ra12009.pdf', {
+      type: 'application/pdf',
+    });
+
+    const result = await apiClient.uploadKnowledge({
+      file,
+      title: 'RA 12009 IRR',
+      category: 'Laws & Issuances',
+    });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain('/knowledge/upload');
+    expect(init.method).toBe('POST');
+    const formData = init.body as FormData;
+    expect(formData.get('file')).toBe(file);
+    expect(formData.get('title')).toBe('RA 12009 IRR');
+    expect(formData.get('category')).toBe('Laws & Issuances');
+    expect(result).toEqual(body);
+  });
+
+  it('uploadKnowledge surfaces the server error detail on failure', async () => {
+    global.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ detail: 'Unknown category: bogus' }), { status: 400 })
+    );
+
+    await expect(
+      apiClient.uploadKnowledge({
+        file: new File([new Uint8Array([1])], 'x.pdf'),
+        title: 'X',
+        category: 'bogus',
+      })
+    ).rejects.toThrow('Unknown category: bogus');
+  });
 });

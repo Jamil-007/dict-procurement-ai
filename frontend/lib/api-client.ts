@@ -7,6 +7,7 @@ import type {
   UploadFormsResult,
 } from '@/types/forms';
 import type { FeedbackItem } from '@/types/feedback';
+import type { KnowledgeEntry } from '@/types/records';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -41,6 +42,12 @@ export interface ExtractResponse {
 export interface GenerateResult {
   blob: Blob;
   filename: string;
+}
+
+export interface UploadKnowledgeResult {
+  entry: KnowledgeEntry;
+  chunks_indexed: number;
+  searchable: boolean;
 }
 
 export interface StreamCallbacks {
@@ -513,6 +520,33 @@ class APIClient {
     }
 
     return { blob, filename };
+  }
+
+  /**
+   * Uploads a reference document to the Knowledge Hub. Backend saves it,
+   * indexes it for RAG immediately, and returns the new entry plus whether it
+   * came out searchable (it won't be if the PDF had no extractable text).
+   */
+  async uploadKnowledge({
+    file,
+    title,
+    category,
+  }: {
+    file: File;
+    title: string;
+    category: string;
+  }): Promise<UploadKnowledgeResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', title);
+    formData.append('category', category);
+
+    const response = await fetch(`${this.baseUrl}/knowledge/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    return this.handleResponse<UploadKnowledgeResult>(response);
   }
 
   async submitFeedback(items: FeedbackItem[]): Promise<{ stored: number }> {

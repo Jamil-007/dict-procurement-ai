@@ -74,6 +74,15 @@ jobs:
             --set-env-vars "GOOGLE_CLOUD_LOCATION=${{ env.REGION }}" \
             --set-env-vars "VERTEX_MODEL_NAME=gemini-2.5-flash" \
             --set-env-vars "STATE_STORAGE=memory" \
+            --set-env-vars "STORE_BACKEND=firestore" \
+            --set-env-vars "FIRESTORE_DATABASE=proc-ai-staging" \
+            --set-env-vars "GCS_BUCKET=proc-ai-staging-files" \
+            --set-env-vars "FEEDBACK_BANK_ENABLED=true" \
+            --set-env-vars "FEEDBACK_BACKEND=firestore" \
+            --set-env-vars "FIRESTORE_PROJECT=${{ env.PROJECT_ID }}" \
+            --set-env-vars "FEEDBACK_FIRESTORE_DATABASE=proc-ai-staging" \
+            --set-env-vars "FIRESTORE_COLLECTION=feedback" \
+            --set-env-vars "EMBEDDING_MODEL=text-embedding-004" \
             --set-secrets "TAVILY_API_KEY=TAVILY_API_KEY:latest" \
             --set-secrets "GAMMA_API_KEY=GAMMA_API_KEY:latest" \
             --memory 2Gi \

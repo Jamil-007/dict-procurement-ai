@@ -4,11 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutList, Library, MessageSquare, ChevronLeft } from "lucide-react";
+import { LayoutList, Library, MessageSquare, FileText, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/items", label: "Procurements", icon: LayoutList },
+  { href: "/forms", label: "Forms", icon: FileText },
   { href: "/analyst", label: "ProcAI", icon: MessageSquare },
   { href: "/hub", label: "Knowledge Hub", icon: Library },
 ];

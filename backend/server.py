@@ -5,11 +5,13 @@ Implements SSE streaming, human-in-the-loop workflow, and chat.
 
 import asyncio
 import json
+import logging
 import time
 import uuid
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, List
+from typing import Any, AsyncGenerator, List, Optional
 from fastapi import FastAPI, UploadFile, HTTPException, File, Request
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 from models import (
@@ -18,13 +20,56 @@ from models import (
     ReviewResponse,
     ChatRequest,
     ChatResponse,
+    FormDetectRequest,
+    FormExtractRequest,
+    FormGenerateRequest,
+    FeedbackRequest,
+    FeedbackResponse,
 )
-from utils.storage import save_uploaded_files, generate_thread_id, file_exists
+from utils.storage import (
+    save_uploaded_files,
+    generate_thread_id,
+    file_exists,
+    get_thread_upload_dir,
+)
 from utils.llm_factory import get_llm, get_llm_info
 from graph import graph, create_initial_state
 from prompts import CHAT_PROMPT, RA_12009_DIRECTIVE
 from config import settings
+from agents.doc_generation import service as forms_service
+from agents.doc_generation.service import FormGenerationError
+from agents.doc_generation.registry import FORM_REGISTRY
+from agents.doc_generation.text_source import get_source_text
+from agents.feedback import service as feedback_service
+from agents.feedback.models import FeedbackItem
 from routers import knowledge, procurements, review_api
+
+import re as _re
+import unicodedata as _unicodedata
+from urllib.parse import quote as _urlquote
+
+
+def _slugify_filename(filename: str) -> str:
+    """ASCII-fold a filename so it is safe for a latin-1 Content-Disposition header.
+    Non-ASCII chars (e.g. em-dash U+2014) and spaces collapse to underscores; the
+    extension is preserved."""
+    stem, dot, ext = filename.rpartition(".")
+    if not dot:
+        stem, ext = filename, ""
+    stem = _unicodedata.normalize("NFKD", stem).encode("ascii", "ignore").decode("ascii")
+    stem = _re.sub(r"[^A-Za-z0-9]+", "_", stem).strip("_") or "form"
+    ext = _re.sub(r"[^A-Za-z0-9]+", "", ext)
+    return f"{stem}.{ext}" if ext else stem
+
+
+def _content_disposition(filename: str) -> str:
+    """Build a Content-Disposition value with an ASCII `filename=` (latin-1 safe) plus an
+    RFC 5987 `filename*=UTF-8''` for clients that support the original name."""
+    ascii_name = _slugify_filename(filename)
+    return (
+        f'attachment; filename="{ascii_name}"; '
+        f"filename*=UTF-8''{_urlquote(filename)}"
+    )
 
 
 @asynccontextmanager
@@ -61,10 +106,16 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:3001",
     ],
+    # Allow any localhost/127.0.0.1 dev port (Next.js picks 3000/3001/3002/... when a port is taken),
+    # plus this project's procurement-ai* Cloud Run frontends (either run.app URL format).
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+|https://procurement-ai[a-z0-9-]*\.(asia-southeast1\.run\.app|a\.run\.app)",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
+    expose_headers=["Content-Disposition"],
 )
+
+logger = logging.getLogger(__name__)
 
 # Procurement records, Knowledge Hub and AI Review. The Procurement Analyst
 # endpoints below are unchanged and still run off graph.py.
@@ -521,3 +572,212 @@ async def get_analysis_status(thread_id: str):
         "has_gamma": bool(state.get("gamma_link")),
         "thinking_logs_count": len(state.get("thinking_logs", [])),
     }
+
+
+# Forms endpoints
+
+@app.get("/forms/catalog")
+async def get_forms_catalog():
+    """
+    Get catalog of available forms.
+
+    Returns:
+        List of form metadata
+    """
+    from agents.doc_generation.registry import catalog
+    return catalog()
+
+
+@app.post("/forms/upload")
+async def forms_upload(files: Optional[List[UploadFile]] = File(None)):
+    """
+    Create a forms session without running the analysis pipeline.
+
+    Saves any uploaded PDFs (zero allowed) under uploads/{thread_id}/ and
+    returns the thread_id for use with the /forms/detect, /extract, /generate
+    endpoints. Passing no files creates an empty session for manual form filling.
+    """
+    files = files or []
+
+    if len(files) > 3:
+        raise HTTPException(status_code=400, detail="Maximum of 3 PDF files allowed")
+
+    for uploaded_file in files:
+        if not uploaded_file.filename or not uploaded_file.filename.lower().endswith(
+            ".pdf"
+        ):
+            raise HTTPException(status_code=400, detail="Only PDF files are supported")
+        content_type = uploaded_file.content_type or ""
+        if content_type and not content_type.startswith("application/pdf"):
+            raise HTTPException(status_code=400, detail="Invalid file content type")
+
+    try:
+        from pathlib import Path
+
+        thread_id = generate_thread_id()
+        if files:
+            file_payloads = []
+            for uploaded_file in files:
+                file_payloads.append(
+                    (uploaded_file.filename, await uploaded_file.read())
+                )
+            saved_paths = await save_uploaded_files(file_payloads, thread_id)
+            filenames = sorted(Path(p).name for p in saved_paths)
+        else:
+            get_thread_upload_dir(thread_id).mkdir(parents=True, exist_ok=True)
+            filenames = []
+
+        return {
+            "thread_id": thread_id,
+            "has_docs": bool(files),
+            "filenames": filenames,
+        }
+
+    except ValueError as e:
+        error_msg = str(e)
+        if "path" in error_msg.lower() or "/" in error_msg or "\\" in error_msg:
+            error_msg = "Invalid file format or size"
+        raise HTTPException(status_code=400, detail=error_msg)
+    except Exception as e:
+        print(f"Forms upload error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Upload failed. Please try again.")
+
+
+@app.post("/forms/detect")
+async def detect_forms(request: FormDetectRequest):
+    """
+    Detect document types and recommend forms.
+
+    Args:
+        request: Thread ID
+
+    Returns:
+        Document types and form recommendations
+    """
+    return forms_service.detect(request.thread_id)
+
+
+@app.post("/forms/extract")
+async def extract_forms(request: FormExtractRequest):
+    """
+    Extract fields from requested forms.
+
+    Args:
+        request: Thread ID and form keys
+
+    Returns:
+        Extracted field values per form
+    """
+    # Validate form keys
+    for key in request.form_keys:
+        if key not in FORM_REGISTRY:
+            raise HTTPException(status_code=400, detail=f"Unknown form key: {key}")
+
+    return forms_service.extract_all(request.thread_id, request.form_keys)
+
+
+@app.post("/forms/generate")
+async def generate_forms(request: FormGenerateRequest):
+    """
+    Generate form files.
+
+    Args:
+        request: Thread ID, form keys, and optional overrides
+
+    Returns:
+        Single file stream or zip of multiple files
+    """
+    import io
+    import zipfile
+
+    # Validate form keys
+    for key in request.form_keys:
+        if key not in FORM_REGISTRY:
+            raise HTTPException(status_code=400, detail=f"Unknown form key: {key}")
+
+    # Generate files
+    try:
+        files = forms_service.generate(
+            request.thread_id,
+            request.form_keys,
+            request.overrides or {}
+        )
+    except FormGenerationError as exc:
+        logger.error("Form generation failed: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to generate one or more forms.")
+    except Exception as exc:  # noqa: BLE001 - never leak a stack trace to the client
+        logger.exception("Unexpected error during form generation: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to generate one or more forms.")
+
+    if len(files) == 1:
+        # Single file: stream directly
+        filename, file_bytes = files[0]
+        spec = FORM_REGISTRY[request.form_keys[0]]
+
+        # Determine MIME type
+        if spec.ext == ".xlsx":
+            media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        elif spec.ext == ".docx":
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        else:
+            media_type = "application/octet-stream"
+
+        return StreamingResponse(
+            io.BytesIO(file_bytes),
+            media_type=media_type,
+            headers={"Content-Disposition": _content_disposition(filename)},
+        )
+    else:
+        # Multiple files: create zip
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            for filename, file_bytes in files:
+                zip_file.writestr(filename, file_bytes)
+
+        zip_buffer.seek(0)
+
+        return StreamingResponse(
+            zip_buffer,
+            media_type="application/zip",
+            headers={"Content-Disposition": _content_disposition("procurement_forms.zip")},
+        )
+
+
+@app.post("/feedback", response_model=FeedbackResponse)
+async def submit_feedback(request: FeedbackRequest):
+    """Record implicit/explicit feedback into the feedback bank.
+
+    Inert (returns {"stored": 0}, no source parsing, no storage) unless
+    FEEDBACK_BANK_ENABLED is set.
+    """
+    from utils.storage import validate_thread_id
+
+    # Validate every thread_id first so malformed input is rejected even when disabled.
+    for item in request.items:
+        if not validate_thread_id(item.thread_id):
+            raise HTTPException(status_code=400, detail="Invalid thread_id format")
+
+    # Inert when disabled: no source parsing, no storage.
+    if not settings.FEEDBACK_BANK_ENABLED:
+        return FeedbackResponse(stored=0)
+
+    ctx_cache: dict[str, str] = {}
+    items = []
+    for item in request.items:
+        if item.input_context:
+            ctx = feedback_service.resolve_input_context(item.thread_id, item.input_context, source_resolver=get_source_text)
+        else:
+            ctx = ctx_cache.get(item.thread_id)
+            if ctx is None:
+                ctx = feedback_service.resolve_input_context(item.thread_id, None, source_resolver=get_source_text)
+                ctx_cache[item.thread_id] = ctx
+        data = item.model_dump()
+        data["input_context"] = ctx
+        items.append(FeedbackItem(**data))
+
+    try:
+        stored = feedback_service.record_feedback(items)
+    except Exception:
+        logger.exception("Feedback recording failed")
+        stored = 0
+    return FeedbackResponse(stored=stored)

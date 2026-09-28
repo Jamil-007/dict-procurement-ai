@@ -29,6 +29,7 @@ from models import (
 )
 from utils.storage import (
     save_uploaded_files,
+    save_forms_session_files,
     generate_thread_id,
     file_exists,
     get_thread_upload_dir,
@@ -622,10 +623,11 @@ async def forms_upload(files: Optional[List[UploadFile]] = File(None)):
                 file_payloads.append(
                     (uploaded_file.filename, await uploaded_file.read())
                 )
-            saved_paths = await save_uploaded_files(file_payloads, thread_id)
+            saved_paths = await save_forms_session_files(file_payloads, thread_id)
             filenames = sorted(Path(p).name for p in saved_paths)
         else:
-            get_thread_upload_dir(thread_id).mkdir(parents=True, exist_ok=True)
+            if not settings.GCS_BUCKET:
+                get_thread_upload_dir(thread_id).mkdir(parents=True, exist_ok=True)
             filenames = []
 
         return {

@@ -122,6 +122,51 @@ def save_document(
     return str(path), pages
 
 
+def document_path(ref: str, filename: str, prefix: str = "procurements") -> str:
+    """
+    Path (gs:// URI or local path) a document would be stored at for
+    (ref, filename, prefix) — without requiring it to already exist.
+
+    For building a read path once the filename is already known (e.g. from
+    `list_documents`), mirroring the layout `save_document` writes to.
+    """
+    if settings.GCS_BUCKET:
+        return f"gs://{settings.GCS_BUCKET}/{prefix}/{ref}/{filename}"
+
+    local_prefix = "" if prefix == "procurements" else prefix
+    return str(_local_path(ref, filename, local_prefix))
+
+
+def list_documents(ref: str, prefix: str = "procurements") -> list:
+    """
+    Filenames already stored under (ref, prefix), sorted.
+
+    GCS has no cheap "list a directory" — this lists by key prefix instead
+    (`{prefix}/{ref}/`) and returns just the immediate filenames (no nested
+    keys). Local disk lists the directory `save_document` writes to for the
+    same (ref, prefix), same as before this helper existed.
+    """
+    if settings.GCS_BUCKET:
+        from google.cloud import storage
+
+        gcs_prefix = f"{prefix}/{ref}/"
+        client = storage.Client(project=settings.GOOGLE_CLOUD_PROJECT or None)
+        blobs = client.bucket(settings.GCS_BUCKET).list_blobs(prefix=gcs_prefix)
+        names = []
+        for blob in blobs:
+            name = blob.name[len(gcs_prefix):]
+            if name and "/" not in name:
+                names.append(name)
+        return sorted(names)
+
+    local_prefix = "" if prefix == "procurements" else prefix
+    base = Path(settings.UPLOAD_DIR)
+    directory = (base / local_prefix / ref) if local_prefix else (base / ref)
+    if not directory.is_dir():
+        return []
+    return sorted(p.name for p in directory.iterdir() if p.is_file())
+
+
 def document_exists(path: str) -> bool:
     """Whether the stored file is actually retrievable."""
     if not path:

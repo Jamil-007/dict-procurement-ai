@@ -1,8 +1,23 @@
+import pytest
+
 from agents.doc_generation.text_source import (
     get_source_text,
     has_source_documents,
     get_source_documents,
 )
+
+
+@pytest.fixture(autouse=True)
+def _local_disk_only(monkeypatch):
+    """
+    These tests exercise the local-disk path specifically. The real .env sets
+    GCS_BUCKET (staging), so without this every thread-session read here
+    would take the GCS branch instead — force it off, same pattern as
+    test_knowledge_upload.py's isolate_index_and_uploads fixture.
+    """
+    from config import settings
+    monkeypatch.setattr(settings, "GCS_BUCKET", "")
+
 
 def test_no_docs_returns_empty(monkeypatch, tmp_path):
     from config import settings

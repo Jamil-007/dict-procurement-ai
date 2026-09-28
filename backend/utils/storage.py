@@ -31,34 +31,21 @@ def sanitize_filename(filename: str) -> str:
     return filename or "document.pdf"
 
 
-async def save_uploaded_files(
-    file_payloads: List[Tuple[str, bytes]], thread_id: str
-) -> List[str]:
+def _validate_and_sanitize(
+    file_payloads: List[Tuple[str, bytes]]
+) -> List[Tuple[str, bytes]]:
     """
-    Save uploaded PDF files to disk.
-
-    Args:
-        file_payloads: List of tuples (filename, file_content)
-        thread_id: Unique thread identifier for this analysis session
-
-    Returns:
-        Paths to the saved files
+    Validate size/type and return deduped, sanitized (filename, content)
+    pairs, in the same order as file_payloads.
 
     Raises:
-        ValueError: If thread_id is invalid or file size exceeds limit
+        ValueError: If a file fails validation.
     """
-    # Validate thread_id to prevent path traversal
-    if not validate_thread_id(thread_id):
-        raise ValueError("Invalid thread_id format")
-
-    thread_dir = Path(settings.UPLOAD_DIR) / thread_id
-    thread_dir.mkdir(parents=True, exist_ok=True)
-
-    saved_paths = []
-    used_names = set()
-
     # File size limit: 50MB per file
     MAX_FILE_SIZE = 50 * 1024 * 1024
+
+    result: List[Tuple[str, bytes]] = []
+    used_names = set()
 
     for idx, (filename, file_content) in enumerate(file_payloads, start=1):
         # Check file size
@@ -89,6 +76,42 @@ async def save_uploaded_files(
             counter += 1
         used_names.add(safe_name)
 
+        result.append((safe_name, file_content))
+
+    return result
+
+
+async def save_uploaded_files(
+    file_payloads: List[Tuple[str, bytes]], thread_id: str
+) -> List[str]:
+    """
+    Save uploaded PDF files to local disk.
+
+    Used by the /analyze pipeline, which reads these paths directly off local
+    disk further down the graph — always local disk regardless of GCS_BUCKET.
+    For the /forms session upload, which has no such local-path dependency,
+    see save_forms_session_files.
+
+    Args:
+        file_payloads: List of tuples (filename, file_content)
+        thread_id: Unique thread identifier for this analysis session
+
+    Returns:
+        Paths to the saved files
+
+    Raises:
+        ValueError: If thread_id is invalid or file size exceeds limit
+    """
+    # Validate thread_id to prevent path traversal
+    if not validate_thread_id(thread_id):
+        raise ValueError("Invalid thread_id format")
+
+    thread_dir = Path(settings.UPLOAD_DIR) / thread_id
+    thread_dir.mkdir(parents=True, exist_ok=True)
+
+    saved_paths = []
+
+    for safe_name, file_content in _validate_and_sanitize(file_payloads):
         file_path = thread_dir / safe_name
 
         # Ensure file path is within upload directory (prevent path traversal)
@@ -98,6 +121,40 @@ async def save_uploaded_files(
         async with aiofiles.open(file_path, "wb") as f:
             await f.write(file_content)
         saved_paths.append(str(file_path))
+
+    return saved_paths
+
+
+async def save_forms_session_files(
+    file_payloads: List[Tuple[str, bytes]], thread_id: str
+) -> List[str]:
+    """
+    Save uploaded PDFs for a forms session (POST /forms/upload).
+
+    Same validation as save_uploaded_files. Durable when GCS_BUCKET is set —
+    stored under `forms/{thread_id}/{filename}` in the bucket via
+    store/files.py, so any instance can serve /forms/detect|extract|generate
+    for this thread_id. Identical local-disk behavior to save_uploaded_files
+    when GCS_BUCKET is unset (delegates to it directly).
+
+    Only for the standalone /forms session flow — the /analyze pipeline keeps
+    using save_uploaded_files, since its graph state carries local paths.
+
+    Raises:
+        ValueError: If thread_id is invalid or a file fails validation.
+    """
+    if not validate_thread_id(thread_id):
+        raise ValueError("Invalid thread_id format")
+
+    if not settings.GCS_BUCKET:
+        return await save_uploaded_files(file_payloads, thread_id)
+
+    from store.files import save_document
+
+    saved_paths = []
+    for safe_name, file_content in _validate_and_sanitize(file_payloads):
+        path, _ = save_document(thread_id, safe_name, file_content, prefix="forms")
+        saved_paths.append(path)
 
     return saved_paths
 
@@ -145,13 +202,26 @@ def generate_thread_id() -> str:
     return str(uuid.uuid4())
 
 
-def save_generated_file(thread_id: str, filename: str, data: bytes) -> Path:
-    """Write a generated form file under uploads/{thread_id}/forms/."""
+def save_generated_file(thread_id: str, filename: str, data: bytes):
+    """
+    Persist a generated form so it can be re-listed via list_generated_files.
+
+    GCS when GCS_BUCKET is set — stored under `forms_generated/{thread_id}/`
+    in the bucket via store/files.py, returning the gs:// path. Local disk at
+    uploads/{thread_id}/forms/ otherwise (unchanged), returning a Path.
+    """
     if not validate_thread_id(thread_id):
         raise ValueError("Invalid thread_id format")
+    safe = sanitize_filename(filename)
+
+    if settings.GCS_BUCKET:
+        from store.files import save_document
+
+        path, _ = save_document(thread_id, safe, data, prefix="forms_generated")
+        return path
+
     forms_dir = get_thread_upload_dir(thread_id) / "forms"
     forms_dir.mkdir(parents=True, exist_ok=True)
-    safe = sanitize_filename(filename)
     path = forms_dir / safe
     if not str(path.resolve()).startswith(str(forms_dir.resolve())):
         raise ValueError("Invalid file path detected")
@@ -159,9 +229,15 @@ def save_generated_file(thread_id: str, filename: str, data: bytes) -> Path:
     return path
 
 
-def list_generated_files(thread_id: str) -> list[Path]:
+def list_generated_files(thread_id: str) -> list:
     if not validate_thread_id(thread_id):
         return []
+
+    if settings.GCS_BUCKET:
+        from store.files import list_documents
+
+        return list_documents(thread_id, prefix="forms_generated")
+
     forms_dir = get_thread_upload_dir(thread_id) / "forms"
     if not forms_dir.is_dir():
         return []

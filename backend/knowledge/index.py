@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -165,6 +166,29 @@ def load_index(path: str | None = None) -> LoadedIndex | None:
     return loaded
 
 
+class IndexAppendError(Exception):
+    """
+    Raised when appending would leave chunks.jsonl and vectors.npy out of
+    row-count alignment.
+
+    `load_index`/`_load_vectors` already detect a mismatch and degrade to
+    keyword-only, but that guard exists for a corrupted index someone hands
+    it, not as a green light to write a mismatched one on purpose — a
+    mismatch caused this way silently drops vector search for every
+    previously-embedded document, not just the new upload. This function
+    never writes a mismatched pair; it raises before touching disk instead.
+    """
+
+
+# Serializes read-modify-write of vectors.npy/manifest.json/chunks.jsonl so
+# two concurrent uploads cannot interleave their appends and lose one side's
+# vectors (both threads load the same vectors.npy, each appends its own rows,
+# the second save clobbers the first). This is a single-process lock, which
+# is what matters here — MemoryStore-style local development and a single
+# Cloud Run instance are the only places this code path runs today.
+_append_lock = threading.Lock()
+
+
 def append_to_index(
     chunks: list[Chunk],
     vectors: "np.ndarray | None",
@@ -179,56 +203,101 @@ def append_to_index(
     (which rewrites the whole index from scratch): a user upload should not
     have to wait for that offline rebuild to become searchable. Chunks are
     appended to chunks.jsonl in order — row i of vectors.npy must keep
-    matching line i, so vectors (when given) are stacked onto the existing
-    array rather than merged any other way. The manifest gets an updated
-    chunk_count and a new SourceDocument entry.
+    matching line i.
 
-    `vectors` may be None (e.g. no embedding client available) — the chunks
-    are still appended so keyword search finds them, but vectors.npy is left
-    untouched. If the index already has vectors, this creates a chunk/vector
-    row-count mismatch that `load_index` detects and safely degrades to
-    keyword-only for the *whole* index until it is backfilled or rebuilt with
-    embeddings — a known, deliberate trade-off documented in the caller
-    (`knowledge/ingest.py`).
+    Alignment is enforced BY CONSTRUCTION, before anything is written:
+      - If the index already has an aligned set of embeddings (vectors.npy
+        row count == manifest.chunk_count) and the new chunks do not come
+        with a matching, full set of vectors, the append is refused —
+        writing it would misalign every previously-embedded chunk, not just
+        the new ones.
+      - If the index is not aligned yet (fresh, or already keyword-only) and
+        this call would introduce a vectors.npy with fewer rows than the
+        chunks already on disk, the append is refused too, for the same
+        reason in the other direction.
+      - A fresh index (no chunks yet), or a keyword-only index staying
+        keyword-only (chunks with no vectors, none existed before either),
+        are both fine and proceed.
 
-    Callers must call `reset_cache()` afterwards so the next `load_index()`
-    call picks up the change; this function only writes to disk.
+    On refusal this raises `IndexAppendError` and writes nothing at all —
+    chunks.jsonl, vectors.npy and manifest.json are left exactly as they
+    were. Callers decide what to do with the failure (the upload endpoint
+    still keeps the stored file and KnowledgeEntry; only indexing is
+    rejected).
+
+    Callers must call `reset_cache()` after a successful append so the next
+    `load_index()` call picks up the change; this function only writes to
+    disk.
     """
     import numpy as np
 
-    index_root = Path(root) if root else Path(index_dir())
-    index_root.mkdir(parents=True, exist_ok=True)
+    with _append_lock:
+        index_root = Path(root) if root else Path(index_dir())
+        index_root.mkdir(parents=True, exist_ok=True)
 
-    chunks_path = index_root / CHUNKS_FILE
-    manifest_path = index_root / MANIFEST_FILE
-    vectors_path = index_root / VECTORS_FILE
+        chunks_path = index_root / CHUNKS_FILE
+        manifest_path = index_root / MANIFEST_FILE
+        vectors_path = index_root / VECTORS_FILE
 
-    manifest = _load_manifest(manifest_path) or IndexManifest()
+        manifest = _load_manifest(manifest_path) or IndexManifest()
 
-    if chunks:
-        with chunks_path.open("a", encoding="utf-8") as f:
-            for chunk in chunks:
-                f.write(json.dumps(chunk.to_json(), ensure_ascii=False) + "\n")
-
-    if vectors is not None and len(vectors):
-        vectors = np.asarray(vectors, dtype=np.float32)
+        existing_chunk_rows = manifest.chunk_count
+        existing_vector_rows = 0
         if vectors_path.exists():
-            existing = np.load(str(vectors_path))
-            combined = np.vstack([existing, vectors])
-        else:
-            combined = vectors
-        np.save(str(vectors_path), combined)
-        manifest.dimensions = combined.shape[1]
-        manifest.embedding_model = EMBEDDING_MODEL
+            try:
+                existing_vector_rows = int(np.load(str(vectors_path)).shape[0])
+            except Exception:  # noqa: BLE001 - an unreadable file counts as 0 rows
+                logger.warning(
+                    "Could not read existing vectors.npy for alignment check",
+                    exc_info=True,
+                )
+                existing_vector_rows = 0
 
-    manifest.chunk_count += len(chunks)
-    manifest.documents.append(source)
-    manifest.built_at = datetime.now(timezone.utc).isoformat()
+        aligned_now = existing_chunk_rows > 0 and existing_chunk_rows == existing_vector_rows
+        fresh_index = existing_chunk_rows == 0
+        new_vector_rows = 0 if vectors is None else len(vectors)
 
-    with manifest_path.open("w", encoding="utf-8") as f:
-        json.dump(manifest.to_json(), f, indent=2, ensure_ascii=False)
+        if chunks:
+            if aligned_now and new_vector_rows != len(chunks):
+                raise IndexAppendError(
+                    f"The index already has {existing_vector_rows} aligned embeddings; "
+                    f"the {len(chunks)} new chunk(s) came with {new_vector_rows} vector(s). "
+                    "Refusing to append — this would silently drop vector search for "
+                    "every previously-embedded document. Nothing was written."
+                )
+            if not aligned_now and not fresh_index and new_vector_rows:
+                raise IndexAppendError(
+                    "The index is currently keyword-only (no aligned embeddings yet); "
+                    "appending vectors now would still leave the earlier chunks "
+                    "unaligned. Refusing to append. Nothing was written — rebuild the "
+                    "index offline to backfill embeddings for everything at once."
+                )
 
-    return manifest
+        # Alignment is guaranteed past this point; perform the writes.
+        if chunks:
+            with chunks_path.open("a", encoding="utf-8") as f:
+                for chunk in chunks:
+                    f.write(json.dumps(chunk.to_json(), ensure_ascii=False) + "\n")
+
+        if vectors is not None and len(vectors):
+            vectors = np.asarray(vectors, dtype=np.float32)
+            if vectors_path.exists():
+                existing = np.load(str(vectors_path))
+                combined = np.vstack([existing, vectors])
+            else:
+                combined = vectors
+            np.save(str(vectors_path), combined)
+            manifest.dimensions = combined.shape[1]
+            manifest.embedding_model = EMBEDDING_MODEL
+
+        manifest.chunk_count += len(chunks)
+        manifest.documents.append(source)
+        manifest.built_at = datetime.now(timezone.utc).isoformat()
+
+        with manifest_path.open("w", encoding="utf-8") as f:
+            json.dump(manifest.to_json(), f, indent=2, ensure_ascii=False)
+
+        return manifest
 
 
 def _load_manifest(path: Path) -> IndexManifest | None:

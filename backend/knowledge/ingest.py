@@ -13,10 +13,11 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from dataclasses import dataclass
 from typing import Protocol
 
 from knowledge.corpus import chunk_document
-from knowledge.index import append_to_index, reset_cache
+from knowledge.index import IndexAppendError, append_to_index, reset_cache
 from knowledge.schema import (
     EMBEDDING_DIMENSIONS,
     EMBEDDING_MODEL,
@@ -27,6 +28,24 @@ from knowledge.schema import (
 from store.files import count_pages, extract_text
 
 logger = logging.getLogger(__name__)
+
+# Re-exported so callers only need `from knowledge.ingest import IndexAppendError`.
+__all__ = ["Embedder", "IndexAppendError", "IngestResult", "ingest_document"]
+
+
+@dataclass
+class IngestResult:
+    """What one upload did to the live index."""
+
+    chunks: list[Chunk]
+    manifest: IndexManifest
+    indexed: bool
+    """
+    True only when embeddings were actually computed and persisted for these
+    chunks — not merely that chunks exist. A document with no extractable
+    text, or one appended in keyword-only mode because no embedder was
+    available, has `indexed=False` even though `chunks` may be non-empty.
+    """
 
 
 class Embedder(Protocol):
@@ -77,7 +96,7 @@ def ingest_document(
     filename: str,
     data: bytes,
     embedder: "Embedder | None" = None,
-) -> tuple[list[Chunk], IndexManifest]:
+) -> IngestResult:
     """
     Chunk, embed and append one uploaded PDF to the live knowledge index.
 
@@ -86,10 +105,18 @@ def ingest_document(
     get `GoogleGenerativeAIEmbeddings` (or a graceful keyword-only degrade if
     no API key is configured).
 
-    Returns (chunks, manifest). `chunks` is empty when the PDF had no
+    Raises `IndexAppendError`, and writes nothing, when appending these
+    chunks — with or without vectors — would misalign chunks.jsonl and
+    vectors.npy for the whole index (see `knowledge.index.append_to_index`).
+    The caller (the upload endpoint) is expected to keep the already-stored
+    file and KnowledgeEntry in that case and report indexing as failed rather
+    than silently degrading every other document's search quality.
+
+    Returns an `IngestResult`. `chunks` is empty when the PDF had no
     extractable text — still a valid upload, just not retrievable by the RAG
-    index. Calls `reset_cache()` before returning so the next `load_index()`
-    (and therefore the next `provisions_for()`) sees the new content.
+    index. Calls `reset_cache()` after a successful append so the next
+    `load_index()` (and therefore the next `provisions_for()`) sees the new
+    content.
     """
     pages = count_pages(data)
     text = extract_text(data, max_pages=0, markers=True)
@@ -104,7 +131,12 @@ def ingest_document(
         chunks=len(chunks),
     )
 
-    vectors = _embed(chunks, embedder) if chunks else None
-    manifest = append_to_index(chunks, vectors, source)
+    if not chunks:
+        manifest = append_to_index([], None, source)
+        reset_cache()
+        return IngestResult(chunks=[], manifest=manifest, indexed=False)
+
+    vectors = _embed(chunks, embedder)
+    manifest = append_to_index(chunks, vectors, source)  # may raise IndexAppendError
     reset_cache()
-    return chunks, manifest
+    return IngestResult(chunks=chunks, manifest=manifest, indexed=vectors is not None)

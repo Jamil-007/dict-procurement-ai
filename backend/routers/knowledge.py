@@ -5,6 +5,7 @@ Deliberately separate from procurement documents: these are laws, issuances
 and forms that apply across every procurement, not evidence belonging to one.
 """
 
+import logging
 import uuid
 from typing import List, Optional
 
@@ -12,9 +13,12 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, Response, Uploa
 from pydantic import BaseModel
 
 from domain import KNOWLEDGE_CATEGORIES, KnowledgeEntry, today
+from knowledge.index import IndexAppendError
 from knowledge.ingest import ingest_document
 from store import get_store
 from store.files import read_document, save_document
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
 
@@ -46,8 +50,14 @@ class KnowledgeUploadResponse(BaseModel):
     entry: KnowledgeEntry
     chunks_indexed: int
     searchable: bool
-    """False when the upload had no extractable text or embeddable content —
-    it is still stored and listed, just not retrievable by AI review yet."""
+    """
+    True only when vectors were actually written for this document's chunks
+    — not merely that chunks exist. False for no extractable text, for a
+    keyword-only append (embedder unavailable but safe to append), and for a
+    refused append (see `message`).
+    """
+    message: str = ""
+    """Explains a degraded or refused indexing outcome; empty on a clean win."""
 
 
 @router.post("/upload", response_model=KnowledgeUploadResponse)
@@ -96,12 +106,38 @@ async def upload_knowledge(
     )
     get_store().save_knowledge(entry)
 
-    chunks, _manifest = ingest_document(entry_id, title, filename, data)
+    try:
+        result = ingest_document(entry_id, title, filename, data)
+    except IndexAppendError as exc:
+        # The file and KnowledgeEntry are already saved (see above) — only
+        # indexing failed, and it failed *safely*: append_to_index wrote
+        # nothing, so every previously-embedded document is still fully
+        # searchable. Surface that clearly rather than reporting success.
+        logger.warning("Knowledge upload %s was not indexed: %s", entry_id, exc)
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"{entry.title} was saved to the library, but could not be "
+                f"indexed for AI search right now ({exc}). It will not be "
+                "found by AI review until the index is rebuilt or the "
+                "embedding service is available again."
+            ),
+        ) from exc
+
+    message = ""
+    if not result.chunks:
+        message = f"{entry.title} has no extractable text; it is stored but not searchable."
+    elif not result.indexed:
+        message = (
+            f"{entry.title} was indexed for keyword search only; embeddings "
+            "were unavailable when it was uploaded."
+        )
 
     return KnowledgeUploadResponse(
         entry=entry,
-        chunks_indexed=len(chunks),
-        searchable=len(chunks) > 0,
+        chunks_indexed=len(result.chunks),
+        searchable=result.indexed,
+        message=message,
     )
 
 

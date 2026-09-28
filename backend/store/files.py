@@ -15,8 +15,9 @@ from config import settings
 logger = logging.getLogger(__name__)
 
 
-def _local_path(ref: str, filename: str) -> Path:
-    directory = Path(settings.UPLOAD_DIR) / ref
+def _local_path(ref: str, filename: str, prefix: str = "") -> Path:
+    base = Path(settings.UPLOAD_DIR)
+    directory = (base / prefix / ref) if prefix else (base / ref)
     directory.mkdir(parents=True, exist_ok=True)
     return directory / filename
 
@@ -92,11 +93,18 @@ def extract_text(data: bytes, max_pages: int = 0, markers: bool = True) -> str:
         return ""
 
 
-def save_document(ref: str, filename: str, data: bytes) -> Tuple[str, int]:
+def save_document(
+    ref: str, filename: str, data: bytes, prefix: str = "procurements"
+) -> Tuple[str, int]:
     """
     Store one document and return (path, page_count).
 
     The path is a gs:// URI or a local filesystem path depending on config.
+    `prefix` namespaces the object key (GCS) — e.g. "procurements" (default)
+    or "knowledge" for the Knowledge Hub. Local disk keeps the original
+    unprefixed layout (`UPLOAD_DIR/{ref}/{filename}`) for the default
+    "procurements" prefix, so existing procurement uploads are untouched; any
+    other prefix gets its own subdirectory (`UPLOAD_DIR/{prefix}/{ref}/{filename}`).
     """
     pages = count_pages(data)
 
@@ -104,13 +112,12 @@ def save_document(ref: str, filename: str, data: bytes) -> Tuple[str, int]:
         from google.cloud import storage
 
         client = storage.Client(project=settings.GOOGLE_CLOUD_PROJECT or None)
-        blob = client.bucket(settings.GCS_BUCKET).blob(
-            f"procurements/{ref}/{filename}"
-        )
+        blob = client.bucket(settings.GCS_BUCKET).blob(f"{prefix}/{ref}/{filename}")
         blob.upload_from_string(data, content_type="application/pdf")
         return f"gs://{settings.GCS_BUCKET}/{blob.name}", pages
 
-    path = _local_path(ref, filename)
+    local_prefix = "" if prefix == "procurements" else prefix
+    path = _local_path(ref, filename, local_prefix)
     path.write_bytes(data)
     return str(path), pages
 

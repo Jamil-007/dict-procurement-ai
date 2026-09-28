@@ -15,15 +15,18 @@ import logging
 import re
 from collections import Counter
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from knowledge.schema import (
     CHUNKS_FILE,
+    EMBEDDING_MODEL,
     MANIFEST_FILE,
     VECTORS_FILE,
     Chunk,
     IndexManifest,
+    SourceDocument,
     index_dir,
 )
 
@@ -160,6 +163,72 @@ def load_index(path: str | None = None) -> LoadedIndex | None:
         vectors is not None,
     )
     return loaded
+
+
+def append_to_index(
+    chunks: list[Chunk],
+    vectors: "np.ndarray | None",
+    source: SourceDocument,
+    root: str | None = None,
+) -> IndexManifest:
+    """
+    Grow the on-disk index with one newly-processed document, creating the
+    index directory if it does not exist yet.
+
+    This is the incremental counterpart to `scripts/build_knowledge_index.py`
+    (which rewrites the whole index from scratch): a user upload should not
+    have to wait for that offline rebuild to become searchable. Chunks are
+    appended to chunks.jsonl in order — row i of vectors.npy must keep
+    matching line i, so vectors (when given) are stacked onto the existing
+    array rather than merged any other way. The manifest gets an updated
+    chunk_count and a new SourceDocument entry.
+
+    `vectors` may be None (e.g. no embedding client available) — the chunks
+    are still appended so keyword search finds them, but vectors.npy is left
+    untouched. If the index already has vectors, this creates a chunk/vector
+    row-count mismatch that `load_index` detects and safely degrades to
+    keyword-only for the *whole* index until it is backfilled or rebuilt with
+    embeddings — a known, deliberate trade-off documented in the caller
+    (`knowledge/ingest.py`).
+
+    Callers must call `reset_cache()` afterwards so the next `load_index()`
+    call picks up the change; this function only writes to disk.
+    """
+    import numpy as np
+
+    index_root = Path(root) if root else Path(index_dir())
+    index_root.mkdir(parents=True, exist_ok=True)
+
+    chunks_path = index_root / CHUNKS_FILE
+    manifest_path = index_root / MANIFEST_FILE
+    vectors_path = index_root / VECTORS_FILE
+
+    manifest = _load_manifest(manifest_path) or IndexManifest()
+
+    if chunks:
+        with chunks_path.open("a", encoding="utf-8") as f:
+            for chunk in chunks:
+                f.write(json.dumps(chunk.to_json(), ensure_ascii=False) + "\n")
+
+    if vectors is not None and len(vectors):
+        vectors = np.asarray(vectors, dtype=np.float32)
+        if vectors_path.exists():
+            existing = np.load(str(vectors_path))
+            combined = np.vstack([existing, vectors])
+        else:
+            combined = vectors
+        np.save(str(vectors_path), combined)
+        manifest.dimensions = combined.shape[1]
+        manifest.embedding_model = EMBEDDING_MODEL
+
+    manifest.chunk_count += len(chunks)
+    manifest.documents.append(source)
+    manifest.built_at = datetime.now(timezone.utc).isoformat()
+
+    with manifest_path.open("w", encoding="utf-8") as f:
+        json.dump(manifest.to_json(), f, indent=2, ensure_ascii=False)
+
+    return manifest
 
 
 def _load_manifest(path: Path) -> IndexManifest | None:

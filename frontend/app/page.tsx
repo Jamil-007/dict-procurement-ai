@@ -168,7 +168,7 @@ export default function ProcurementPage() {
   // Split view layout
   if (showSplitView) {
     return (
-      <div className="h-screen flex overflow-hidden">
+      <div className="h-full flex overflow-hidden">
         <SessionArchive />
 
         {/* Left side - Chat */}
@@ -276,7 +276,7 @@ export default function ProcurementPage() {
 
   // Normal single view layout
   return (
-    <div className="h-screen overflow-hidden">
+    <div className="h-full overflow-hidden">
       <SessionArchive />
       <ChatLayout>
         {state === 'idle' && (

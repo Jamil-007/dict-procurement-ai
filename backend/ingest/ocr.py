@@ -1,13 +1,14 @@
-"""Vision OCR for scanned procurement documents.
+"""OCR for scanned procurement documents.
 
 Every real DICT transaction document in this project is a scanned image: the
 Purchase Request, TOR, Delivery Receipt, PAR, Inspection Report and Contract
 Agreement all return zero characters from PyMuPDF's text extractor. Only the
 legal corpus (RA 12009, the IRR, GAM, GPPB and COA issuances) has a text layer.
 
-This module renders scanned pages with PyMuPDF and reads them with Claude
-vision, producing markdown that preserves tables, signature blocks, stamps and
-handwriting -- the details the downstream compliance checks depend on.
+Scanned pages are rendered with PyMuPDF and read with Claude vision, which
+preserves tables, signature blocks, stamps and handwriting. When no
+ANTHROPIC_API_KEY is configured (or the key is rejected), pages fall back to
+local Tesseract OCR so ingestion still works offline.
 
 Results are cached per page, so re-ingesting a document costs nothing and a
 failure partway through a 62-page bidding document does not discard the pages
@@ -18,7 +19,9 @@ from __future__ import annotations
 
 import base64
 import concurrent.futures
+import io
 import re
+import shutil
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -29,8 +32,10 @@ import pymupdf
 from config import settings
 from ingest.cache import cache_key, file_sha256, read_cache, write_cache
 
-# Bump when OCR_PROMPT changes so cached pages are re-read rather than reused.
+# Bump when OCR_PROMPT changes so cached vision pages are re-read.
 PROMPT_VERSION = "v1"
+# Bump when Tesseract settings change so cached fallback pages are re-read.
+TESSERACT_VERSION = "tesseract-v1"
 
 OCR_PROMPT = """You are transcribing a page from a Philippine government procurement document.
 
@@ -87,7 +92,7 @@ class OcrPage:
 
     page_no: int  # 1-indexed, matching the physical page
     text: str
-    source: str  # "text_layer" | "vision" | "cache" | "skipped"
+    source: str  # "text_layer" | "vision" | "tesseract" | "cache" | "skipped"
 
 
 @dataclass
@@ -230,11 +235,7 @@ def select_pages(
 
 
 def render_page_png(page: "pymupdf.Page", dpi: int, max_edge: int) -> bytes:
-    """Render a page to PNG, capped at `max_edge` on the long side.
-
-    Anthropic scales images above ~1568px server-side anyway, so capping here
-    keeps the request smaller without losing any legibility.
-    """
+    """Render a page to PNG, capped at `max_edge` on the long side."""
     zoom = dpi / 72.0
     rect = page.rect
     long_edge = max(rect.width, rect.height) * zoom
@@ -244,17 +245,59 @@ def render_page_png(page: "pymupdf.Page", dpi: int, max_edge: int) -> bytes:
     return pixmap.tobytes("png")
 
 
+def _configure_tesseract() -> None:
+    """Point pytesseract at the Tesseract binary, failing with a clear message."""
+    import pytesseract
+
+    candidates = [
+        settings.TESSERACT_CMD,
+        shutil.which("tesseract"),
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        str(Path.home() / r"AppData\Local\Programs\Tesseract-OCR\tesseract.exe"),
+    ]
+    for candidate in candidates:
+        if candidate and Path(candidate).exists():
+            pytesseract.pytesseract.tesseract_cmd = candidate
+            return
+    raise RuntimeError(
+        "No OCR engine available: no usable vision API key and Tesseract is "
+        "not installed. Install it (e.g. `winget install UB-Mannheim.TesseractOCR`) "
+        "or set TESSERACT_CMD in .env to the full path of tesseract.exe."
+    )
+
+
+def ocr_page_tesseract(png_bytes: bytes) -> str:
+    """Transcribe a single rendered page with local Tesseract."""
+    import pytesseract
+    from PIL import Image
+
+    try:
+        with Image.open(io.BytesIO(png_bytes)) as image:
+            text = pytesseract.image_to_string(image, lang="eng")
+    except pytesseract.TesseractError as exc:
+        raise RuntimeError(f"Tesseract OCR failed: {exc}") from exc
+    return text.strip() or _BLANK_PAGE_MARKER
+
+
 def _anthropic_client():
-    """Build an Anthropic client, failing with a clear message if unconfigured."""
+    """Build an Anthropic client; caller has already checked the key exists."""
     import anthropic
 
-    api_key = settings.ANTHROPIC_API_KEY
-    if not api_key:
-        raise RuntimeError(
-            "ANTHROPIC_API_KEY is not set. Vision OCR is required because the "
-            "procurement documents are scanned images with no text layer."
-        )
-    return anthropic.Anthropic(api_key=api_key)
+    return anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+
+
+def _is_auth_error(exc: Exception) -> bool:
+    detail = str(exc).lower()
+    return (
+        "401" in detail
+        or "403" in detail
+        or "authentication" in detail
+        or "x-api-key" in detail
+        or "api key" in detail
+        or "api_key" in detail
+        or "permission" in detail
+    )
 
 
 def _strip_fences(text: str) -> str:
@@ -264,7 +307,7 @@ def _strip_fences(text: str) -> str:
     return match.group(1) if match else stripped
 
 
-def ocr_page_image(client, png_bytes: bytes, model: str) -> str:
+def ocr_page_vision(client, png_bytes: bytes, model: str) -> str:
     """Transcribe a single rendered page with Claude vision."""
     import anthropic
 
@@ -301,6 +344,23 @@ def ocr_page_image(client, png_bytes: bytes, model: str) -> str:
     return _strip_fences(text) or _BLANK_PAGE_MARKER
 
 
+def ocr_page_gemini(client, png_bytes: bytes, model: str) -> str:
+    """Transcribe a single rendered page with Gemini vision."""
+    from google.genai import errors, types
+
+    try:
+        response = client.models.generate_content(
+            model=model,
+            contents=[
+                types.Part.from_bytes(data=png_bytes, mime_type="image/png"),
+                OCR_PROMPT,
+            ],
+        )
+    except errors.APIError as exc:
+        raise RuntimeError(f"Vision OCR failed ({exc.code}): {exc.message}") from exc
+    return _strip_fences(response.text or "") or _BLANK_PAGE_MARKER
+
+
 def ocr_pdf(
     pdf_path: str | Path,
     dpi: Optional[int] = None,
@@ -309,23 +369,30 @@ def ocr_pdf(
     force: bool = False,
     progress: Optional[Callable[[str], None]] = None,
 ) -> OcrResult:
-    """Transcribe a PDF, using its text layer where it has one and vision elsewhere.
+    """Transcribe a PDF, using its text layer where it has one and OCR elsewhere.
+
+    Gemini vision is used when GOOGLE_API_KEY is configured, else Claude
+    vision via ANTHROPIC_API_KEY. With no usable key, pages fall back to
+    local Tesseract.
 
     Args:
         pdf_path: Path to the PDF.
         dpi: Render resolution. Defaults to OCR_DPI.
-        max_pages: Page budget for vision calls. Defaults to OCR_MAX_PAGES.
-        model: Vision model. Defaults to OCR_MODEL_NAME.
+        max_pages: Page budget for OCR. Defaults to OCR_MAX_PAGES.
+        model: Vision model override.
         force: Ignore cached pages and re-read them.
         progress: Optional callback for human-readable progress lines.
 
     Returns:
-        An OcrResult whose `.text` is the full markdown transcription.
+        An OcrResult whose `.text` is the full transcription.
     """
     path = Path(pdf_path)
     dpi = dpi or settings.OCR_DPI
     max_pages = max_pages or settings.OCR_MAX_PAGES
-    model = model or settings.OCR_MODEL_NAME
+    use_gemini = bool(settings.GOOGLE_API_KEY)
+    model = model or (
+        settings.GEMINI_MODEL_NAME if use_gemini else settings.OCR_MODEL_NAME
+    )
     emit = progress or (lambda _msg: None)
 
     probe = probe_text_layer(path)
@@ -354,7 +421,7 @@ def ocr_pdf(
 
     file_hash = file_sha256(path)
 
-    def page_cache_key(page_no: int) -> str:
+    def vision_key(page_no: int) -> str:
         return cache_key(
             file_hash,
             page=page_no,
@@ -364,11 +431,24 @@ def ocr_pdf(
             prompt=PROMPT_VERSION,
         )
 
-    # Resolve cache hits before opening the document or calling the API.
+    def tesseract_key(page_no: int) -> str:
+        return cache_key(
+            file_hash,
+            page=page_no,
+            dpi=dpi,
+            edge=settings.OCR_MAX_EDGE_PX,
+            engine=TESSERACT_VERSION,
+        )
+
+    # Resolve cache hits (from either engine) before rendering or calling out.
     transcribed: Dict[int, OcrPage] = {}
     pending: List[int] = []
     for page_no in to_ocr:
-        cached = None if force else read_cache(page_cache_key(page_no))
+        cached = None
+        if not force:
+            cached = read_cache(vision_key(page_no)) or read_cache(
+                tesseract_key(page_no)
+            )
         if cached and "text" in cached:
             transcribed[page_no] = OcrPage(page_no, cached["text"], "cache")
             result.cache_hits += 1
@@ -377,10 +457,9 @@ def ocr_pdf(
 
     if pending:
         emit(f"{path.name}: {result.cache_hits} cached, {len(pending)} to transcribe")
-        client = _anthropic_client()
 
         # Rendering is CPU-bound and PyMuPDF documents are not thread-safe, so
-        # pages are rendered serially up front and only the API calls fan out.
+        # pages are rendered serially up front and only the OCR calls fan out.
         rendered: Dict[int, bytes] = {}
         with pymupdf.open(path) as doc:
             for page_no in pending:
@@ -388,16 +467,56 @@ def ocr_pdf(
                     doc[page_no - 1], dpi, settings.OCR_MAX_EDGE_PX
                 )
 
-        def work(page_no: int) -> tuple[int, str]:
-            return page_no, ocr_page_image(client, rendered[page_no], model)
-
         workers = max(1, min(settings.OCR_MAX_CONCURRENCY, len(pending)))
-        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
-            for page_no, text in pool.map(work, pending):
-                transcribed[page_no] = OcrPage(page_no, text, "vision")
-                result.vision_calls += 1
-                write_cache(page_cache_key(page_no), {"text": text, "page": page_no})
-                emit(f"{path.name}: page {page_no} transcribed")
+        remaining = list(pending)
+
+        if use_gemini or settings.ANTHROPIC_API_KEY:
+            if use_gemini:
+                from google import genai
+
+                client = genai.Client(api_key=settings.GOOGLE_API_KEY)
+
+                def work(page_no: int) -> tuple[int, str]:
+                    return page_no, ocr_page_gemini(client, rendered[page_no], model)
+            else:
+                client = _anthropic_client()
+
+                def work(page_no: int) -> tuple[int, str]:
+                    return page_no, ocr_page_vision(client, rendered[page_no], model)
+
+            try:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+                    for page_no, text in pool.map(work, remaining):
+                        transcribed[page_no] = OcrPage(page_no, text, "vision")
+                        result.vision_calls += 1
+                        write_cache(vision_key(page_no), {"text": text, "page": page_no})
+                        emit(f"{path.name}: page {page_no} transcribed")
+                remaining = []
+            except RuntimeError as exc:
+                if not _is_auth_error(exc):
+                    raise
+                remaining = [p for p in remaining if p not in transcribed]
+                provider = "Gemini" if use_gemini else "Anthropic"
+                emit(
+                    f"{path.name}: {provider} rejected the API key, "
+                    f"falling back to Tesseract for {len(remaining)} page(s)"
+                )
+        else:
+            emit(f"{path.name}: no vision API key, using local Tesseract")
+
+        if remaining:
+            _configure_tesseract()
+
+            def work_local(page_no: int) -> tuple[int, str]:
+                return page_no, ocr_page_tesseract(rendered[page_no])
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+                for page_no, text in pool.map(work_local, remaining):
+                    transcribed[page_no] = OcrPage(page_no, text, "tesseract")
+                    write_cache(
+                        tesseract_key(page_no), {"text": text, "page": page_no}
+                    )
+                    emit(f"{path.name}: page {page_no} transcribed (tesseract)")
 
     # Reassemble in page order, keeping real text-layer pages in hybrid PDFs.
     pages: List[OcrPage] = []

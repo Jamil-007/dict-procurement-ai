@@ -108,6 +108,9 @@ class APIClient {
 
   connectToStream(threadId: string, callbacks: StreamCallbacks): EventSource {
     const eventSource = new EventSource(`${this.baseUrl}/stream/${threadId}`);
+    // Set once the stream has finished (complete or error) so the browser's
+    // reconnect attempt after the server closes the stream isn't reported.
+    let settled = false;
 
     eventSource.addEventListener('thinking_log', (event) => {
       try {
@@ -138,6 +141,7 @@ class APIClient {
           callbacks.onComplete();
         }
         // Close the connection when complete
+        settled = true;
         eventSource.close();
       } catch (error) {
         console.error('Failed to parse complete event:', error);
@@ -155,29 +159,36 @@ class APIClient {
       }
     });
 
+    // Server-sent "error" events (they carry a data payload). Connection-level
+    // errors have no data and are handled by onerror below.
     eventSource.addEventListener('error', (event: Event) => {
       const messageEvent = event as MessageEvent;
+      if (!messageEvent.data) {
+        return;
+      }
+      settled = true;
+      let message = 'Stream error occurred';
       try {
-        if (messageEvent.data) {
-          const errorData = JSON.parse(messageEvent.data);
-          if (callbacks.onError) {
-            callbacks.onError(errorData.error || 'Stream error occurred');
-          }
-        } else {
-          if (callbacks.onError) {
-            callbacks.onError('Connection error occurred');
-          }
-        }
+        const errorData = JSON.parse(messageEvent.data);
+        message = errorData.error || message;
       } catch {
-        if (callbacks.onError) {
-          callbacks.onError('Connection error occurred');
-        }
+        // Keep the generic message
+      }
+      if (callbacks.onError) {
+        callbacks.onError(message);
       }
       eventSource.close();
     });
 
-    eventSource.onerror = (event) => {
-      console.error('EventSource error:', event);
+    eventSource.onerror = () => {
+      // Fires whenever the connection drops, including the browser's reconnect
+      // attempt after the server closes a finished stream. Only report it if
+      // the stream never settled.
+      if (settled || eventSource.readyState === EventSource.CLOSED) {
+        return;
+      }
+      settled = true;
+      console.warn('EventSource connection lost');
       if (callbacks.onError) {
         callbacks.onError('Connection to server lost');
       }

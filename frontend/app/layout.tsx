@@ -3,7 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
-import { BetaBadge } from "@/components/beta-badge";
+import { NavTabs } from "@/components/nav-tabs";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -37,8 +37,10 @@ export default function RootLayout({
           enableSystem={false}
           disableTransitionOnChange
         >
-          <BetaBadge />
-          {children}
+          <div className="flex h-screen flex-col">
+            <NavTabs />
+            <div className="min-h-0 flex-1">{children}</div>
+          </div>
           <Toaster />
         </ThemeProvider>
       </body>

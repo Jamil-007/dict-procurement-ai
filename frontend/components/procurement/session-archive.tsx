@@ -96,7 +96,7 @@ export function SessionArchive() {
         variant="outline"
         size="sm"
         onClick={() => setIsOpen(true)}
-        className="fixed left-4 top-4 z-30 rounded-full border-gray-300 bg-white text-black hover:bg-gray-100"
+        className="fixed right-4 top-2.5 z-30 rounded-full border-gray-300 bg-white text-black hover:bg-gray-100"
       >
         <History className="mr-2 h-4 w-4" />
         Past Reviews

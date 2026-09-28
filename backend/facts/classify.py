@@ -126,25 +126,11 @@ def classify_by_keywords(text: str) -> Optional[Tuple[str, float, str]]:
 
 
 def _classify_with_model(text: str, model: Optional[str] = None) -> Dict:
-    import anthropic
+    from facts.llm import generate_json
 
-    if not settings.ANTHROPIC_API_KEY:
-        raise RuntimeError("ANTHROPIC_API_KEY is not set")
-
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
     type_list = "\n".join(f"- {key}: {label}" for key, label in DOC_TYPE_LABELS.items())
     prompt = _CLASSIFY_PROMPT.format(type_list=type_list, excerpt=first_pages(text))
-
-    response = client.messages.create(
-        model=model or settings.ANTHROPIC_MODEL_NAME,
-        max_tokens=1000,
-        messages=[{"role": "user", "content": prompt}],
-        output_config={"format": {"type": "json_schema", "schema": _CLASSIFY_SCHEMA}},
-    )
-    body = "".join(
-        block.text for block in response.content if getattr(block, "type", "") == "text"
-    )
-    return json.loads(body)
+    return generate_json(prompt, _CLASSIFY_SCHEMA, model=model, max_tokens=1000)
 
 
 def classify_document(

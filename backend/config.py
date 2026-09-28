@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     # Anthropic Configuration
     ANTHROPIC_API_KEY: str = ""
 
+    # Gemini via Google AI Studio (preferred when set)
+    GOOGLE_API_KEY: str = ""
+    GEMINI_MODEL_NAME: str = "gemini-2.5-flash"
+
     # Tavily Configuration
     TAVILY_API_KEY: str = ""
 
@@ -41,11 +45,12 @@ class Settings(BaseSettings):
     # Every real DICT transaction document is a scanned image with no text layer,
     # so pages are rendered and read by Claude vision. Results are cached on disk.
     OCR_MODEL_NAME: str = "claude-opus-5"
-    OCR_DPI: int = 150
-    OCR_MAX_EDGE_PX: int = 1568  # Anthropic's recommended long-edge cap for vision
+    OCR_DPI: int = 300
+    OCR_MAX_EDGE_PX: int = 2200  # Shared render cap; Anthropic downscales >1568 anyway
     OCR_MAX_PAGES: int = 40  # Page budget per document; longer docs are sampled
     OCR_MAX_CONCURRENCY: int = 4
     OCR_CACHE_DIR: str = "./cache/ocr"
+    TESSERACT_CMD: str = ""  # Optional full path to tesseract.exe if not on PATH
     # A page with fewer than this many extractable characters is treated as scanned.
     OCR_MIN_CHARS_PER_PAGE: int = 100
 

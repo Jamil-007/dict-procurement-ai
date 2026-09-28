@@ -277,12 +277,8 @@ def _call_extractor(
     filename: str,
     model: Optional[str],
 ) -> Dict[str, Any]:
-    import anthropic
+    from facts.llm import generate_json
 
-    if not settings.ANTHROPIC_API_KEY:
-        raise RuntimeError("ANTHROPIC_API_KEY is not set")
-
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
     profile = FIELD_PROFILES.get(doc_type, _DEFAULT_PROFILE)
     prompt = _EXTRACT_PROMPT.format(
         doc_label=DOC_TYPE_LABELS.get(doc_type, doc_type),
@@ -295,21 +291,10 @@ def _call_extractor(
     last_error: Optional[Exception] = None
     for attempt in range(2):
         try:
-            response = client.messages.create(
-                model=model or settings.ANTHROPIC_MODEL_NAME,
-                max_tokens=16000,
-                messages=[{"role": "user", "content": prompt}],
-                output_config={
-                    "format": {"type": "json_schema", "schema": _extraction_schema()}
-                },
+            return generate_json(
+                prompt, _extraction_schema(), model=model, max_tokens=16000
             )
-            body = "".join(
-                block.text
-                for block in response.content
-                if getattr(block, "type", "") == "text"
-            )
-            return json.loads(body)
-        except (json.JSONDecodeError, anthropic.APIStatusError) as exc:
+        except json.JSONDecodeError as exc:
             last_error = exc
             if attempt == 1:
                 raise
@@ -371,11 +356,14 @@ def extract_facts(
     try:
         payload = _call_extractor(document.text, doc_type, document.filename, model)
     except Exception as exc:  # noqa: BLE001 - one bad document must not kill a batch
+        detail = str(exc)
+        if "authentication" in detail.lower() or "401" in detail:
+            detail = "the AI service rejected the API key (check GOOGLE_API_KEY / ANTHROPIC_API_KEY and restart the server)"
         return DocumentFacts(
             doc_type=doc_type,
             doc_type_confidence=confidence,
             source=source,
-            error=f"Extraction failed: {exc}",
+            error=f"Extraction failed: {detail}",
         )
 
     facts = facts_from_payload(payload, doc_type, confidence, source)

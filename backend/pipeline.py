@@ -87,7 +87,7 @@ def _findings_to_state(findings: List[Finding]) -> List[Dict[str, Any]]:
 def ingest_node(state: AgentState) -> Dict[str, Any]:
     """Load every uploaded file to markdown, one record per file.
 
-    Scanned pages go through vision OCR inside `load_document`; the cache
+    Scanned pages go through Tesseract OCR inside `load_document`; the cache
     means a re-run of the same file costs nothing. `parsed_text` is still
     produced because the advisory agents and the chat endpoint read it.
     """
@@ -119,7 +119,7 @@ def ingest_node(state: AgentState) -> Dict[str, Any]:
             message = f"{name}: no readable text found"
         elif document.source == "vision":
             message = (
-                f"{name}: scanned, {document.pages_read} page(s) read by vision OCR"
+                f"{name}: scanned, {document.pages_read} page(s) read by OCR"
             )
         else:
             message = f"{name}: {document.pages_read or 1} page(s) read"
@@ -222,14 +222,19 @@ def extract_node(state: AgentState) -> Dict[str, Any]:
             continue
 
         documents.append(facts.model_dump(mode="json"))
-        logs.append(
-            create_thinking_log(
-                "Extractor",
-                f"{name}: {len(facts.items)} line item(s), "
-                f"{len(facts.signatories)} signatory block(s)",
-                "complete",
+        if facts.error:
+            logs.append(
+                create_thinking_log("Extractor", f"{name}: {facts.error}", "complete")
             )
-        )
+        else:
+            logs.append(
+                create_thinking_log(
+                    "Extractor",
+                    f"{name}: {len(facts.items)} line item(s), "
+                    f"{len(facts.signatories)} signatory block(s)",
+                    "complete",
+                )
+            )
 
     logs.append(
         create_thinking_log(
@@ -489,8 +494,34 @@ def compile_node(state: AgentState) -> Dict[str, Any]:
 
     unverified = f", {len(skipped)} check(s) not verified" if skipped else ""
 
+    # Per-assigned-feature counts (T1..T6), so the UI can show what each
+    # requirement found without re-deriving it from the finding list.
+    task_stats: Dict[str, Dict[str, int]] = {}
+    for f in findings:
+        if not f.task:
+            continue
+        stats = task_stats.setdefault(
+            f.task,
+            {"total": 0, "failed": 0, "passed": 0, "skipped": 0, "high": 0},
+        )
+        stats["total"] += 1
+        if f.skipped_reason is not None:
+            stats["skipped"] += 1
+        elif f.passed:
+            stats["passed"] += 1
+        else:
+            stats["failed"] += 1
+            if f.severity == "high":
+                stats["high"] += 1
+
+    readable = [d for d in documents if not d.error]
+    extraction_errors = [d.error for d in documents if d.error]
+
     if not documents:
         status, title = "FAIL", "No document could be read"
+    elif not readable:
+        status = "FAIL"
+        title = f"Documents could not be processed — {extraction_errors[0]}"
     elif blocking:
         status = "FAIL"
         title = (
@@ -523,10 +554,12 @@ def compile_node(state: AgentState) -> Dict[str, Any]:
                 "total_pages": d.source.total_pages,
                 "skipped_pages": d.source.skipped_pages,
                 "ingest_source": d.source.ingest_source,
+                "error": d.error,
             }
             for d in documents
         ],
         "checkers_run": state.get("routed_checkers") or [],
+        "tasks": task_stats,
     }
 
     # The six advisory agents, when the router fired them, contribute

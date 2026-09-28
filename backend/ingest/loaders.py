@@ -122,7 +122,7 @@ def _load_pdf(
     sources = {page.source for page in result.pages}
     if sources <= {"text_layer"}:
         source = "text_layer"
-    elif sources <= {"vision", "cache"}:
+    elif sources <= {"vision", "tesseract", "cache"}:
         source = "vision"
     else:
         source = "mixed"
@@ -148,7 +148,7 @@ def load_document(
     """Load any supported document as markdown.
 
     PDFs with a real text layer are read directly; scanned PDFs go through
-    Claude vision. Never raises for an unreadable file -- the failure is
+    Tesseract OCR. Never raises for an unreadable file -- the failure is
     recorded on `LoadedDocument.error` so one bad upload cannot abort a batch.
     """
     path = Path(file_path)

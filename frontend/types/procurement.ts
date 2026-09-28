@@ -100,6 +100,15 @@ export interface VerdictSummary {
   low: number;
 }
 
+/** Per-requirement (T1..T6) check counts, computed by the report compiler. */
+export interface TaskStats {
+  total: number;
+  failed: number;
+  passed: number;
+  skipped: number;
+  high: number;
+}
+
 /** What the router detected about one uploaded file. */
 export interface ReviewedDocument {
   file: string;
@@ -110,6 +119,7 @@ export interface ReviewedDocument {
   total_pages?: number;
   skipped_pages?: number[];
   ingest_source?: string;
+  error?: string | null;
 }
 
 export interface VerdictData {
@@ -120,6 +130,8 @@ export interface VerdictData {
   summary?: VerdictSummary;
   documents?: ReviewedDocument[];
   checkers_run?: string[];
+  /** Keyed by task id ("T1".."T6"). */
+  tasks?: Record<string, TaskStats>;
 }
 
 export interface SessionSummary {

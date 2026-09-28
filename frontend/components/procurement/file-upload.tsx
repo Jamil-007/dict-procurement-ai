@@ -7,9 +7,10 @@ import { cn } from '@/lib/utils';
 interface FileUploadProps {
   onFilesSelect: (files: File[]) => void;
   disabled?: boolean;
+  className?: string;
 }
 
-export function FileUpload({ onFilesSelect, disabled }: FileUploadProps) {
+export function FileUpload({ onFilesSelect, disabled, className }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -67,7 +68,8 @@ export function FileUpload({ onFilesSelect, disabled }: FileUploadProps) {
         isDragging
           ? 'border-brand bg-sky scale-[1.01]'
           : 'border-line bg-sky/40 hover:border-brand/40 hover:bg-sky',
-        disabled && 'cursor-not-allowed opacity-50'
+        disabled && 'cursor-not-allowed opacity-50',
+        className
       )}
     >
       <input

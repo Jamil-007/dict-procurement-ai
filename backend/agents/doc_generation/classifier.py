@@ -56,6 +56,45 @@ ALLOWED_DOC_TYPES = {
     "Other",
 }
 
+# Maps the procurement record's document vocabulary (domain.DOC_TYPES, set at
+# upload by utils/doc_classifier.py) onto this module's coarser vocabulary
+# (ALLOWED_DOC_TYPES), so a procurement's already-classified documents can
+# feed straight into recommendations() without re-classifying their text.
+DOMAIN_TO_ALLOWED: dict[str, str] = {
+    "Annual Procurement Plan (APP)": "Other",
+    "Project Procurement Management Plan (PPMP)": "Other",
+    "Market Study": "Market Study",
+    "Market Scoping Checklist": "Market Study",
+    "Supplier Quotation": "Cost Breakdown",
+    "Purchase Request": "Other",
+    "Certificate of Availability of Funds": "Other",
+    "Terms of Reference (TOR)": "Terms of Reference",
+    "Technical Specifications": "Terms of Reference",
+    "Detailed Cost Breakdown": "Cost Breakdown",
+    "Bidding Documents": "Other",
+    "Invitation to Bid": "Other",
+    "Abstract of Bids": "Other",
+    "BAC Resolution": "Other",
+    "Minutes of BAC Meeting": "Other",
+    "Post-Qualification Report": "Other",
+    "Notice of Award": "Other",
+    "Contract": "Contract",
+    "Other": "Other",
+}
+
+# Weak signal from which AI-Review dimension raised a finding: a dimension
+# that reviewed a given kind of document at all is some evidence that kind of
+# document is present and relevant, even when the finding's source filename
+# does not line up with anything already on the procurement record (e.g. a
+# cross-document comparison finding).
+DIMENSION_DOC_HINTS: dict[str, list[str]] = {
+    "compliance": ["Terms of Reference"],
+    "requirements_risk": ["Terms of Reference"],
+    "procurement_market": ["Market Study", "Cost Breakdown"],
+    "document_consistency": [],
+    "document_quality": [],
+}
+
 
 def _constrain(types: list) -> list[str]:
     """Keep only allowed labels, preserving order and dropping duplicates/unknowns."""
@@ -185,3 +224,75 @@ def recommendations(doc_types: list[str]) -> dict[str, dict]:
             }
 
     return result
+
+
+def doc_types_from_procurement_documents(domain_doc_types: list[str]) -> list[str]:
+    """
+    Map a procurement's already-classified ``ProcurementDocument.doc_type``
+    values (domain.DOC_TYPES vocabulary) onto ALLOWED_DOC_TYPES.
+
+    Order-preserving, de-duplicated.
+    """
+    seen: list[str] = []
+    for dt in domain_doc_types:
+        mapped = DOMAIN_TO_ALLOWED.get(dt, "Other")
+        if mapped not in seen:
+            seen.append(mapped)
+    return seen
+
+
+def doc_types_from_findings(findings: list, name_to_allowed: dict[str, str]) -> list[str]:
+    """
+    AI-Review signal: for each stored finding, resolve its ``source.doc``
+    filename against the procurement's own documents (``name_to_allowed`` maps
+    a document name to its ALLOWED_DOC_TYPES-mapped type) and, failing that,
+    fall back to a weak hint from which dimension raised it.
+
+    Order-preserving, de-duplicated.
+    """
+    seen: list[str] = []
+
+    def _add(t: str) -> None:
+        if t and t not in seen:
+            seen.append(t)
+
+    for finding in findings:
+        source = getattr(finding, "source", None)
+        doc_name = getattr(source, "doc", "") if source is not None else ""
+        matched = name_to_allowed.get(doc_name)
+        if matched:
+            _add(matched)
+            continue
+        dimension = getattr(finding, "dimension", "")
+        for hint in DIMENSION_DOC_HINTS.get(dimension, []):
+            _add(hint)
+
+    return seen
+
+
+def recommend_for_ref(ref: str) -> dict:
+    """
+    Recommend forms for a procurement record, combining:
+      (a) the procurement's already-classified ``documents[*].doc_type``, and
+      (b) AI-Review signals from ``store.list_findings(ref)``.
+
+    Returns:
+        {"doc_types": [...], "forms": {form_key: {available, recommended, reason}}}
+    """
+    from store import get_store  # local import: avoids a store<->classifier cycle at import time
+
+    store = get_store()
+    procurement = store.get_procurement(ref)
+    if not procurement:
+        return {"doc_types": [], "forms": recommendations([])}
+
+    documents = procurement.documents or []
+    doc_types = doc_types_from_procurement_documents([d.doc_type for d in documents])
+    name_to_allowed = {d.name: DOMAIN_TO_ALLOWED.get(d.doc_type, "Other") for d in documents}
+
+    findings = store.list_findings(ref)
+    for t in doc_types_from_findings(findings, name_to_allowed):
+        if t not in doc_types:
+            doc_types.append(t)
+
+    return {"doc_types": doc_types, "forms": recommendations(doc_types)}

@@ -23,6 +23,7 @@ from models import (
     FormDetectRequest,
     FormExtractRequest,
     FormGenerateRequest,
+    FormGenerateForRefRequest,
     FeedbackRequest,
     FeedbackResponse,
 )
@@ -729,6 +730,102 @@ async def generate_forms(request: FormGenerateRequest):
         )
     else:
         # Multiple files: create zip
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            for filename, file_bytes in files:
+                zip_file.writestr(filename, file_bytes)
+
+        zip_buffer.seek(0)
+
+        return StreamingResponse(
+            zip_buffer,
+            media_type="application/zip",
+            headers={"Content-Disposition": _content_disposition("procurement_forms.zip")},
+        )
+
+
+# --- Ref-based forms endpoints (procurement record's own documents) ---
+#
+# Additive to the thread-based /forms/* endpoints above, which remain for the
+# standalone /forms page (a fresh-upload session with no procurement record).
+# These work from documents already attached to a procurement plus AI-Review
+# signals, so the record's Forms tab does not need a separate upload.
+
+
+def _require_procurement(ref: str):
+    from store import get_store
+
+    procurement = get_store().get_procurement(ref)
+    if not procurement:
+        raise HTTPException(status_code=404, detail=f"Unknown procurement: {ref}")
+    return procurement
+
+
+@app.post("/procurements/{ref}/forms/detect")
+async def detect_forms_for_ref(ref: str):
+    """
+    Recommend forms for a procurement record from its own documents' already-
+    classified doc_types plus AI-Review findings, and report which of each
+    form's required source documents are present versus missing.
+
+    Returns:
+        {doc_types: [...], forms: {key: {available, recommended, reason,
+        source_doc_types, present, missing}}}
+    """
+    _require_procurement(ref)
+    return forms_service.detect_for_ref(ref)
+
+
+@app.post("/procurements/{ref}/forms/generate")
+async def generate_forms_for_ref(ref: str, request: FormGenerateForRefRequest):
+    """
+    Generate form files from a procurement record's own documents.
+
+    Returns:
+        Single file stream or zip of multiple files, same as /forms/generate.
+    """
+    import io
+    import zipfile
+
+    _require_procurement(ref)
+
+    for key in request.form_keys:
+        if key not in FORM_REGISTRY:
+            raise HTTPException(status_code=400, detail=f"Unknown form key: {key}")
+
+    try:
+        files = forms_service.generate_for_ref(
+            ref,
+            request.form_keys,
+            request.overrides or {},
+        )
+    except FormGenerationError as exc:
+        logger.error("Form generation failed for %s: %s", ref, exc)
+        raise HTTPException(status_code=500, detail="Failed to generate one or more forms.")
+    except Exception as exc:  # noqa: BLE001 - never leak a stack trace to the client
+        logger.exception("Unexpected error during form generation for %s: %s", ref, exc)
+        raise HTTPException(status_code=500, detail="Failed to generate one or more forms.")
+
+    if not files:
+        raise HTTPException(status_code=400, detail="No forms were generated")
+
+    if len(files) == 1:
+        filename, file_bytes = files[0]
+        spec = FORM_REGISTRY[request.form_keys[0]]
+
+        if spec.ext == ".xlsx":
+            media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        elif spec.ext == ".docx":
+            media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        else:
+            media_type = "application/octet-stream"
+
+        return StreamingResponse(
+            io.BytesIO(file_bytes),
+            media_type=media_type,
+            headers={"Content-Disposition": _content_disposition(filename)},
+        )
+    else:
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
             for filename, file_bytes in files:

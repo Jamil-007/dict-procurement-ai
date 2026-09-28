@@ -6,8 +6,13 @@ from agents.doc_generation.text_source import (
     get_source_text,
     has_source_documents,
     get_source_documents,
+    get_ref_source_text,
 )
-from agents.doc_generation.classifier import classify_documents, recommendations
+from agents.doc_generation.classifier import (
+    classify_documents,
+    recommendations,
+    recommend_for_ref,
+)
 from agents.doc_generation.extractor import extract_fields, extract_header, HEADER_KEYS
 from agents.doc_generation.registry import FORM_REGISTRY, GROUP_B_DISCLAIMER
 from utils.storage import save_generated_file
@@ -50,6 +55,41 @@ def detect(thread_id: str) -> dict:
         "doc_types": all_types,
         "forms": recommendations(all_types),
     }
+
+
+def detect_for_ref(ref: str) -> dict:
+    """
+    Recommend forms for a procurement record's own documents, combining the
+    documents' already-classified doc_types with AI-Review signals, and report
+    which of each recommended form's required source documents are already on
+    the procurement versus still missing.
+
+    Unlike ``detect()`` this does not re-classify each file's text — the
+    procurement's documents are classified at upload (routers/procurements.py)
+    and refined by AI Review, so that existing signal is reused instead.
+
+    Returns:
+        {
+          doc_types: [...],
+          forms: {
+            key: {available, recommended, reason, source_doc_types, present, missing}
+          },
+        }
+    """
+    rec = recommend_for_ref(ref)
+    doc_types = rec["doc_types"]
+
+    forms = {}
+    for key, info in rec["forms"].items():
+        required = FORM_REGISTRY[key].source_doc_types
+        forms[key] = {
+            **info,
+            "source_doc_types": required,
+            "present": [t for t in required if t in doc_types],
+            "missing": [t for t in required if t not in doc_types],
+        }
+
+    return {"doc_types": doc_types, "forms": forms}
 
 
 def extract_all(thread_id: str, form_keys: list[str]) -> dict:
@@ -120,19 +160,8 @@ def _build_group_a_model(spec, text: str, form_overrides: dict):
             return base
 
 
-def generate(thread_id: str, form_keys: list[str], overrides: dict) -> list[tuple[str, bytes]]:
-    """
-    Generate form files.
-
-    Args:
-        thread_id: Thread identifier
-        form_keys: List of form keys to generate
-        overrides: Dict of {form_key: {field: value}} for manual edits
-
-    Returns:
-        List of (filename, bytes) tuples
-    """
-    text = get_source_text(thread_id)
+def _generate_from_text(text: str, form_keys: list[str], overrides: dict) -> list[tuple[str, bytes]]:
+    """Shared generation body for both the thread-based and ref-based sources."""
     results = []
     _header_cache = None
 
@@ -166,10 +195,47 @@ def generate(thread_id: str, form_keys: list[str], overrides: dict) -> list[tupl
             logger.exception("Failed to generate form %s: %s", key, exc)
             raise FormGenerationError(f"Failed to generate form: {key}") from exc
 
-        # Save to disk
         filename = f"{spec.name}{spec.ext}"
-        save_generated_file(thread_id, filename, file_bytes)
-
         results.append((filename, file_bytes))
 
     return results
+
+
+def generate(thread_id: str, form_keys: list[str], overrides: dict) -> list[tuple[str, bytes]]:
+    """
+    Generate form files from a thread's fresh-upload session, saving each to
+    disk under that thread (so it can be re-downloaded via list_generated_files).
+
+    Args:
+        thread_id: Thread identifier
+        form_keys: List of form keys to generate
+        overrides: Dict of {form_key: {field: value}} for manual edits
+
+    Returns:
+        List of (filename, bytes) tuples
+    """
+    text = get_source_text(thread_id)
+    results = _generate_from_text(text, form_keys, overrides)
+    for filename, file_bytes in results:
+        save_generated_file(thread_id, filename, file_bytes)
+    return results
+
+
+def generate_for_ref(ref: str, form_keys: list[str], overrides: dict) -> list[tuple[str, bytes]]:
+    """
+    Generate form files from a procurement record's own documents (Forms tab).
+
+    Unlike ``generate()``, results are not saved to a thread's disk area — the
+    procurement's documents (and therefore the generated forms, regenerated on
+    demand) are already durable via store/files.py.
+
+    Args:
+        ref: Procurement ref
+        form_keys: List of form keys to generate
+        overrides: Dict of {form_key: {field: value}} for manual edits
+
+    Returns:
+        List of (filename, bytes) tuples
+    """
+    text = get_ref_source_text(ref)
+    return _generate_from_text(text, form_keys, overrides)

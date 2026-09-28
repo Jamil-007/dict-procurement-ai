@@ -91,6 +91,13 @@ class FormGenerateRequest(BaseModel):
     overrides: Optional[dict] = None
 
 
+class FormGenerateForRefRequest(BaseModel):
+    """Request to generate form files from a procurement record's own documents."""
+
+    form_keys: List[str]
+    overrides: Optional[dict] = None
+
+
 class FeedbackItemRequest(BaseModel):
     """One feedback item posted from the frontend."""
 

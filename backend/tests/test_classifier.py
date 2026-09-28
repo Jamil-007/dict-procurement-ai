@@ -1,6 +1,16 @@
 import pytest
 
-from agents.doc_generation.classifier import classify_documents, recommendations, DOC_FORM_MAP
+from agents.doc_generation.classifier import (
+    classify_documents,
+    recommendations,
+    DOC_FORM_MAP,
+    DOMAIN_TO_ALLOWED,
+    doc_types_from_procurement_documents,
+    doc_types_from_findings,
+    recommend_for_ref,
+)
+from domain import Procurement, ProcurementDocument
+from review.schema import ReviewFinding, Source, StoredFinding
 
 ALLOWED = {"Terms of Reference", "Market Study", "Cost Breakdown", "Contract", "Other"}
 
@@ -182,3 +192,118 @@ def test_real_llm_sanity_tor():
     assert isinstance(result, list)
     assert result
     assert set(result).issubset(ALLOWED)
+
+
+# ---------------------------------------------------------------------------
+# doc_types_from_procurement_documents / doc_types_from_findings / recommend_for_ref
+# ---------------------------------------------------------------------------
+
+REF = "PROC-FORMS-002"
+
+
+def make_finding(**overrides) -> ReviewFinding:
+    defaults = dict(
+        id="F1",
+        dimension="compliance",
+        severity="medium",
+        title="x",
+        analysis="x",
+        source=Source(doc="TOR.pdf"),
+    )
+    defaults.update(overrides)
+    return ReviewFinding(**defaults)
+
+
+def test_domain_to_allowed_covers_every_domain_doc_type():
+    from domain import DOC_TYPES
+
+    for dt in DOC_TYPES:
+        assert dt in DOMAIN_TO_ALLOWED
+        assert DOMAIN_TO_ALLOWED[dt] in ALLOWED
+
+
+def test_doc_types_from_procurement_documents_maps_and_dedupes():
+    result = doc_types_from_procurement_documents(
+        ["Terms of Reference (TOR)", "Technical Specifications", "Detailed Cost Breakdown"]
+    )
+    assert result == ["Terms of Reference", "Cost Breakdown"]
+
+
+def test_doc_types_from_procurement_documents_unknown_is_other():
+    assert doc_types_from_procurement_documents(["Some Unlisted Type"]) == ["Other"]
+
+
+def test_doc_types_from_findings_matches_by_source_doc_name():
+    findings = [make_finding(source=Source(doc="Market.pdf"))]
+    name_to_allowed = {"Market.pdf": "Market Study"}
+    assert doc_types_from_findings(findings, name_to_allowed) == ["Market Study"]
+
+
+def test_doc_types_from_findings_falls_back_to_dimension_hint():
+    # source.doc does not match anything on the procurement record.
+    findings = [make_finding(dimension="procurement_market", source=Source(doc="unknown.pdf"))]
+    result = doc_types_from_findings(findings, name_to_allowed={})
+    assert set(result) == {"Market Study", "Cost Breakdown"}
+
+
+def test_doc_types_from_findings_dedupes():
+    findings = [
+        make_finding(source=Source(doc="TOR.pdf")),
+        make_finding(source=Source(doc="TOR.pdf")),
+    ]
+    name_to_allowed = {"TOR.pdf": "Terms of Reference"}
+    assert doc_types_from_findings(findings, name_to_allowed) == ["Terms of Reference"]
+
+
+class FakeStore:
+    def __init__(self, procurement, findings=None):
+        self._procurement = procurement
+        self._findings = findings or []
+
+    def get_procurement(self, ref):
+        return self._procurement if ref == REF else None
+
+    def list_findings(self, ref):
+        return self._findings
+
+
+def test_recommend_for_ref_unknown_procurement_is_empty(monkeypatch):
+    import store as store_module
+
+    monkeypatch.setattr(store_module, "get_store", lambda: FakeStore(None))
+    result = recommend_for_ref("does-not-exist")
+    assert result == {"doc_types": [], "forms": recommendations([])}
+
+
+def test_recommend_for_ref_combines_documents_and_findings(monkeypatch):
+    import store as store_module
+
+    procurement = Procurement(
+        ref=REF,
+        title="Supply of Rack Servers",
+        documents=[
+            ProcurementDocument(id="d1", name="TOR.pdf", doc_type="Terms of Reference (TOR)")
+        ],
+    )
+    # AI Review flagged a second document (Market Study) not otherwise on record
+    # under that exact filename — the procurement_market dimension hint should
+    # still surface "Market Study" as a signal.
+    findings = [
+        StoredFinding(
+            id="F1",
+            procurement_ref=REF,
+            dimension="procurement_market",
+            severity="medium",
+            title="x",
+            analysis="x",
+            source=Source(doc="Market Study.pdf"),
+        )
+    ]
+    monkeypatch.setattr(store_module, "get_store", lambda: FakeStore(procurement, findings))
+
+    result = recommend_for_ref(REF)
+
+    assert result["doc_types"][0] == "Terms of Reference"
+    assert "Market Study" in result["doc_types"]
+    assert result["forms"]["ppmp"]["recommended"] is True
+    assert result["forms"]["market"]["recommended"] is True

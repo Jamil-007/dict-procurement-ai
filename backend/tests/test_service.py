@@ -117,6 +117,72 @@ def test_detect_empty_session(monkeypatch):
     assert "forms" in out
 
 
+def test_detect_for_ref_reports_present_and_missing_source_docs(monkeypatch):
+    # ppmp needs Terms of Reference or Cost Breakdown; only TOR is on record.
+    monkeypatch.setattr(
+        "agents.doc_generation.service.recommend_for_ref",
+        lambda ref: {
+            "doc_types": ["Terms of Reference"],
+            "forms": service.recommendations(["Terms of Reference"]),
+        },
+    )
+
+    out = service.detect_for_ref("PROC-1")
+
+    assert out["doc_types"] == ["Terms of Reference"]
+    ppmp = out["forms"]["ppmp"]
+    assert ppmp["recommended"] is True
+    assert ppmp["source_doc_types"] == ["Terms of Reference", "Cost Breakdown"]
+    assert ppmp["present"] == ["Terms of Reference"]
+    assert ppmp["missing"] == ["Cost Breakdown"]
+
+    # Group B forms have no source_doc_types, so nothing is ever missing.
+    bsd = out["forms"]["bsd"]
+    assert bsd["source_doc_types"] == []
+    assert bsd["present"] == []
+    assert bsd["missing"] == []
+
+
+def test_detect_for_ref_no_documents_everything_missing(monkeypatch):
+    monkeypatch.setattr(
+        "agents.doc_generation.service.recommend_for_ref",
+        lambda ref: {"doc_types": [], "forms": service.recommendations([])},
+    )
+
+    out = service.detect_for_ref("PROC-empty")
+
+    assert out["doc_types"] == []
+    assert out["forms"]["ppmp"]["present"] == []
+    assert out["forms"]["ppmp"]["missing"] == ["Terms of Reference", "Cost Breakdown"]
+
+
+def test_generate_for_ref_uses_ref_source_text(monkeypatch, tmp_path):
+    from config import settings
+
+    monkeypatch.setattr(settings, "UPLOAD_DIR", str(tmp_path))
+    monkeypatch.setattr("agents.doc_generation.service.get_ref_source_text", lambda ref: "")
+
+    out = service.generate_for_ref("PROC-1", ["bsd"], overrides={})
+
+    assert len(out) == 1
+    filename, data = out[0]
+    assert filename.endswith(".docx")
+    assert data[:2] == b"PK"
+
+
+def test_generate_for_ref_does_not_touch_thread_storage(monkeypatch):
+    """Ref-based generation must not require/validate a thread_id at all."""
+    monkeypatch.setattr("agents.doc_generation.service.get_ref_source_text", lambda ref: "")
+
+    def boom(*a, **k):
+        raise AssertionError("save_generated_file (thread storage) must not be called")
+
+    monkeypatch.setattr("agents.doc_generation.service.save_generated_file", boom)
+
+    out = service.generate_for_ref("PROC-1", ["oss"], overrides={})
+    assert len(out) == 1 and out[0][1][:2] == b"PK"
+
+
 def test_detect_blank_text_file_has_no_types(monkeypatch):
     docs = [{"filename": "blank.pdf", "text": "   "}]
     monkeypatch.setattr("agents.doc_generation.service.get_source_documents", lambda tid: docs)

@@ -126,6 +126,11 @@ export function FindingCard({
   const [comment, setComment] = useState("");
   const [rejecting, setRejecting] = useState(false);
   const [busy, setBusy] = useState(false);
+  // The PATCH endpoint has no way to reset a decision back to null, so
+  // "Change decision" is a purely local UI toggle: it re-reveals the
+  // Accept/Reject controls without touching the stored decision until the
+  // user actually picks one again.
+  const [changingDecision, setChangingDecision] = useState(false);
 
   const decision = finding.decision ? DECISION_CHIP[finding.decision] : null;
 
@@ -151,9 +156,15 @@ export function FindingCard({
     });
     if (!ok) return;
     setRejecting(false);
+    setChangingDecision(false);
     toast.success("Analysis rejected", {
       description: "It is hidden from the review and left out of the report.",
     });
+  }
+
+  async function decide(decision: "accepted") {
+    const ok = await apply({ decision });
+    if (ok) setChangingDecision(false);
   }
 
   async function saveEdit() {
@@ -510,32 +521,41 @@ export function FindingCard({
                   Add Comment
                 </button>
 
-                <div className="ml-auto flex flex-wrap gap-2">
+                {finding.decision === null || changingDecision ? (
+                  <div className="ml-auto flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setRejecting(true)}
+                      disabled={busy}
+                      className={cn(
+                        "rounded-md border px-4 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60",
+                        finding.decision === "rejected"
+                          ? "border-critical bg-critical text-white"
+                          : "border-critical bg-white text-critical hover:bg-critical/5"
+                      )}
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => decide("accepted")}
+                      disabled={busy}
+                      className={cn(
+                        "rounded-md border px-4 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60",
+                        finding.decision === "accepted"
+                          ? "border-navy bg-navy text-white"
+                          : "border-brand bg-brand text-white hover:border-navy hover:bg-navy"
+                      )}
+                    >
+                      Accept
+                    </button>
+                  </div>
+                ) : (
                   <button
-                    onClick={() => setRejecting(true)}
-                    disabled={busy}
-                    className={cn(
-                      "rounded-md border px-4 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60",
-                      finding.decision === "rejected"
-                        ? "border-critical bg-critical text-white"
-                        : "border-critical bg-white text-critical hover:bg-critical/5"
-                    )}
+                    onClick={() => setChangingDecision(true)}
+                    className={cn(actionLink, "ml-auto")}
                   >
-                    Reject
+                    Change decision
                   </button>
-                  <button
-                    onClick={() => apply({ decision: "accepted" })}
-                    disabled={busy}
-                    className={cn(
-                      "rounded-md border px-4 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60",
-                      finding.decision === "accepted"
-                        ? "border-navy bg-navy text-white"
-                        : "border-brand bg-brand text-white hover:border-navy hover:bg-navy"
-                    )}
-                  >
-                    Accept
-                  </button>
-                </div>
+                )}
               </>
             )}
           </div>

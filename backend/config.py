@@ -72,6 +72,13 @@ class Settings(BaseSettings):
     GEMINI_THINKING_BUDGET: int = 1024
     CHAT_PARSED_TEXT_LIMIT: int = 150000
 
+    # Upper bound on tokens any single LLM call may generate. Unbounded output
+    # is what let the Requirements & Risk dimension run 3+ minutes, close to
+    # the 180s review timeout, on documents that invite a long answer. 8192 is
+    # generous relative to normal review output (a few dozen findings plus a
+    # summary) while giving every provider path a hard ceiling.
+    MAX_OUTPUT_TOKENS: int = 8192
+
     # Feedback Bank
     FEEDBACK_BANK_ENABLED: bool = False
     FEEDBACK_BACKEND: Literal["firestore", "local"] = "local"

@@ -44,6 +44,7 @@ def get_llm(temperature: float | None = None) -> BaseChatModel:
             project=settings.GOOGLE_CLOUD_PROJECT,
             location=settings.GOOGLE_CLOUD_LOCATION,
             temperature=temp,
+            max_output_tokens=settings.MAX_OUTPUT_TOKENS,
         )
 
     elif settings.LLM_PROVIDER == "google_genai":
@@ -57,6 +58,7 @@ def get_llm(temperature: float | None = None) -> BaseChatModel:
             google_api_key=settings.GOOGLE_API_KEY,
             temperature=temp,
             thinking_budget=_thinking_budget(),
+            max_output_tokens=settings.MAX_OUTPUT_TOKENS,
         )
 
     elif settings.LLM_PROVIDER == "anthropic":
@@ -69,6 +71,7 @@ def get_llm(temperature: float | None = None) -> BaseChatModel:
             model=settings.ANTHROPIC_MODEL_NAME,
             anthropic_api_key=settings.ANTHROPIC_API_KEY,
             temperature=temp,
+            max_tokens=settings.MAX_OUTPUT_TOKENS,
         )
 
     else:

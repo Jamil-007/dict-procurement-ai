@@ -22,7 +22,7 @@ this is where the dimension earns or loses its credibility.
 
 
 from prompts import RA_12009_DIRECTIVE
-from review.context import ReviewContext, render
+from review.context import ReviewContext, ReviewDocument, render
 from review.gaps import cannot_assess
 from review.llm import analyze_with_summary
 from review.parsing import (
@@ -35,6 +35,13 @@ from review.registry import register
 from review.schema import DimensionOutput
 
 DIMENSION = "requirements_risk"
+
+# Per-document cap on how much raw text goes into the prompt. This reasons
+# over the TOR, specs, market study and bidding documents together, which can
+# otherwise add up to a very large prompt and push generation toward the
+# review timeout. Mirrors the excerpt guardrail in procurement_market.py
+# (QUERY_EXCERPT_CHARS) — generous enough that a normal document is never cut.
+DOCUMENT_CHARS_LIMIT = 12000
 
 # Document types this dimension reads. Names come from domain.DOC_TYPES.
 # The TOR and technical specifications are where requirements actually live;
@@ -205,6 +212,22 @@ DOCUMENTS:
 """
 
 
+def _capped(documents: list[ReviewDocument]) -> list[ReviewDocument]:
+    """Documents with text truncated to DOCUMENT_CHARS_LIMIT each."""
+    return [
+        doc
+        if len(doc.text) <= DOCUMENT_CHARS_LIMIT
+        else ReviewDocument(
+            name=doc.name,
+            doc_type=doc.doc_type,
+            pages=doc.pages,
+            text=doc.text[:DOCUMENT_CHARS_LIMIT]
+            + "\n[...truncated for length...]",
+        )
+        for doc in documents
+    ]
+
+
 def _peso(value: object) -> str:
     """The ABC as it appears on the record, or a plain note when it is unset."""
     try:
@@ -239,6 +262,6 @@ def run(ctx: ReviewContext) -> DimensionOutput:
         json_contract=FINDING_JSON_CONTRACT,
         confidence_contract=CONFIDENCE_CONTRACT,
         summary_contract=SUMMARY_CONTRACT,
-        documents=render(targets),
+        documents=render(_capped(targets)),
     )
     return analyze_with_summary(prompt, DIMENSION)

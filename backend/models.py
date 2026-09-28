@@ -68,3 +68,50 @@ class ErrorResponse(BaseModel):
 
     error: str
     detail: Optional[str] = None
+
+
+class FormDetectRequest(BaseModel):
+    """Request to detect document types and recommend forms."""
+
+    thread_id: str
+
+
+class FormExtractRequest(BaseModel):
+    """Request to extract fields from agents.doc_generation."""
+
+    thread_id: str
+    form_keys: List[str]
+
+
+class FormGenerateRequest(BaseModel):
+    """Request to generate form files."""
+
+    thread_id: str
+    form_keys: List[str]
+    overrides: Optional[dict] = None
+
+
+class FeedbackItemRequest(BaseModel):
+    """One feedback item posted from the frontend."""
+
+    feature: str = Field(..., min_length=1, max_length=64)
+    context_key: str = Field(..., min_length=1, max_length=128)
+    field_path: Optional[str] = Field(None, max_length=256)
+    thread_id: str
+    source_ref: Optional[str] = Field(None, max_length=512)
+    signal_type: Literal["implicit", "explicit"]
+    ai_value: Optional[str] = Field(None, max_length=8000)
+    corrected_value: Optional[str] = Field(None, max_length=8000)
+    rating: Optional[Literal["up", "down"]] = None
+    note: Optional[str] = Field(None, max_length=2000)
+    input_context: Optional[str] = Field(None, max_length=20000)
+
+
+class FeedbackRequest(BaseModel):
+    """Batch of feedback items."""
+
+    items: List[FeedbackItemRequest] = Field(..., min_length=1, max_length=100)
+
+
+class FeedbackResponse(BaseModel):
+    stored: int

@@ -270,3 +270,42 @@ User query: {query}
 
 Provide a clear, accurate, and helpful response based on the document and analysis. If the information is not available in the provided context, say so. Reference specific sections or findings when relevant.
 """
+
+
+FORM_EXTRACTION_PROMPTS = {
+    "ppmp": (
+        "You extract fields for the GPPB Project Procurement Management Plan (PPMP).\n"
+        "Return ONLY a JSON object with exactly these keys: fiscal_year, end_user_unit, "
+        "general_description, project_type, quantity_size, mode_of_procurement, "
+        "pre_procurement_conference, start_activity, end_activity, expected_delivery, "
+        "source_of_funds, estimated_budget, supporting_documents, remarks, prepared_by.\n"
+        "Use null for any value not clearly stated in the document — never guess.\n"
+        "Document:\n{parsed_text}"
+    ),
+    "market": (
+        "You extract fields for the GPPB Market Scoping Form.\n"
+        "Return ONLY a JSON object with exactly these keys: procuring_entity, end_user_unit, "
+        "representative, project_name, estimated_budget, period, expected_delivery, "
+        "activity_flags, result_rows.\n"
+        "activity_flags is a dict mapping activity names to objects with checked (bool) and documentation (str or null).\n"
+        "result_rows is a dict mapping parameter names to objects with considered (str or null) and recommendation (str or null).\n"
+        "Use null for any value not clearly stated in the document — never guess.\n"
+        "Document:\n{parsed_text}"
+    ),
+    "app": (
+        "You extract fields for the GPPB Annual Procurement Plan (APP).\n"
+        "Return ONLY a JSON object with exactly these keys: fiscal_year, variant, "
+        "procuring_entity, project_title, category, mode_of_procurement, estimated_budget.\n"
+        "variant can be 'Indicative', 'Final', or 'Updated'.\n"
+        "category can be 'General Requirements', 'Miscellaneous Items', or 'Common Use Supplies'.\n"
+        "Use null for any value not clearly stated in the document — never guess.\n"
+        "Document:\n{parsed_text}"
+    ),
+    "contract": (
+        "You extract fields for the GPPB Contract Form.\n"
+        "Return ONLY a JSON object with exactly these keys: project_title, procuring_entity, "
+        "project_reference, supplier_name, contract_price, contract_date, scope.\n"
+        "Use null for any value not clearly stated in the document — never guess.\n"
+        "Document:\n{parsed_text}"
+    ),
+}

@@ -117,3 +117,109 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* ===== Document preview (DocumentPreview component) ===== */
+
+/* Clean spreadsheet grid rebuilt from the SheetJS data model. */
+.xl-sheet + .xl-sheet {
+  margin-top: 24px;
+}
+
+.xl-sheet-name {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  font-weight: 700;
+  margin: 0 0 8px 2px;
+}
+
+.xl-empty {
+  color: #94a3b8;
+  font-size: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+table.xl {
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  border: 1px solid #d4d4d8;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: 'Aptos', Calibri, ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  color: #1f2937;
+}
+
+table.xl th,
+table.xl td {
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+table.xl .xl-colh,
+table.xl .xl-rowh {
+  background: #f8fafc;
+  color: #94a3b8;
+  font-weight: 600;
+  font-size: 10.5px;
+  text-align: center;
+  height: 22px;
+  min-width: 56px;
+  user-select: none;
+}
+
+table.xl .xl-rowh {
+  width: 34px;
+  min-width: 34px;
+}
+
+table.xl .xl-corner {
+  background: #f1f5f9;
+  width: 34px;
+}
+
+table.xl td.xl-cell {
+  padding: 5px 9px;
+  height: 26px;
+  vertical-align: middle;
+  background: #fff;
+  /* Wrap long content and cap width so a single long cell can't blow the whole
+     table out to thousands of px (which collapsed fit-to-width to ~2%). */
+  white-space: normal;
+  min-width: 72px;
+  max-width: 340px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+table.xl td.xl-title {
+  background: #eef2ff;
+  font-weight: 700;
+  color: #1e3a8a;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+table.xl td.xl-section {
+  background: #f1f5f9;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+table.xl td.xl-tbd {
+  color: #b91c1c;
+  font-style: italic;
+}
+
+/* docx-preview wraps rendered pages in its own chrome; keep it snug in-panel. */
+.docx-preview-host .docx-wrapper {
+  background: transparent;
+  padding: 0;
+}
+
+.docx-preview-host .docx-wrapper > section.docx {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+  margin-bottom: 16px;
+}

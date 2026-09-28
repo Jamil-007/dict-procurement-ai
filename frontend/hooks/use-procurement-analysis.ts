@@ -20,6 +20,7 @@ export interface UseProcurementAnalysisReturn {
   isConnected: boolean;
   isChatLoading: boolean;
   isChatInFlight: boolean;
+  threadId: string | null;
   uploadFiles: (files: File[]) => Promise<void>;
   generateReport: () => Promise<void>;
   declineReport: () => Promise<void>;
@@ -53,6 +54,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [isChatInFlight, setIsChatInFlight] = useState(false);
+  const [threadId, setThreadId] = useState<string | null>(null);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const threadIdRef = useRef<string | null>(null);
@@ -91,6 +93,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
     setGammaLink(null);
     setError(null);
     threadIdRef.current = null;
+    setThreadId(null);
   }, [closeEventSource, closeChatStream]);
 
   // Upload file handler
@@ -124,6 +127,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
       // Upload the files
       const response = await apiClient.uploadDocuments(files);
       threadIdRef.current = response.thread_id;
+      setThreadId(response.thread_id);
 
       // Transition to thinking
       setState('thinking');
@@ -397,6 +401,7 @@ export function useProcurementAnalysis(): UseProcurementAnalysisReturn {
     isConnected,
     isChatLoading,
     isChatInFlight,
+    threadId,
     uploadFiles,
     generateReport,
     declineReport,

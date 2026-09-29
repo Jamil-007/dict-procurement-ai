@@ -74,15 +74,32 @@ export async function deleteProcurement(ref: string) {
   }
 }
 
-export function uploadDocuments(ref: string, files: File[]) {
-  const form = new FormData();
-  files.forEach((file) => form.append("files", file));
+export async function uploadDocuments(ref: string, files: File[]): Promise<Procurement> {
+  // One request PER FILE, not one batched request for all of them. Cloud Run's
+  // Google Front End caps each request body at 32 MiB, so batching several
+  // documents into a single multipart POST 413s in production once the combined
+  // size crosses that line — even though every individual file is within the
+  // backend's 25 MB per-file limit (which is why batching still worked locally,
+  // where there is no such edge cap). Sending one file at a time keeps every
+  // request comfortably under the cap.
+  //
+  // Sequential, not parallel: each call appends to the record's document list
+  // and the backend runs a single instance, so concurrent writes to the same
+  // record would race. We return the final (fully-updated) record.
+  //
   // No doc_types sent — the backend works out the type of each document and
   // setDocumentType corrects it if the inference is wrong.
-  return request<Procurement>(`/procurements/${ref}/documents`, {
-    method: "POST",
-    body: form,
-  });
+  let latest: Procurement | undefined;
+  for (const file of files) {
+    const form = new FormData();
+    form.append("files", file);
+    latest = await request<Procurement>(`/procurements/${ref}/documents`, {
+      method: "POST",
+      body: form,
+    });
+  }
+  // No files supplied: return the record unchanged rather than throwing.
+  return latest ?? (await getProcurement(ref));
 }
 
 export const setDocumentType = (ref: string, documentId: string, docType: string) =>

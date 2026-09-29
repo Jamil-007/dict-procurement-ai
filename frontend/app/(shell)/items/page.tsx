@@ -73,7 +73,7 @@ export default function AllItemsPage() {
   const open = (ref: string) => router.push(`/items/${ref}`);
 
   return (
-    <div className="max-w-[1160px] px-7 py-6">
+    <div className="w-full px-7 py-6">
       <PageHeader
         title="Procurements"
         subtitle="Manage procurement records and review their documents using AI."

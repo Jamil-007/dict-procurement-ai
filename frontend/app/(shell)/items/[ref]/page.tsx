@@ -67,7 +67,7 @@ export default function WorkspacePage() {
   const findingTotal = totalFindings(procurement.finding_counts);
 
   return (
-    <div className="max-w-[1160px] px-7 py-6 print:px-0 print:py-0">
+    <div className="w-full px-7 py-6 print:px-0 print:py-0">
       <div className="sticky top-0 z-10 -mx-7 -mt-6 bg-page px-7 pt-6 print:hidden">
         <Link
           href="/items"

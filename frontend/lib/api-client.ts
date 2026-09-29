@@ -391,9 +391,15 @@ class APIClient {
     return this.handleResponse<FormCatalogItem[]>(response);
   }
 
-  async uploadForms(files: File[]): Promise<UploadFormsResult> {
+  async uploadForms(
+    files: File[],
+    fromRecord = false
+  ): Promise<UploadFormsResult> {
     const formData = new FormData();
     files.forEach((file) => formData.append('files', file));
+    // Record-seeded sessions draw from documents already persisted on the
+    // record, which can exceed the 3-file cap that guards ad-hoc uploads.
+    if (fromRecord) formData.append('from_record', 'true');
 
     const response = await fetch(`${this.baseUrl}/forms/upload`, {
       method: 'POST',

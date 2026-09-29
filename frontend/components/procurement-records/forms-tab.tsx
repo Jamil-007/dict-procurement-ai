@@ -22,6 +22,25 @@ function computeMissing(detectResult: RefDetectResult | null, keys: FormKey[]): 
   return Array.from(missing);
 }
 
+/** The record's documents that the selected forms actually draw from, by doc
+ * type. Forms only extract from their `source_doc_types`, so seeding a session
+ * with the record's unrelated documents just makes generation slower (and, on a
+ * record with many files, needlessly heavy). When detection is unavailable we
+ * can't tell what's relevant, so fall back to all documents. */
+function selectRelevantDocs(
+  detectResult: RefDetectResult | null,
+  keys: FormKey[],
+  docs: ProcurementDocument[]
+): ProcurementDocument[] {
+  if (!detectResult) return docs;
+  const relevantTypes = new Set<string>();
+  keys.forEach((key) => {
+    (detectResult.forms[key]?.source_doc_types || []).forEach((t) => relevantTypes.add(t));
+  });
+  if (relevantTypes.size === 0) return docs;
+  return docs.filter((doc) => relevantTypes.has(doc.doc_type));
+}
+
 /** Re-downloads an already-uploaded procurement document as a `File` so it can
  * seed a forms session (`apiClient.uploadForms`) the same way a fresh upload
  * would, letting the record's Forms tab reuse the existing FormReview /
@@ -81,8 +100,11 @@ export function FormsTab({
   const prepareAndGenerate = async (keys: FormKey[], docs: ProcurementDocument[]) => {
     setPhase("preparing");
     try {
-      const files = docs.length > 0 ? await Promise.all(docs.map((doc) => toFile(procurement.ref, doc))) : [];
-      const res = await apiClient.uploadForms(files);
+      const relevant = selectRelevantDocs(detectResult, keys, docs);
+      const files = relevant.length > 0
+        ? await Promise.all(relevant.map((doc) => toFile(procurement.ref, doc)))
+        : [];
+      const res = await apiClient.uploadForms(files, true);
       setThreadId(res.thread_id);
       setFormKeys(keys);
       setPhase("review");
@@ -140,7 +162,7 @@ export function FormsTab({
 
   if (phase === "review" && threadId && formKeys) {
     return (
-      <div className="max-w-[1200px] space-y-4">
+      <div className="w-full space-y-4">
         <button
           onClick={reset}
           className="inline-flex items-center gap-1.5 text-[13px] font-medium text-subtle hover:text-brand"

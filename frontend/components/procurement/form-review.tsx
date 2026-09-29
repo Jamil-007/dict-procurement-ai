@@ -171,8 +171,8 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
           const keyFields = editedFields[key];
           return (
           <TabsContent key={key} value={key} forceMount className="data-[state=inactive]:hidden">
-            <div className="grid grid-cols-1 md:grid-cols-[1.45fr_1fr] gap-8">
-              <div className="md:order-2">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="min-w-0 lg:order-2 lg:col-span-1">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <div className="text-[11px] font-semibold tracking-wider uppercase text-zinc-400">
@@ -225,7 +225,7 @@ export function FormReview({ threadId, formKeys }: FormReviewProps) {
                 )}
               </div>
 
-              <div className="md:order-1">
+              <div className="min-w-0 lg:order-1 lg:col-span-2">
                 <div className="flex items-center justify-between mb-4">
                   <div className="text-[11px] font-semibold tracking-wider uppercase text-zinc-400">
                     Preview

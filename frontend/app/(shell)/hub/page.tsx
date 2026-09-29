@@ -79,7 +79,7 @@ export default function KnowledgeHubPage() {
   ];
 
   return (
-    <div className="max-w-[1160px] px-7 py-6">
+    <div className="w-full px-7 py-6">
       <PageHeader
         title="Knowledge Hub"
         subtitle="Central repository of procurement laws, policies, issuances, forms, and reference materials."

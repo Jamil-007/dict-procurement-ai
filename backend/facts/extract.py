@@ -111,7 +111,6 @@ _DEFAULT_PROFILE = [
 _EXTRACT_PROMPT = """You are extracting structured data from a Philippine government procurement document.
 
 Document type: {doc_label} (`{doc_type}`)
-Source file: {filename}
 
 Fields that matter most for this document type:
 {focus_fields}
@@ -286,16 +285,30 @@ def _extraction_schema() -> Dict[str, Any]:
 def _call_extractor(
     transcript: str,
     doc_type: str,
-    filename: str,
     model: Optional[str],
 ) -> Dict[str, Any]:
+    """Read the transcript into the extraction schema.
+
+    Deliberately not given the filename. It used to head the prompt as
+    "Source file:", and it decided the answer: the same delivery receipt,
+    byte-identical transcript and doc_type, returned every field under
+    "3-Delivery Receipt.pdf" and an empty record under
+    "3-Delivery_Receipt.pdf". Uploads are sanitized, spaces to underscores,
+    so that was every document that arrived through the UI -- which is why
+    the cross-document checks reported eleven comparisons as unconfirmable
+    on a packet that compares fine from disk.
+
+    It earned nothing to offset that. The document type is on the line
+    above and was classified from the content, and the names on real
+    filings are not evidence: one of the inspection reports in this corpus
+    is filed as "Technical Insowction Report.pdf".
+    """
     from facts.llm import generate_json
 
     profile = FIELD_PROFILES.get(doc_type, _DEFAULT_PROFILE)
     prompt = _EXTRACT_PROMPT.format(
         doc_label=DOC_TYPE_LABELS.get(doc_type, doc_type),
         doc_type=doc_type,
-        filename=filename,
         focus_fields="\n".join(f"- {field}" for field in profile),
         transcript=transcript[: settings.EXTRACT_TEXT_LIMIT],
     )
@@ -366,7 +379,7 @@ def extract_facts(
         confidence = 1.0
 
     try:
-        payload = _call_extractor(document.text, doc_type, document.filename, model)
+        payload = _call_extractor(document.text, doc_type, model)
     except Exception as exc:  # noqa: BLE001 - one bad document must not kill a batch
         detail = str(exc)
         if "authentication" in detail.lower() or "401" in detail:

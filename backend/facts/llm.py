@@ -31,6 +31,15 @@ def _gemini_json(
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             response_json_schema=schema,
+            # Reading a field off a scanned form is transcription, not
+            # composition. Left at the default, two runs over the same packet
+            # disagreed about which fields were legible at all -- one found a
+            # recipient and a delivery date where the next found neither --
+            # and the consistency checkers turned that into eleven "could not
+            # be confirmed" rows that had been real comparisons a minute
+            # earlier. A checker whose answer changes when nothing changed is
+            # not one a committee can act on.
+            temperature=0.0,
         ),
     )
     if not response.text:
@@ -59,6 +68,8 @@ def _anthropic_json(
         max_tokens=max_tokens,
         messages=[{"role": "user", "content": prompt}],
         output_config={"format": {"type": "json_schema", "schema": schema}},
+        # Same reason as the Gemini path above: extraction must be repeatable.
+        temperature=0.0,
     )
     body = "".join(
         block.text for block in response.content if getattr(block, "type", "") == "text"

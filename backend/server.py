@@ -37,7 +37,18 @@ from utils.storage import (
     is_supported_upload,
 )
 from utils.llm_factory import get_llm, get_llm_info
-from graph import graph, create_initial_state
+# The checker graph, not the original advisory one. Both are LangGraph and
+# both interrupt after report_compiler, so everything below -- /stream,
+# /review, /status, /chat -- works against either. The difference is what the
+# run produces: `checks_graph` ingests and classifies each file, extracts
+# canonical facts, and routes to the rule and consistency engines, so the
+# verdict carries `documents`, `summary`, `checkers_run` and per-task stats.
+# The Compliance Suite page reads exactly those fields, and got zeros from
+# graph.py because the advisory graph has no notion of a document type or a
+# checker. The six advisory agents are not lost: `checks_graph` keeps them as
+# the planning branch the router fires for planning documents, and their
+# commentary lands under `advisory` in the same verdict.
+from checks_graph import graph, create_initial_state
 from ingest.loaders import SUPPORTED_EXTENSIONS
 from persistence import delete_session, get_session, init_db, list_sessions, save_session
 from prompts import CHAT_PROMPT, RA_12009_DIRECTIVE
@@ -124,7 +135,7 @@ app.add_middleware(
 logger = logging.getLogger(__name__)
 
 # Procurement records, Knowledge Hub and AI Review. The Procurement Analyst
-# endpoints below are unchanged and still run off graph.py.
+# endpoints below run the checker graph; see the import at the top.
 app.include_router(procurements.router)
 app.include_router(knowledge.router)
 app.include_router(review_api.router)
@@ -346,7 +357,12 @@ async def stream_analysis(thread_id: str):
     async def event_generator() -> AsyncGenerator[str, None]:
         """Generate SSE events for analysis progress."""
         last_log_index = 0
-        max_wait_time = 300  # 5 minutes timeout
+        # Every real DICT transaction document is a scanned image, so a first
+        # run renders each page and sends it to vision OCR: a four-document
+        # payment packet measured a little over seven minutes. Five minutes cut
+        # those runs off mid-OCR and reported a timeout on a review that was
+        # working. Re-runs hit the OCR cache and finish in seconds.
+        max_wait_time = settings.SSE_TIMEOUT_SECONDS
         start_time = asyncio.get_event_loop().time()
 
         while True:

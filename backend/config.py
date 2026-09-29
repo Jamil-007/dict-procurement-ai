@@ -126,6 +126,11 @@ class Settings(BaseSettings):
     # A page with fewer than this many extractable characters is treated as scanned.
     OCR_MIN_CHARS_PER_PAGE: int = 100
 
+    # How long the /stream SSE connection waits for a verdict before giving
+    # up. Sized for a first run over a packet of scanned documents, where
+    # every page goes through vision OCR; cached re-runs finish in seconds.
+    SSE_TIMEOUT_SECONDS: int = 1800
+
     # Fact extraction
     EXTRACT_TEXT_LIMIT: int = 200000
 

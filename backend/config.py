@@ -55,6 +55,12 @@ class Settings(BaseSettings):
     # Uploaded document storage. Empty bucket name keeps files on local disk.
     GCS_BUCKET: str = ""
 
+    # Object prefix under GCS_BUCKET where the Knowledge Hub RAG index
+    # (chunks.jsonl, vectors.npy, manifest.json) is mirrored, so a KB upload
+    # survives a Cloud Run restart/redeploy instead of only living in the
+    # container's local disk. Ignored when GCS_BUCKET is unset.
+    KNOWLEDGE_INDEX_PREFIX: str = "knowledge_index"
+
     # Model Configuration
     VERTEX_MODEL_NAME: str = "gemini-2.0-flash-exp"  # Options: gemini-2.0-flash-exp, gemini-1.5-pro-002, gemini-1.5-flash-002
     GEMINI_MODEL_NAME: str = "gemini-2.0-flash"

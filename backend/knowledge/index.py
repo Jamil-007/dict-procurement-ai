@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from config import settings
 from knowledge.schema import (
     CHUNKS_FILE,
     EMBEDDING_MODEL,
@@ -35,6 +36,82 @@ if TYPE_CHECKING:
     import numpy as np
 
 logger = logging.getLogger(__name__)
+
+# The 3 files that make up the on-disk index, mirrored to GCS as a unit so a
+# reader never sees chunks.jsonl and vectors.npy from two different appends.
+_INDEX_FILES = (CHUNKS_FILE, VECTORS_FILE, MANIFEST_FILE)
+
+
+def _gcs_blob_name(filename: str) -> str:
+    return f"{settings.KNOWLEDGE_INDEX_PREFIX}/{filename}"
+
+
+def _gcs_bucket():
+    from google.cloud import storage
+
+    client = storage.Client(project=settings.GOOGLE_CLOUD_PROJECT or None)
+    return client.bucket(settings.GCS_BUCKET)
+
+
+def _download_index_from_gcs(root: Path) -> bool:
+    """
+    Pull the 3 index files from GCS into `root`, overwriting whatever is
+    there locally. Returns False (and touches nothing) if GCS has no index
+    yet — a missing manifest is the signal an index was never uploaded.
+    """
+    bucket = _gcs_bucket()
+    manifest_blob = bucket.blob(_gcs_blob_name(MANIFEST_FILE))
+    if not manifest_blob.exists():
+        return False
+
+    root.mkdir(parents=True, exist_ok=True)
+    for filename in _INDEX_FILES:
+        blob = bucket.blob(_gcs_blob_name(filename))
+        if blob.exists():
+            (root / filename).write_bytes(blob.download_as_bytes())
+    return True
+
+
+def _upload_index_to_gcs(root: Path) -> None:
+    """Push whichever of the 3 index files currently exist under `root` to GCS."""
+    bucket = _gcs_bucket()
+    for filename in _INDEX_FILES:
+        path = root / filename
+        if path.exists():
+            bucket.blob(_gcs_blob_name(filename)).upload_from_string(path.read_bytes())
+
+
+def _sync_from_gcs(root: Path) -> None:
+    """
+    Make `root` reflect the durable copy in GCS before `load_index` reads it.
+
+    Two cases: GCS already has an index (from a previous append, possibly by
+    a *different* Cloud Run instance) — download it, overwriting any local
+    copy, so this instance sees the latest content. Or GCS has nothing yet
+    but a local index exists (the committed seed, baked into the image) —
+    bootstrap GCS from it so the very first `load_index()` on a fresh
+    deployment establishes the durable copy instead of leaving one instance's
+    local seed as the only version that ever "counts".
+
+    Never raises: a GCS hiccup here must degrade to the local copy (or to
+    load_index's own "no index" handling), not take retrieval down.
+    """
+    try:
+        found = _download_index_from_gcs(root)
+        if not found and (root / MANIFEST_FILE).exists():
+            logger.info(
+                "No knowledge index found in GCS bucket %s; bootstrapping from "
+                "local seed at %s",
+                settings.GCS_BUCKET,
+                root,
+            )
+            _upload_index_to_gcs(root)
+    except Exception:  # noqa: BLE001 - a sync failure must not break retrieval
+        logger.warning(
+            "Could not sync knowledge index with GCS; falling back to whatever "
+            "is on local disk",
+            exc_info=True,
+        )
 
 
 def tokenise(text: str) -> list[str]:
@@ -105,6 +182,21 @@ def load_index(path: str | None = None) -> LoadedIndex | None:
     the same instance immediately unless reset_cache() was called. The cache is
     process-local, so multiple workers each load their own copy.
 
+    When `GCS_BUCKET` is set, the 3 index files are synced from GCS into the
+    local `index_dir()` first (see `_sync_from_gcs`) so an append made by a
+    *different* Cloud Run instance is picked up here, and so the index
+    survives this instance's own restarts/redeploys. With `GCS_BUCKET` unset,
+    this is unchanged local-only behavior.
+
+    NOTE — cross-instance cache staleness: this sync only runs when nothing
+    is cached yet (process start, or after `reset_cache()`). If instance A
+    appends a document, its GCS upload is immediate, but instance B keeps
+    serving its already-cached (now stale) index until B's process restarts
+    or something calls `reset_cache()` there too. Acceptable for this
+    prototype (low traffic, min-instances 0 means instances churn often
+    anyway); a real fix needs either shared cache invalidation (e.g. pub/sub)
+    or a proper vector store — out of scope here.
+
     Missing directory, unreadable files, and a vectors/chunks row-count mismatch
     all degrade rather than raising — the caller gets either a working index or
     None, never an exception.
@@ -114,6 +206,10 @@ def load_index(path: str | None = None) -> LoadedIndex | None:
         return _cached
 
     root = Path(path) if path else Path(index_dir())
+
+    if settings.GCS_BUCKET:
+        _sync_from_gcs(root)
+
     if not root.exists():
         logger.warning("Knowledge index directory does not exist: %s", root)
         return None
@@ -228,6 +324,12 @@ def append_to_index(
     Callers must call `reset_cache()` after a successful append so the next
     `load_index()` call picks up the change; this function only writes to
     disk.
+
+    When `GCS_BUCKET` is set, the updated files are also uploaded to GCS
+    (under `KNOWLEDGE_INDEX_PREFIX`) before returning, so the append survives
+    this instance's own restart. It does not make other already-running
+    instances see the change — see the cross-instance staleness note on
+    `load_index`.
     """
     import numpy as np
 
@@ -296,6 +398,13 @@ def append_to_index(
 
         with manifest_path.open("w", encoding="utf-8") as f:
             json.dump(manifest.to_json(), f, indent=2, ensure_ascii=False)
+
+        if settings.GCS_BUCKET:
+            # Upload while still holding the lock, so a concurrent append
+            # cannot interleave its own GCS write between these 3 uploads
+            # (which would leave GCS with, say, the new chunks.jsonl but the
+            # old vectors.npy).
+            _upload_index_to_gcs(index_root)
 
         return manifest
 

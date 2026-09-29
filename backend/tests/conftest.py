@@ -6,10 +6,11 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def _no_live_gcs_by_default(monkeypatch):
+def _hermetic_storage_by_default(monkeypatch):
     """
-    Default every test to local-disk storage, never a developer's real
-    `GCS_BUCKET` from their local .env.
+    Default every test to local-disk storage and the local (offline) feedback
+    embedder, never a developer's real `GCS_BUCKET` or live-Vertex feedback
+    backend from their local .env.
 
     Several code paths (store/files.py, knowledge/index.py) branch on
     `settings.GCS_BUCKET` to decide between local disk and a real GCS
@@ -32,3 +33,10 @@ def _no_live_gcs_by_default(monkeypatch):
     from config import settings
 
     monkeypatch.setattr(settings, "GCS_BUCKET", "")
+    # Keep feedback tests hermetic and fast: the local embedder is a deterministic
+    # offline hash (no network), whereas FEEDBACK_BACKEND=firestore calls live
+    # Vertex embeddings. A dev .env that enables the bank against proc-ai-staging
+    # would otherwise make the whole suite slow and flaky. Tests exercising the
+    # firestore backend set these themselves after faking the client.
+    monkeypatch.setattr(settings, "FEEDBACK_BANK_ENABLED", False)
+    monkeypatch.setattr(settings, "FEEDBACK_BACKEND", "local")

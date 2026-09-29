@@ -1,5 +1,5 @@
 from agents.feedback.models import FeedbackItem, EMBED_INPUT_LIMIT, EMBEDDING_DIM
-from config import settings
+from config import Settings
 
 
 def test_constants():
@@ -8,10 +8,14 @@ def test_constants():
 
 
 def test_config_defaults_are_inert():
-    assert settings.FEEDBACK_BANK_ENABLED is False
-    assert settings.FEEDBACK_BACKEND == "local"
-    assert settings.FEEDBACK_TOP_K == 3
-    assert settings.FEEDBACK_OVERSAMPLE == 4
+    # Assert the shipped code defaults (config.py) are inert, independent of any
+    # local .env override — dev/staging may enable the feedback bank via env vars,
+    # so read the field defaults directly rather than the .env-loaded settings.
+    f = Settings.model_fields
+    assert f["FEEDBACK_BANK_ENABLED"].default is False
+    assert f["FEEDBACK_BACKEND"].default == "local"
+    assert f["FEEDBACK_TOP_K"].default == 3
+    assert f["FEEDBACK_OVERSAMPLE"].default == 4
 
 
 def test_feedback_item_defaults_and_ids():

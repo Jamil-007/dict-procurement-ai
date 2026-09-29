@@ -31,8 +31,18 @@ def _hermetic_storage_by_default(monkeypatch):
     autouse one and their `monkeypatch.setattr` wins.
     """
     from config import settings
+    from store import files
+    from agents.doc_generation import extractor
 
     monkeypatch.setattr(settings, "GCS_BUCKET", "")
+    # store/files.py caches one storage client per process; drop it so a test
+    # that fakes the GCS client doesn't inherit a real (or another test's)
+    # client, and vice versa.
+    files._reset_client_cache()
+    # extract_fields caches successful extractions per (form_key, source text);
+    # clear it so a test's captured/mocked LLM is actually invoked instead of a
+    # prior test's cached result being served.
+    extractor.clear_extract_cache()
     # Keep feedback tests hermetic and fast: the local embedder is a deterministic
     # offline hash (no network), whereas FEEDBACK_BACKEND=firestore calls live
     # Vertex embeddings. A dev .env that enables the bank against proc-ai-staging

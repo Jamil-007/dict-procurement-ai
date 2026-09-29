@@ -10,7 +10,7 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, List, Optional
-from fastapi import FastAPI, UploadFile, HTTPException, File, Request
+from fastapi import FastAPI, UploadFile, HTTPException, File, Form, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
@@ -591,17 +591,25 @@ async def get_forms_catalog():
 
 
 @app.post("/forms/upload")
-async def forms_upload(files: Optional[List[UploadFile]] = File(None)):
+async def forms_upload(
+    files: Optional[List[UploadFile]] = File(None),
+    from_record: bool = Form(False),
+):
     """
     Create a forms session without running the analysis pipeline.
 
     Saves any uploaded PDFs (zero allowed) under uploads/{thread_id}/ and
     returns the thread_id for use with the /forms/detect, /extract, /generate
     endpoints. Passing no files creates an empty session for manual form filling.
+
+    The 3-file cap is a guardrail for ad-hoc uploads on the standalone Forms
+    page. The procurement-record Forms tab seeds a session from the record's
+    already-persisted documents (from_record=True), where having more than 3
+    documents is normal, so the cap does not apply to it.
     """
     files = files or []
 
-    if len(files) > 3:
+    if not from_record and len(files) > 3:
         raise HTTPException(status_code=400, detail="Maximum of 3 PDF files allowed")
 
     for uploaded_file in files:

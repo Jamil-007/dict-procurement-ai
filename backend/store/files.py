@@ -14,6 +14,30 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
+# One reused GCS client for the whole process. Constructing storage.Client()
+# runs Application Default Credentials discovery + auth setup, which measured
+# ~10-15s EACH on a dev machine, while a warm client uploads a 50KB file in
+# ~0.2s. Building a fresh client per call (as every function here used to)
+# meant every uploaded file paid that ~10s auth cost again — the "uploads take
+# too long" regression after moving off local disk. Build it once, reuse it.
+_gcs_client = None
+
+
+def _client():
+    """The shared google.cloud.storage client, constructed on first use."""
+    global _gcs_client
+    if _gcs_client is None:
+        from google.cloud import storage
+
+        _gcs_client = storage.Client(project=settings.GOOGLE_CLOUD_PROJECT or None)
+    return _gcs_client
+
+
+def _reset_client_cache() -> None:
+    """Drop the cached client. For tests that swap the storage backend."""
+    global _gcs_client
+    _gcs_client = None
+
 
 def _local_path(ref: str, filename: str, prefix: str = "") -> Path:
     base = Path(settings.UPLOAD_DIR)
@@ -109,10 +133,7 @@ def save_document(
     pages = count_pages(data)
 
     if settings.GCS_BUCKET:
-        from google.cloud import storage
-
-        client = storage.Client(project=settings.GOOGLE_CLOUD_PROJECT or None)
-        blob = client.bucket(settings.GCS_BUCKET).blob(f"{prefix}/{ref}/{filename}")
+        blob = _client().bucket(settings.GCS_BUCKET).blob(f"{prefix}/{ref}/{filename}")
         blob.upload_from_string(data, content_type="application/pdf")
         return f"gs://{settings.GCS_BUCKET}/{blob.name}", pages
 
@@ -147,11 +168,8 @@ def list_documents(ref: str, prefix: str = "procurements") -> list:
     same (ref, prefix), same as before this helper existed.
     """
     if settings.GCS_BUCKET:
-        from google.cloud import storage
-
         gcs_prefix = f"{prefix}/{ref}/"
-        client = storage.Client(project=settings.GOOGLE_CLOUD_PROJECT or None)
-        blobs = client.bucket(settings.GCS_BUCKET).list_blobs(prefix=gcs_prefix)
+        blobs = _client().bucket(settings.GCS_BUCKET).list_blobs(prefix=gcs_prefix)
         names = []
         for blob in blobs:
             name = blob.name[len(gcs_prefix):]
@@ -172,21 +190,15 @@ def document_exists(path: str) -> bool:
     if not path:
         return False
     if path.startswith("gs://"):
-        from google.cloud import storage
-
         bucket_name, _, blob_name = path[5:].partition("/")
-        client = storage.Client(project=settings.GOOGLE_CLOUD_PROJECT or None)
-        return client.bucket(bucket_name).blob(blob_name).exists()
+        return _client().bucket(bucket_name).blob(blob_name).exists()
     return Path(path).is_file()
 
 
 def read_document(path: str) -> bytes:
     if path.startswith("gs://"):
-        from google.cloud import storage
-
         bucket_name, _, blob_name = path[5:].partition("/")
-        client = storage.Client(project=settings.GOOGLE_CLOUD_PROJECT or None)
-        return client.bucket(bucket_name).blob(blob_name).download_as_bytes()
+        return _client().bucket(bucket_name).blob(blob_name).download_as_bytes()
 
     return Path(path).read_bytes()
 
@@ -195,11 +207,8 @@ def delete_document(path: str) -> None:
     """Best effort — a missing file is not an error."""
     try:
         if path.startswith("gs://"):
-            from google.cloud import storage
-
             bucket_name, _, blob_name = path[5:].partition("/")
-            client = storage.Client(project=settings.GOOGLE_CLOUD_PROJECT or None)
-            client.bucket(bucket_name).blob(blob_name).delete()
+            _client().bucket(bucket_name).blob(blob_name).delete()
         else:
             Path(path).unlink(missing_ok=True)
     except Exception:  # noqa: BLE001

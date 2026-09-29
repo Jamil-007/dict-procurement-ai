@@ -1,3 +1,4 @@
+import hashlib
 import re
 from pydantic import BaseModel
 from agents.doc_generation.schemas import SCHEMAS
@@ -9,11 +10,35 @@ from agents.feedback.models import EMBED_INPUT_LIMIT
 
 HEADER_KEYS = ["procuring_entity", "project_title", "project_reference"]
 
+# Extracting a form's fields is a full LLM round trip. The Forms review flow
+# extracts once (/forms/extract) and then re-derives the same fields again when
+# building each form's preview (/forms/generate) and on every debounced edit,
+# all against the same source text — so without a cache the same extraction runs
+# several times per form. Cache a *successful* extraction per (form_key, source
+# text) so those repeats are instant. Failures are never cached, so a transient
+# error doesn't stick for the whole session.
+_extract_cache: dict[tuple[str, str], BaseModel] = {}
+_EXTRACT_CACHE_MAX = 256
+
+
+def clear_extract_cache() -> None:
+    """Drop cached extractions (tests, or to force a fresh extraction)."""
+    _extract_cache.clear()
+
 
 def extract_fields(form_key: str, parsed_text: str) -> tuple[BaseModel, bool]:
     schema = SCHEMAS[form_key]
     if not parsed_text.strip():
         return schema(), True
+
+    cache_key = (
+        form_key,
+        hashlib.sha256(parsed_text.encode("utf-8", "ignore")).hexdigest(),
+    )
+    cached = _extract_cache.get(cache_key)
+    if cached is not None:
+        return cached, False
+
     context = parsed_text[:EMBED_INPUT_LIMIT]
     prompt = FORM_EXTRACTION_PROMPTS[form_key].format(parsed_text=parsed_text[:20000])
     prompt = inject_fewshot(prompt, "forms", form_key, context)
@@ -23,9 +48,14 @@ def extract_fields(form_key: str, parsed_text: str) -> tuple[BaseModel, bool]:
         data = extract_json_object(content)
         if data is None:
             return schema(), True
-        return schema(**data), False
+        model = schema(**data)
     except Exception:
         return schema(), True
+
+    if len(_extract_cache) >= _EXTRACT_CACHE_MAX:
+        _extract_cache.clear()
+    _extract_cache[cache_key] = model
+    return model, False
 
 
 _HEADER_PROMPT = (

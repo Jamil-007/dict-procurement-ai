@@ -462,6 +462,41 @@ CASES: List[Case] = [
         ],
     ),
 
+    Case(
+        id="personnel_substituted_without_approval",
+        task="T4",
+        description=(
+            "The contract names Engr. Cielo M. Bautista as RF Systems "
+            "Engineer; the inspection report records someone else in the "
+            "role. The bid was evaluated on the named team, so the "
+            "substitution needed approval before the work was done."
+        ),
+        docs=CONTRACT_PACKET + PAYMENT_PACKET,
+        expect_discrepancies=["personnel"],
+        mutate=lambda p: p["iar"].update(
+            personnel=[
+                "Engr. Ramon T. Ilagan (Project Manager)",
+                "Engr. Feliza O. Mendrez (RF Systems Engineer)",
+                "Mr. Dante P. Rivera (Installation Supervisor)",
+            ]
+        ),
+    ),
+    Case(
+        id="delivered_to_address_outside_the_contract",
+        task="T4",
+        description=(
+            "The contract specifies the DICT Central Office warehouse in "
+            "Diliman; the delivery receipt records delivery to the Region "
+            "IV-A office in Calamba. The goods are not where the contract "
+            "put them and the agency has no record of custody."
+        ),
+        docs=CONTRACT_PACKET + PAYMENT_PACKET,
+        expect_discrepancies=["delivery_place"],
+        mutate=lambda p: p["delivery_receipt"].update(
+            delivery_place="DICT Regional Office IV-A, National Highway, Calamba, Laguna"
+        ),
+    ),
+
     # -- T5: delivery and acceptance cross-check ---------------------------
 
     Case(
@@ -518,6 +553,19 @@ CASES: List[Case] = [
         docs=["delivery_receipt", "iar", "par", "warranty"],
         expect_discrepancies=["dates.acceptance"],
         mutate=lambda p: p["iar"]["dates"].update(acceptance="November 5, 2024"),
+    ),
+    Case(
+        id="receiving_officer_differs_dr_vs_iar",
+        task="T5",
+        description=(
+            "The delivery receipt is signed for by L. Bermudez; the "
+            "acceptance report records a different officer receiving the "
+            "same consignment. One of the two documents does not describe "
+            "the handover that happened."
+        ),
+        docs=["delivery_receipt", "iar", "par", "warranty"],
+        expect_discrepancies=["recipient"],
+        mutate=lambda p: p["iar"].update(recipient="Navarro, Fidel C."),
     ),
     Case(
         id="warranty_covers_different_contract",

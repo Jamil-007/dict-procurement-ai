@@ -135,6 +135,47 @@ compare:
       doc: IRR of RA 12009
       section: "71.1.1"
 
+  # -- who and where ------------------------------------------------------
+
+  - field: personnel
+    match: list_covers
+    severity: medium
+    title: The personnel billed for are the personnel the contract named
+    category: Scope of Delivery
+    left_types: [contract]
+    right_types: [iar, inspection_report]
+    params:
+      threshold: 0.75
+    remediation: >
+      Where the contract names the individuals to be assigned, they are part
+      of what was procured -- the bid was evaluated on their qualifications.
+      A name on the contract that never appears on an accomplishment or
+      inspection report was either replaced without approval or did not work
+      on the engagement. Establish which, and produce the approved
+      substitution if there was one.
+    authority:
+      doc: IRR of RA 12009
+      query: key personnel proposed shall not be replaced substitution qualifications equivalent approval
+
+  - field: delivery_place
+    match: address_equivalent
+    severity: medium
+    title: Goods were delivered to the place the contract specifies
+    category: Scope of Delivery
+    left_types: [contract]
+    right_types: [delivery_receipt, iar, inspection_report]
+    params:
+      threshold: 0.70
+    remediation: >
+      Delivery to an address other than the contracted point of delivery is
+      outside the contract even when the goods themselves are correct, and
+      the agency has no record of having taken custody at a place it
+      controls. Confirm where the goods physically are before the voucher is
+      certified.
+    authority:
+      doc: IRR of RA 12009
+      query: place of delivery specified in the contract goods shall be delivered to the procuring entity
+
   # -- when ---------------------------------------------------------------
 
   - field: dates.delivery

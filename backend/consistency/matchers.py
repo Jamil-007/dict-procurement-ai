@@ -236,6 +236,74 @@ def list_covers(left: Any, right: Any, params: Dict) -> MatchResult:
     )
 
 
+def person_name(left: Any, right: Any, params: Dict) -> MatchResult:
+    """Two names that must denote the same person.
+
+    The receiving officer is "JUAN D. CRUZ" on the delivery receipt, "Cruz,
+    Juan D." on the PAR and "J. D. Cruz" on the ICS, and all three are one
+    person. A `fuzzy` comparison gets this wrong in both directions: it
+    scores those three low because the word order differs, and it scores
+    "Juan D. Cruz" against "Juan D. Cruzada" high because the strings barely
+    differ. So the words are compared as a set, honorifics and suffixes are
+    dropped, and a single letter is allowed to stand for a word beginning
+    with it.
+    """
+    if not _both_present(left, right):
+        return MatchResult.not_comparable()
+
+    a, b = _name_parts(str(left)), _name_parts(str(right))
+    if not a.words or not b.words:
+        return MatchResult.not_comparable()
+
+    if a.words == b.words:
+        return MatchResult.same(f"both '{left}'")
+
+    # Compare from the sparser side: "J. D. Cruz" carries less information
+    # than "Juan Dela Cruz", and it is the sparser name that must be
+    # accounted for by the fuller one, not the other way round.
+    fewer, more = (a, b) if len(a.words) <= len(b.words) else (b, a)
+    unmatched = [w for w in fewer.words if not _name_word_matches(w, more)]
+    if not unmatched:
+        return MatchResult.same(f"'{left}' and '{right}' name the same person")
+    return MatchResult.differ(f"'{left}' vs '{right}'")
+
+
+def address_equivalent(left: Any, right: Any, params: Dict) -> MatchResult:
+    """Two places that must be the same place.
+
+    Addresses on Philippine procurement documents are written at whatever
+    length the form allows: the contract says "DICT Building, C.P. Garcia
+    Avenue, Diliman, Quezon City" and the delivery receipt says "DICT Bldg.,
+    Diliman, Q.C.". Those agree. "DICT Regional Office IV-A, Calamba" does
+    not, and delivering to the wrong place is the finding -- goods signed for
+    somewhere other than the contracted point of delivery are outside the
+    contract even when everything else about them is right.
+
+    Abbreviations are expanded, filler words dropped, and what remains
+    compared as a set. Digits are treated separately: a building or unit
+    number that disagrees is a different address however much of the rest
+    lines up.
+    """
+    threshold = float(params.get("threshold", 0.70))
+    if not _both_present(left, right):
+        return MatchResult.not_comparable()
+
+    a, b = _address_tokens(str(left)), _address_tokens(str(right))
+    if not a or not b:
+        return MatchResult.not_comparable()
+
+    a_nums, b_nums = _address_numbers(a), _address_numbers(b)
+    if a_nums and b_nums and not (a_nums & b_nums):
+        return MatchResult.differ(
+            f"'{left}' vs '{right}' (floor, unit or building numbers do not match)"
+        )
+
+    overlap = len(a & b) / min(len(a), len(b))
+    if overlap >= threshold:
+        return MatchResult.same(f"'{left}' and '{right}' describe the same place")
+    return MatchResult.differ(f"'{str(left)[:70]}' vs '{str(right)[:70]}'")
+
+
 def text_equivalent(left: Any, right: Any, params: Dict) -> MatchResult:
     """Free-text clauses that must say the same thing.
 
@@ -299,6 +367,125 @@ def _numbers_in(text: str) -> List[str]:
     return re.findall(r"\d+(?:\.\d+)?", text)
 
 
+# Titles and generational suffixes are not part of who someone is, and the
+# same officer carries them on one form and not on the next.
+_NAME_NOISE = frozenset(
+    {
+        "mr", "mrs", "ms", "miss", "sir", "madam", "dr", "engr", "atty", "arch",
+        "hon", "gen", "col", "capt", "prof", "rev",
+        "jr", "sr", "ii", "iii", "iv", "v",
+        "cpa", "ceso", "md", "rn", "phd", "mba", "llb",
+        "dela", "de", "del", "los", "las", "y", "van", "von",
+    }
+)
+
+
+@dataclass
+class _NameParts:
+    """A name split into whole words and bare initials."""
+
+    words: frozenset
+    initials: frozenset
+
+
+def _name_parts(text: str) -> _NameParts:
+    import re
+
+    # Hyphens split: "Santos-Reyes" is one surname on the form that signed
+    # for the goods and two words on the one that accepted them.
+    tokens = [normalize(t) for t in re.split(r"[\s,.\-]+", text) if t.strip()]
+    kept = [t for t in tokens if t and t not in _NAME_NOISE]
+    return _NameParts(
+        words=frozenset(t for t in kept if len(t) > 1),
+        initials=frozenset(t for t in kept if len(t) == 1),
+    )
+
+
+def _name_word_matches(word: str, other: _NameParts) -> bool:
+    if word in other.words:
+        return True
+    if word[0] in other.initials:
+        return True
+    # A single transcription slip off a scan -- "Bermudes" for "Bermudez" --
+    # must not read as a different person. One edit, and only in a word long
+    # enough that one edit cannot turn it into an unrelated name: "Cruz" and
+    # "Cruzada" are four edits apart and stay distinct, but so would "Cruz"
+    # and "Cruzs" be if it were allowed to count.
+    if len(word) < 6:
+        return False
+    return any(_within_one_edit(word, candidate) for candidate in other.words)
+
+
+def _within_one_edit(a: str, b: str) -> bool:
+    """Whether `a` and `b` differ by at most one character."""
+    if abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        return sum(1 for x, y in zip(a, b) if x != y) <= 1
+    shorter, longer = (a, b) if len(a) < len(b) else (b, a)
+    for i in range(len(longer)):
+        if longer[:i] + longer[i + 1 :] == shorter:
+            return True
+    return False
+
+
+# Written one way on the contract and another on the receipt, always.
+_ADDRESS_ABBREVIATIONS = {
+    "st": "street", "str": "street", "sts": "street",
+    "ave": "avenue", "av": "avenue",
+    "rd": "road", "blvd": "boulevard", "hwy": "highway",
+    "bldg": "building", "bldng": "building", "bldgs": "building",
+    "flr": "floor", "fl": "floor", "f": "floor",
+    "rm": "room", "unit": "unit",
+    "brgy": "barangay", "bgy": "barangay", "bry": "barangay",
+    "subd": "subdivision", "compd": "compound", "cmpd": "compound",
+    "ext": "extension", "cor": "corner",
+    "qc": "quezoncity", "mla": "manila", "ncr": "nationalcapitalregion",
+    "prov": "province", "mun": "municipality", "brb": "barangay",
+}
+
+# Words that appear in every address and distinguish none of them.
+_ADDRESS_NOISE = frozenset(
+    {"no", "nos", "number", "the", "of", "and", "at", "in", "near", "philippines", "ph"}
+)
+
+
+def _address_tokens(text: str) -> frozenset:
+    import re
+
+    tokens: List[str] = []
+    for raw in re.split(r"[\s,./\\-]+", text):
+        token = normalize(raw)
+        if not token or token in _ADDRESS_NOISE:
+            continue
+        tokens.append(_ADDRESS_ABBREVIATIONS.get(token, token))
+    # "Quezon City" and "Q.C." have to reach the same token, so the pair is
+    # joined after expansion rather than being matched as two loose words.
+    joined = " ".join(tokens)
+    for phrase, single in (("quezon city", "quezoncity"), ("metro manila", "metromanila")):
+        joined = joined.replace(phrase, single)
+    return frozenset(joined.split())
+
+
+def _address_numbers(tokens: frozenset) -> frozenset:
+    """The floor, unit and building numbers in an address.
+
+    Read off the front of a token rather than requiring the whole token to
+    be digits, because a floor is written "3rd" as often as "3" and the two
+    have to reach the same number. A postal code would be picked up here
+    too; in practice these forms carry floors and unit numbers far more
+    often than postal codes, and a floor that disagrees is the finding.
+    """
+    import re
+
+    numbers = set()
+    for token in tokens:
+        match = re.match(r"(\d+)", token)
+        if match:
+            numbers.add(match.group(1))
+    return frozenset(numbers)
+
+
 MATCHERS: Dict[str, Callable[[Any, Any, Dict], MatchResult]] = {
     "exact": exact,
     "normalized_exact": normalized_exact,
@@ -311,6 +498,8 @@ MATCHERS: Dict[str, Callable[[Any, Any, Dict], MatchResult]] = {
     "serial_set": serial_set,
     "list_covers": list_covers,
     "text_equivalent": text_equivalent,
+    "person_name": person_name,
+    "address_equivalent": address_equivalent,
 }
 
 

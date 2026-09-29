@@ -60,6 +60,13 @@
           "page": 2
         }
       ],
+      "delivery_place": "DICT Central Office Warehouse, Diliman, Q.C.",
+      "recipient": "Bermudez, Luisa M.",
+      "personnel": [
+        "Engr. Ramon T. Ilagan (Project Manager)",
+        "Engr. Cielo M. Bautista (RF Systems Engineer)",
+        "Mr. Dante P. Rivera (Installation Supervisor)"
+      ],
       "dates": {
         "document": "November 14, 2024",
         "delivery": "November 8, 2024",

@@ -68,6 +68,12 @@
       ],
       "delivery_period": "Ninety (90) calendar days from receipt of the Notice to Proceed",
       "warranty_period": "One (1) year from the date of acceptance",
+      "delivery_place": "DICT Central Office Warehouse, C.P. Garcia Avenue, Diliman, Quezon City",
+      "personnel": [
+        "Engr. Ramon T. Ilagan (Project Manager)",
+        "Engr. Cielo M. Bautista (RF Systems Engineer)",
+        "Mr. Dante P. Rivera (Installation Supervisor)"
+      ],
       "dates": {
         "contract_signed": null,
         "document": null

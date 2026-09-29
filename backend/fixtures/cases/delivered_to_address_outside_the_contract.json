@@ -1,10 +1,10 @@
 {
-  "id": "payment_exceeds_contract_amount",
+  "id": "delivered_to_address_outside_the_contract",
   "task": "T4",
-  "description": "The voucher's gross is 7,350,000.00 against a contract amount of 7,000,000.00 -- a 350,000.00 payment with no contractual basis.",
+  "description": "The contract specifies the DICT Central Office warehouse in Diliman; the delivery receipt records delivery to the Region IV-A office in Calamba. The goods are not where the contract put them and the agency has no record of custody.",
   "expect_rules": [],
   "expect_discrepancies": [
-    "amounts.contract_amount"
+    "delivery_place"
   ],
   "forbid_rules": [],
   "max_severity": null,
@@ -156,11 +156,11 @@
       "payee": "Northbridge Telecom Solutions, Inc.",
       "supplier": "Northbridge Telecom Solutions, Inc.",
       "amounts": {
-        "gross": 7350000.0,
+        "gross": 7000000.0,
         "tax": 375000.0,
         "retention": 70000.0,
-        "net": 6905000.0,
-        "contract_amount": 7350000.0
+        "net": 6555000.0,
+        "contract_amount": 7000000.0
       },
       "amount_in_words": "SIX MILLION FIVE HUNDRED FIFTY FIVE THOUSAND PESOS ONLY",
       "items": [
@@ -348,7 +348,7 @@
       "po_no": "PO-2024-0089",
       "supplier": "Northbridge Telecom Solutions, Inc.",
       "recipient": "L. Bermudez",
-      "delivery_place": "DICT Central Office Wh., C.P. Garcia Ave., Diliman, QC",
+      "delivery_place": "DICT Regional Office IV-A, National Highway, Calamba, Laguna",
       "items": [
         {
           "line_no": "1",

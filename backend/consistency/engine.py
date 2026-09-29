@@ -65,6 +65,15 @@ class Comparison:
     params: Dict = dataclass_field(default_factory=dict)
     left_field: str = ""
     right_field: str = ""
+    #: Narrow this one comparison to a subset of the profile's document
+    #: types. Most fields mean the same thing on every document in scope and
+    #: leave these empty. Some do not: `recipient` on a delivery receipt is
+    #: the officer who took delivery from the supplier, and on a PAR it is
+    #: the end user the property was later issued to. Those two are supposed
+    #: to differ, and comparing them across the whole packet would report
+    #: every correct handover as a discrepancy.
+    left_types: List[str] = dataclass_field(default_factory=list)
+    right_types: List[str] = dataclass_field(default_factory=list)
     action_hint: Optional[str] = None
     remediation: Optional[str] = None
     authority_doc: Optional[str] = None
@@ -82,6 +91,26 @@ class Comparison:
     @property
     def directional(self) -> bool:
         return self.match in DIRECTIONAL_MATCHERS
+
+    def scope(
+        self,
+        left_docs: List[DocumentFacts],
+        right_docs: List[DocumentFacts],
+    ) -> Tuple[List[DocumentFacts], List[DocumentFacts]]:
+        """Apply this comparison's own document-type narrowing, if any."""
+        if self.left_types:
+            left_docs = [d for d in left_docs if d.doc_type in self.left_types]
+        if self.right_types:
+            right_docs = [d for d in right_docs if d.doc_type in self.right_types]
+        return left_docs, right_docs
+
+    @property
+    def scope_note(self) -> str:
+        """How to say, in a skip reason, which documents were looked at."""
+        named = list(self.left_types) + list(self.right_types)
+        if not named:
+            return "this set"
+        return f"the {', '.join(named)} in this set"
 
 
 @dataclass
@@ -125,6 +154,8 @@ def _parse_comparison(raw: Dict, defaults: Dict) -> Comparison:
         params=raw.get("params", {}) or {},
         left_field=raw.get("left_field", field_path),
         right_field=raw.get("right_field", field_path),
+        left_types=raw.get("left_types", []) or [],
+        right_types=raw.get("right_types", []) or [],
         action_hint=raw.get("action_hint"),
         remediation=raw.get("remediation"),
         authority_doc=authority.get("doc"),
@@ -148,6 +179,23 @@ def load_profile(path: Path) -> Profile:
             f"{path.name} references unknown matcher(s): {sorted(set(unknown))}. "
             f"Available: {sorted(MATCHERS) + [ITEM_COVERAGE]}"
         )
+
+    # A narrowing that names a document type the profile never looks at would
+    # silently disable the comparison, which is the one failure mode a
+    # configuration-driven checker must not have: it reports nothing and looks
+    # exactly like agreement.
+    left_scope, right_scope = set(raw.get("left", [])), set(raw.get("right", []))
+    for comparison in comparisons:
+        stray = (set(comparison.left_types) - left_scope) | (
+            set(comparison.right_types) - right_scope
+        )
+        if stray:
+            raise ValueError(
+                f"{path.name}: comparison '{comparison.field}' is narrowed to "
+                f"{sorted(stray)}, which the profile does not include in its "
+                f"left ({sorted(left_scope)}) or right ({sorted(right_scope)}) "
+                "document types."
+            )
 
     return Profile(
         id=raw.get("id", path.stem),
@@ -672,18 +720,28 @@ def run_profile(
 
     findings: List[Finding] = []
     for comparison in profile.compare:
+        scoped_left, scoped_right = comparison.scope(left_docs, right_docs)
         try:
-            if comparison.match == ITEM_COVERAGE:
-                result = _check_item_coverage(profile, comparison, left_docs, right_docs)
+            if not scoped_left or not scoped_right:
+                result = _skipped(
+                    profile,
+                    comparison,
+                    f"This comparison looks at {comparison.scope_note}, and the "
+                    "upload does not contain both sides of it.",
+                )
+            elif comparison.match == ITEM_COVERAGE:
+                result = _check_item_coverage(
+                    profile, comparison, scoped_left, scoped_right
+                )
             elif comparison.is_item_field:
-                result = _compare_items(profile, comparison, left_docs, right_docs)
+                result = _compare_items(profile, comparison, scoped_left, scoped_right)
             elif comparison.directional:
                 result = _compare_scalar_directional(
-                    profile, comparison, left_docs, right_docs
+                    profile, comparison, scoped_left, scoped_right
                 )
             else:
                 result = _compare_scalar_symmetric(
-                    profile, comparison, left_docs, right_docs
+                    profile, comparison, scoped_left, scoped_right
                 )
         except Exception as exc:  # noqa: BLE001 - one bad comparison must not stop the run
             result = _skipped(

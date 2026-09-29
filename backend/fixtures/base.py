@@ -76,6 +76,23 @@ NET_IN_WORDS = "SIX MILLION FIVE HUNDRED FIFTY FIVE THOUSAND PESOS ONLY"
 DELIVERY_PERIOD = "Ninety (90) calendar days from receipt of the Notice to Proceed"
 WARRANTY_PERIOD = "One (1) year from the date of acceptance"
 
+# The same warehouse, written the way each form has room for it. The clean
+# controls depend on these three agreeing: a checker that reads them as three
+# different addresses would report every correct delivery as misdelivered.
+DELIVERY_PLACE = (
+    "DICT Central Office Warehouse, C.P. Garcia Avenue, Diliman, Quezon City"
+)
+DELIVERY_PLACE_SHORT = "DICT Central Office Warehouse, Diliman, Q.C."
+DELIVERY_PLACE_ALT = "DICT Central Office Wh., C.P. Garcia Ave., Diliman, QC"
+
+# The supplier's assigned team, named in the contract and expected to be the
+# same people who appear on the inspection report.
+PERSONNEL = [
+    "Engr. Ramon T. Ilagan (Project Manager)",
+    "Engr. Cielo M. Bautista (RF Systems Engineer)",
+    "Mr. Dante P. Rivera (Installation Supervisor)",
+]
+
 DATES = {
     "pr": "June 12, 2024",
     "bid_opening": "August 6, 2024",
@@ -256,6 +273,8 @@ def clean_packet() -> Dict[str, Dict]:
         items=copy.deepcopy(ITEMS),
         delivery_period=DELIVERY_PERIOD,
         warranty_period=WARRANTY_PERIOD,
+        delivery_place=DELIVERY_PLACE,
+        personnel=list(PERSONNEL),
         dates={
             "document": DATES["contract_signed"],
             "contract_signed": DATES["contract_signed"],
@@ -313,7 +332,7 @@ def clean_packet() -> Dict[str, Dict]:
         po_no=PO_NO,
         supplier=SUPPLIER,
         recipient="L. Bermudez",
-        delivery_place="DICT Central Office Warehouse, C.P. Garcia Avenue, Diliman, Quezon City",
+        delivery_place=DELIVERY_PLACE_ALT,
         items=copy.deepcopy(ITEMS),
         dates={"document": DATES["delivery"], "delivery": DATES["delivery"]},
         signatories=[
@@ -334,6 +353,11 @@ def clean_packet() -> Dict[str, Dict]:
         po_no=PO_NO,
         supplier=SUPPLIER,
         items=copy.deepcopy(ITEMS),
+        # Written differently from the delivery receipt on purpose, and
+        # naming the same officer in the reversed form the IAR uses.
+        delivery_place=DELIVERY_PLACE_SHORT,
+        recipient="Bermudez, Luisa M.",
+        personnel=list(PERSONNEL),
         dates={
             "document": DATES["acceptance"],
             "delivery": DATES["delivery"],

@@ -40,7 +40,7 @@ FIELD_PROFILES: Dict[str, List[str]] = {
     "contract": [
         "contract_no", "supplier", "amounts.contract_amount", "items",
         "dates.contract_signed", "delivery_period", "warranty_period",
-        "signatories", "project_title", "delivery_place",
+        "signatories", "project_title", "delivery_place", "personnel",
     ],
     "delivery_receipt": [
         "doc_number", "contract_no", "po_no", "supplier", "items",
@@ -49,16 +49,21 @@ FIELD_PROFILES: Dict[str, List[str]] = {
     "iar": [
         "doc_number", "contract_no", "po_no", "supplier", "items",
         "dates.inspection", "dates.acceptance", "signatories",
+        "delivery_place", "recipient", "personnel",
     ],
     "inspection_report": [
         "doc_number", "contract_no", "supplier", "items",
         "dates.inspection", "dates.acceptance", "signatories",
+        "delivery_place", "personnel",
     ],
     "par": [
         "doc_number", "items", "recipient", "end_user", "dates.received",
-        "amounts.total", "signatories",
+        "amounts.total", "signatories", "delivery_place",
     ],
-    "ics": ["doc_number", "items", "recipient", "dates.received", "signatories"],
+    "ics": [
+        "doc_number", "items", "recipient", "dates.received", "signatories",
+        "delivery_place",
+    ],
     "warranty_certificate": [
         "doc_number", "supplier", "items", "warranty_period",
         "dates.warranty_start", "dates.warranty_end", "contract_no",
@@ -74,14 +79,15 @@ FIELD_PROFILES: Dict[str, List[str]] = {
     "tor": [
         "project_title", "items", "amounts.abc", "deliverables", "milestones",
         "delivery_period", "warranty_period", "eligibility_requirements",
-        "delivery_place",
+        "delivery_place", "personnel",
     ],
     "market_study": ["project_title", "items", "amounts.abc", "supplier"],
     "dcb": ["project_title", "items", "amounts.abc", "amounts.total"],
     "bidding_docs": [
         "project_title", "items", "amounts.abc", "deliverables",
         "eligibility_requirements", "delivery_period", "warranty_period",
-        "dates.bid_opening", "mode_of_procurement",
+        "dates.bid_opening", "mode_of_procurement", "delivery_place",
+        "personnel",
     ],
     "rfq": [
         "doc_number", "project_title", "items", "amounts.abc",
@@ -127,6 +133,11 @@ Rules:
    `signed` is true only when an actual signature mark is present, not merely
    a printed name. An unsigned block with a printed name is signed=false.
 7. `attachments_referenced`: documents this one names as attached or supporting.
+7a. `personnel`: individuals the supplier is committed to assign to the work --
+   a project manager, team leader, engineer or technician named in the body of
+   the document or in a manning schedule. Record the name, and the role in
+   parentheses after it when the document states one. These are NOT the
+   signatories: a person who only signs the form does not belong here.
 8. `page_refs`: for each field you filled, add an entry mapping the field's
    dotted path (e.g. "amounts.net", "dv_no", "items", "signatories") to the
    page number it was read from. Use the `--- Page N ---` markers.
@@ -250,6 +261,7 @@ def _extraction_schema() -> Dict[str, Any]:
             "eligibility_requirements": str_array,
             "deliverables": str_array,
             "milestones": str_array,
+            "personnel": str_array,
             "page_refs": {
                 "type": "object",
                 "additionalProperties": {"type": "integer"},
@@ -264,7 +276,7 @@ def _extraction_schema() -> Dict[str, Any]:
             "amount_in_words", "mode_of_procurement", "delivery_period",
             "warranty_period", "amounts", "dates", "items", "signatories",
             "attachments_referenced", "eligibility_requirements",
-            "deliverables", "milestones", "page_refs",
+            "deliverables", "milestones", "personnel", "page_refs",
             "extraction_confidence", "notes",
         ],
         "additionalProperties": False,

@@ -101,6 +101,45 @@ compare:
       doc: COA Circular No. 2023-004
       section: "9.3.1"
 
+  # -- who received it, and where ----------------------------------------
+
+  # Scoped to the IAR deliberately. `recipient` on a delivery receipt is the
+  # officer who took delivery from the supplier; on a PAR or ICS it is the
+  # end user the property was afterwards issued to. Those two are supposed
+  # to be different people, and comparing them would report every correct
+  # handover as a discrepancy. The IAR records the same receiving event as
+  # the delivery receipt, so there the two names should agree.
+  - field: recipient
+    match: person_name
+    severity: medium
+    title: The delivery receipt and the acceptance report name the same receiving officer
+    category: Property Accountability
+    right_types: [iar]
+    remediation: >
+      The officer who signed for the goods on delivery and the officer
+      recorded as accepting them are the agency's link to the transaction.
+      Where the two documents name different people, establish who actually
+      took custody and when it passed between them.
+    authority:
+      doc: COA Circular No. 2023-004
+      query: property acknowledgement receipt accountable officer received by custody of the property
+
+  - field: delivery_place
+    match: address_equivalent
+    severity: medium
+    title: The receiving documents record one place of delivery
+    category: Property Accountability
+    right_types: [iar, inspection_report, par, ics]
+    params:
+      threshold: 0.70
+    remediation: >
+      Goods delivered at one address and inspected or taken up at another
+      moved between the two, and nothing in the packet records the movement.
+      Establish where the property physically is.
+    authority:
+      doc: COA Circular No. 2023-004
+      query: inspection and acceptance report place of delivery inspected at the premises
+
   # -- sequencing ---------------------------------------------------------
 
   - field: dates.acceptance

@@ -436,6 +436,12 @@
       ],
       "delivery_period": "Ninety (90) calendar days from receipt of the Notice to Proceed",
       "warranty_period": "One (1) year from the date of acceptance",
+      "delivery_place": "DICT Central Office Warehouse, C.P. Garcia Avenue, Diliman, Quezon City",
+      "personnel": [
+        "Engr. Ramon T. Ilagan (Project Manager)",
+        "Engr. Cielo M. Bautista (RF Systems Engineer)",
+        "Mr. Dante P. Rivera (Installation Supervisor)"
+      ],
       "dates": {
         "document": "September 10, 2024",
         "contract_signed": "September 10, 2024",
@@ -711,7 +717,7 @@
       "po_no": "PO-2024-0089",
       "supplier": "Northbridge Telecom Solutions, Inc.",
       "recipient": "L. Bermudez",
-      "delivery_place": "DICT Central Office Warehouse, C.P. Garcia Avenue, Diliman, Quezon City",
+      "delivery_place": "DICT Central Office Wh., C.P. Garcia Ave., Diliman, QC",
       "items": [
         {
           "line_no": "1",
@@ -834,6 +840,13 @@
           ],
           "page": 2
         }
+      ],
+      "delivery_place": "DICT Central Office Warehouse, Diliman, Q.C.",
+      "recipient": "Bermudez, Luisa M.",
+      "personnel": [
+        "Engr. Ramon T. Ilagan (Project Manager)",
+        "Engr. Cielo M. Bautista (RF Systems Engineer)",
+        "Mr. Dante P. Rivera (Installation Supervisor)"
       ],
       "dates": {
         "document": "November 14, 2024",

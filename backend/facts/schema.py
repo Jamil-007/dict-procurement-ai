@@ -190,6 +190,12 @@ class DocumentFacts(BaseModel):
     end_user: Optional[str] = None
     recipient: Optional[str] = None  # who signed for receipt (PAR/ICS/DR)
     delivery_place: Optional[str] = None
+    # Named individuals the supplier committed to assign, for contracts where
+    # the people are the deliverable. Distinct from `signatories`, who sign
+    # the document: these are named in the body of the contract or the TOR
+    # and are supposed to be the same ones who later appear on the
+    # accomplishment reports the payment is drawn against.
+    personnel: List[str] = Field(default_factory=list)
 
     # Content
     amounts: Amounts = Field(default_factory=Amounts)

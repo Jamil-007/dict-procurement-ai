@@ -1,10 +1,10 @@
 {
-  "id": "acceptance_predates_delivery_across_documents",
+  "id": "receiving_officer_differs_dr_vs_iar",
   "task": "T5",
-  "description": "The IAR records acceptance on 5 November; the delivery receipt is dated 8 November. Goods were accepted three days before arrival.",
+  "description": "The delivery receipt is signed for by L. Bermudez; the acceptance report records a different officer receiving the same consignment. One of the two documents does not describe the handover that happened.",
   "expect_rules": [],
   "expect_discrepancies": [
-    "dates.acceptance"
+    "recipient"
   ],
   "forbid_rules": [],
   "max_severity": null,
@@ -145,7 +145,7 @@
         }
       ],
       "delivery_place": "DICT Central Office Warehouse, Diliman, Q.C.",
-      "recipient": "Bermudez, Luisa M.",
+      "recipient": "Navarro, Fidel C.",
       "personnel": [
         "Engr. Ramon T. Ilagan (Project Manager)",
         "Engr. Cielo M. Bautista (RF Systems Engineer)",
@@ -155,7 +155,7 @@
         "document": "November 14, 2024",
         "delivery": "November 8, 2024",
         "inspection": "November 12, 2024",
-        "acceptance": "November 5, 2024"
+        "acceptance": "November 14, 2024"
       },
       "signatories": [
         {

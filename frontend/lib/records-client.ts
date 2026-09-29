@@ -5,12 +5,14 @@
  */
 
 import type {
+  CheckerInfo,
   Dimension,
   Finding,
   KnowledgeEntry,
   KnowledgeResponse,
   Procurement,
   ProcurementCreate,
+  RunChecksResponse,
   RunReviewResponse,
 } from "@/types/records";
 
@@ -156,6 +158,21 @@ export const addComment = (ref: string, findingId: string, text: string) =>
     method: "POST",
     body: JSON.stringify({ text }),
   });
+
+// --- compliance checks ---
+//
+// A separate set of endpoints from the review's, even though both produce
+// Findings against the same record: the two tabs run independently and each
+// re-run must leave the other's results alone. Editing a finding is shared,
+// though — patchFinding and addComment above work on either engine's.
+
+export const listCheckers = () => request<CheckerInfo[]>("/checks/checkers");
+
+export const runChecks = (ref: string) =>
+  request<RunChecksResponse>(`/procurements/${ref}/checks`, { method: "POST" });
+
+export const listCheckFindings = (ref: string) =>
+  request<Finding[]>(`/procurements/${ref}/checks`);
 
 // --- knowledge ---
 

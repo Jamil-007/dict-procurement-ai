@@ -1,6 +1,7 @@
 id: ra12009_planning
 task: T2
 name: RA 12009 Procurement Compliance Checker
+owner: Michelle
 description: >
   Checks planning and bidding documents against the New Government
   Procurement Act (RA 12009), its IRR, GPPB issuances and COA rules. Every

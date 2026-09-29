@@ -16,7 +16,7 @@ from domain import (
     ProcurementDocument,
     ProcurementPatch,
 )
-from review.schema import Comment, StoredFinding
+from review.schema import Comment, Engine, StoredFinding
 
 
 class Store(ABC):
@@ -57,13 +57,21 @@ class Store(ABC):
     # --- findings ---
 
     @abstractmethod
-    def list_findings(self, ref: str) -> List[StoredFinding]: ...
+    def list_findings(
+        self, ref: str, engine: Optional[Engine] = None
+    ) -> List[StoredFinding]:
+        """Every finding for this record, or only one engine's when given."""
 
     @abstractmethod
     def replace_findings(
-        self, ref: str, findings: List[StoredFinding]
+        self, ref: str, findings: List[StoredFinding], engine: Engine = "ai_review"
     ) -> List[StoredFinding]:
-        """Swap in a fresh review, discarding the previous run's findings."""
+        """
+        Swap in a fresh run, discarding the previous findings *of that engine
+        only*. The AI Review and the Compliance Checks tabs write to the same
+        record and re-run independently; an unscoped replace would mean each
+        run silently deleted the other tab's results.
+        """
 
     @abstractmethod
     def get_finding(self, ref: str, finding_id: str) -> Optional[StoredFinding]: ...

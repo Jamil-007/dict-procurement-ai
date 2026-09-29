@@ -38,6 +38,22 @@ function metaLine(item: Procurement) {
     parts.push("review not yet run");
   }
 
+  // Only when they found something. The checkers record a compliant finding
+  // for every requirement they tested and passed, so the honest number here is
+  // what needs acting on — and a record with nothing outstanding should not
+  // add a line to say so.
+  if (item.check_status === "done") {
+    const { critical, medium, low } = item.check_counts;
+    const issues = critical + medium + low;
+    if (issues > 0) {
+      parts.push(
+        `${issues} compliance issue${issues === 1 ? "" : "s"}`
+      );
+    }
+  } else if (item.check_status === "processing") {
+    parts.push("compliance checks in progress");
+  }
+
   return parts.join(" · ");
 }
 

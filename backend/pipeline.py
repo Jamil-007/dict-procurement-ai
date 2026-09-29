@@ -248,10 +248,17 @@ def extract_node(state: AgentState) -> Dict[str, Any]:
 # -- route -----------------------------------------------------------------
 
 
-def plan_route(documents: List[DocumentFacts]) -> List[str]:
+def plan_route(documents: List[DocumentFacts], run_advisory: bool = True) -> List[str]:
     """Decide which checkers this packet can support.
 
     Pure and importable so it can be tested without building a graph.
+
+    `run_advisory` exists for the Compliance Checks tab inside a procurement
+    record, which sits beside an AI Review that already reads the documents
+    with an LLM. Firing the six advisory agents there would pay for a second
+    opinion on the same planning questions and show it nowhere — they write
+    to `analysis_results`, which that tab does not render. The Analyst page
+    passes nothing and keeps all of them.
     """
     if not documents:
         return []
@@ -264,7 +271,7 @@ def plan_route(documents: List[DocumentFacts]) -> List[str]:
         selected.append("consistency_checks")
 
     detected = {d.doc_type for d in documents}
-    if detected & PLANNING_DOC_TYPES:
+    if run_advisory and detected & PLANNING_DOC_TYPES:
         selected.extend(ADVISORY_NODES)
 
     return selected
@@ -273,7 +280,7 @@ def plan_route(documents: List[DocumentFacts]) -> List[str]:
 def route_node(state: AgentState) -> Dict[str, Any]:
     """Record the routing decision so the UI can show what ran and why."""
     documents = _facts_from_state(state)
-    selected = plan_route(documents)
+    selected = plan_route(documents, run_advisory=state.get("run_advisory", True))
 
     detected = sorted({d.type_label or d.doc_type for d in documents})
     logs = [create_thinking_log("Router", "Selecting applicable checks...", "active")]

@@ -1,6 +1,7 @@
 id: contract_to_payment
 task: T4
 name: Contract-to-Payment Consistency Checker
+owner: PCMD
 description: >
   Compares what was contracted against what was delivered, accepted and paid.
   Where the two diverge, the remedy depends on what is being procured: for

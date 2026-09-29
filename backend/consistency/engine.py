@@ -92,6 +92,9 @@ class Profile:
     task: str
     name: str
     description: str
+    #: The team this assigned feature belongs to. Carried through to the
+    #: Compliance Checks tab so a reviewer can see who owns a checker.
+    owner: str
     left: List[str]
     right: List[str]
     compare: List[Comparison]
@@ -151,6 +154,7 @@ def load_profile(path: Path) -> Profile:
         task=raw.get("task", ""),
         name=raw.get("name", path.stem),
         description=raw.get("description", ""),
+        owner=raw.get("owner", ""),
         left=raw.get("left", []),
         right=raw.get("right", []),
         compare=comparisons,

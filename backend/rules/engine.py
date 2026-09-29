@@ -59,6 +59,9 @@ class Rulepack:
     task: str
     name: str
     description: str
+    #: The team this assigned feature belongs to. Carried through to the
+    #: Compliance Checks tab so a reviewer can see who owns a checker.
+    owner: str
     rules: List[Rule]
     path: Optional[Path] = None
 
@@ -102,6 +105,7 @@ def load_pack(path: Path) -> Rulepack:
         task=raw.get("task", ""),
         name=raw.get("name", path.stem),
         description=raw.get("description", ""),
+        owner=raw.get("owner", ""),
         rules=rules,
         path=path,
     )

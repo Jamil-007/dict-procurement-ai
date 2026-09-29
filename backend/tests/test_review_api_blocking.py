@@ -50,7 +50,7 @@ class FakeStore:
         self.saved += 1
         return procurement
 
-    def replace_findings(self, ref, findings):
+    def replace_findings(self, ref, findings, engine="ai_review"):
         return findings
 
 

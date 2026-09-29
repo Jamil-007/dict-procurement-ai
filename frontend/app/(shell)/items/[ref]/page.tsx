@@ -9,21 +9,30 @@ import { StatusPill, totalFindings } from "@/components/shell/status-pill";
 import { OverviewTab } from "@/components/procurement-records/overview-tab";
 import { DocumentsTab } from "@/components/procurement-records/documents-tab";
 import { AiReviewTab } from "@/components/procurement-records/ai-review-tab";
+import { ComplianceChecksTab } from "@/components/procurement-records/compliance-checks-tab";
 import { FinalReportTab } from "@/components/procurement-records/final-report-tab";
 import { FormsTab } from "@/components/procurement-records/forms-tab";
 import { getProcurement } from "@/lib/records-client";
 import { formatPeso } from "@/lib/format";
-import type { Procurement } from "@/types/records";
+import type { Procurement, Severity } from "@/types/records";
 import { cn } from "@/lib/utils";
 
+// Compliance Checks sits beside AI Review rather than inside it: the two read
+// the same documents and produce the same kind of finding, but one is an LLM
+// opinion and the other is a deterministic rule and consistency engine. They
+// run independently, and a re-run of either leaves the other's findings alone.
 const TABS = [
   "Overview",
   "Documents",
   "AI Review",
+  "Compliance Checks",
   "Forms",
   "Final Report",
 ] as const;
 export type WorkspaceTab = (typeof TABS)[number];
+
+/** Severities that mean a requirement was not met. See checkIssueTotal below. */
+const CHECK_ISSUE_LEVELS: Severity[] = ["critical", "medium", "low"];
 
 export default function WorkspacePage() {
   const { ref } = useParams<{ ref: string }>();
@@ -65,6 +74,14 @@ export default function WorkspacePage() {
   }
 
   const findingTotal = totalFindings(procurement.finding_counts);
+
+  // Deliberately not totalFindings: a checker run records a compliant finding
+  // for every requirement it tested and passed, so the full total would badge
+  // a clean packet with a large number. The badge counts what needs acting on.
+  const checkIssueTotal = CHECK_ISSUE_LEVELS.reduce(
+    (sum, level) => sum + (procurement.check_counts?.[level] ?? 0),
+    0
+  );
 
   return (
     <div className="w-full px-7 py-6 print:px-0 print:py-0">
@@ -109,6 +126,12 @@ export default function WorkspacePage() {
                   {findingTotal}
                 </span>
               )}
+              {name === "Compliance Checks" &&
+                procurement.check_status === "done" && (
+                  <span className="ml-1.5 text-[11px] font-normal text-subtle">
+                    {checkIssueTotal}
+                  </span>
+                )}
             </button>
           ))}
         </nav>
@@ -135,6 +158,13 @@ export default function WorkspacePage() {
             procurement={procurement}
             onProcurementChange={setProcurement}
             runRequest={runRequest}
+            onGoToDocuments={() => setTab("Documents")}
+          />
+        )}
+        {tab === "Compliance Checks" && (
+          <ComplianceChecksTab
+            procurement={procurement}
+            onProcurementChange={setProcurement}
             onGoToDocuments={() => setTab("Documents")}
           />
         )}

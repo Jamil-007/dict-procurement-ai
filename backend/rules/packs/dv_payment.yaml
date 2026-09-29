@@ -1,6 +1,7 @@
 id: dv_payment
 task: T1
 name: Payment Document & Disbursement Voucher Checker
+owner: Jerald
 description: >
   Checks Disbursement Vouchers and their supporting payment documents for
   completeness, required fields, signatures, date sequencing and arithmetic.

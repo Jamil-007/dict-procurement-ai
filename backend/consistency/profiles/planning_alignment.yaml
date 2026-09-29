@@ -1,6 +1,7 @@
 id: planning_alignment
 task: T6
 name: Planning Document Alignment Checker
+owner: Jen L.
 description: >
   Detects inconsistencies between the Market Study, Terms of Reference,
   Detailed Cost Breakdown and Bidding Documents: specifications, quantities,

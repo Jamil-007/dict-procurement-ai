@@ -198,12 +198,13 @@ async def run_procurement_review(
         StoredFinding(
             **finding.model_dump(),
             procurement_ref=ref,
+            engine="ai_review",
             ai_analysis=finding.analysis,
             ai_recommendation=finding.recommendation,
         )
         for finding in result.findings
     ]
-    store.replace_findings(ref, stored)
+    store.replace_findings(ref, stored, engine="ai_review")
 
     procurement.review_status = "done"
     store.save_procurement(procurement)
@@ -233,8 +234,13 @@ async def run_procurement_review(
 
 @router.get("/procurements/{ref}/findings", response_model=List[StoredFinding])
 def list_findings(ref: str):
+    """
+    The AI Review's findings only. The Compliance Checks tab writes to the
+    same record under a different engine and lists its own at
+    /procurements/{ref}/checks.
+    """
     _require(ref)
-    return get_store().list_findings(ref)
+    return get_store().list_findings(ref, engine="ai_review")
 
 
 class FindingPatch(BaseModel):

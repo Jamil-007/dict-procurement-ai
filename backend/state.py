@@ -85,6 +85,10 @@ class AgentState(TypedDict, total=False):
 
     # -- routing -----------------------------------------------------------
     routed_checkers: List[str]
+    # Whether the six advisory agents are part of the fan-out. Defaults to
+    # true when absent; see pipeline.plan_route for why the Compliance Checks
+    # tab turns them off.
+    run_advisory: bool
 
     # -- results -----------------------------------------------------------
     findings: Annotated[list, append_findings]

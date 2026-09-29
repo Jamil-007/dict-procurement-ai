@@ -48,7 +48,7 @@ from agents.doc_generation.registry import FORM_REGISTRY
 from agents.doc_generation.text_source import get_source_text
 from agents.feedback import service as feedback_service
 from agents.feedback.models import FeedbackItem
-from routers import knowledge, procurements, review_api
+from routers import checks, knowledge, procurements, review_api
 
 import re as _re
 import unicodedata as _unicodedata
@@ -128,6 +128,7 @@ logger = logging.getLogger(__name__)
 app.include_router(procurements.router)
 app.include_router(knowledge.router)
 app.include_router(review_api.router)
+app.include_router(checks.router)
 
 # Store for tracking background tasks
 analysis_tasks = {}

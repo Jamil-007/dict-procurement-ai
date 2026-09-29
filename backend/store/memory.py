@@ -20,7 +20,7 @@ from domain import (
     ProcurementPatch,
     today,
 )
-from review.schema import Comment, StoredFinding
+from review.schema import Comment, Engine, StoredFinding
 from store.base import Store
 
 SEED_PATH = Path(__file__).resolve().parent.parent / "data" / "knowledge_seed.json"
@@ -118,15 +118,23 @@ class MemoryStore(Store):
 
     # --- findings ---
 
-    def list_findings(self, ref: str) -> List[StoredFinding]:
-        with self._lock:
-            return list(self._findings.get(ref, []))
-
-    def replace_findings(
-        self, ref: str, findings: List[StoredFinding]
+    def list_findings(
+        self, ref: str, engine: Optional[Engine] = None
     ) -> List[StoredFinding]:
         with self._lock:
-            self._findings[ref] = list(findings)
+            rows = list(self._findings.get(ref, []))
+        if engine is None:
+            return rows
+        return [row for row in rows if row.engine == engine]
+
+    def replace_findings(
+        self, ref: str, findings: List[StoredFinding], engine: Engine = "ai_review"
+    ) -> List[StoredFinding]:
+        with self._lock:
+            kept = [
+                row for row in self._findings.get(ref, []) if row.engine != engine
+            ]
+            self._findings[ref] = kept + list(findings)
             return list(findings)
 
     def get_finding(self, ref: str, finding_id: str) -> Optional[StoredFinding]:

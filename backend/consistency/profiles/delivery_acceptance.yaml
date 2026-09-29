@@ -1,6 +1,7 @@
 id: delivery_acceptance
 task: T5
 name: Automated Document & Data Cross-Checker
+owner: PCMD
 description: >
   Cross-checks the receiving chain: Delivery Receipt against Inspection and
   Acceptance Report, Property Acknowledgement Receipt or Inventory Custodian

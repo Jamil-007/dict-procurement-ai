@@ -4,11 +4,22 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutList, Library, MessageSquare, FileText, ChevronLeft } from "lucide-react";
+import {
+  LayoutList,
+  Library,
+  ListChecks,
+  MessageSquare,
+  FileText,
+  ChevronLeft,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/items", label: "Procurements", icon: LayoutList },
+  // The same six checkers as the Compliance Checks tab inside a record, run
+  // over an ad-hoc upload instead. Kept as its own page because the checks are
+  // useful on a packet nobody has raised a procurement record for yet.
+  { href: "/compliance", label: "Compliance Suite", icon: ListChecks },
   { href: "/forms", label: "Forms", icon: FileText },
   { href: "/analyst", label: "ProcAI", icon: MessageSquare },
   { href: "/hub", label: "Knowledge Hub", icon: Library },

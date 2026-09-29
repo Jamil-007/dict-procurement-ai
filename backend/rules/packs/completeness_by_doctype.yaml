@@ -1,6 +1,7 @@
 id: completeness_by_doctype
 task: T3
 name: Procurement Document Review & Compliance Engine
+owner: OUPCO
 description: >
   A completeness checklist for every document type the system accepts, so
   that any uploaded file gets a meaningful review rather than being silently

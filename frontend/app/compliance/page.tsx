@@ -103,62 +103,56 @@ export default function CompliancePage() {
     },
   ] as const;
 
+  // Once a run starts, swap the upload card for a compact status row.
+  const focusMode = isRunning || hasVerdict;
+
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-white">
+    <div className="flex h-full flex-col overflow-hidden bg-gray-50">
       <SessionArchive />
 
-      <div className="mx-auto w-full max-w-7xl flex-1 overflow-y-auto px-6 py-6">
-        <div className="mb-6">
-          <h1 className="text-lg font-bold tracking-tight text-gray-900">
-            Compliance &amp; Data Integrity
-          </h1>
-          <p className="mt-0.5 max-w-xl text-sm text-gray-500">
-            Upload your procurement documents to review them against the six
-            assigned compliance checks.
-          </p>
+      <div className="w-full flex-1 overflow-y-auto px-4 py-6 md:px-6">
+        {/* Page header: title on the left, primary action on the right */}
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-gray-900">
+              Compliance &amp; Data Integrity
+            </h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Upload procurement documents and review them against the six
+              assigned checks.
+            </p>
+          </div>
+          {hasVerdict && !isRunning && (
+            <Button
+              onClick={handleReset}
+              className="rounded-lg bg-black text-white hover:bg-gray-800"
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              New review
+            </Button>
+          )}
         </div>
 
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-          {/* Left: upload */}
-          <div className="space-y-4">
-            <section className="rounded-xl border border-gray-200 bg-white p-6">
-              <div className="mb-4 flex items-center gap-2.5">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-500">
-                  1
-                </span>
-                <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+        <div className="space-y-5">
+          {!focusMode && (
+            <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="mb-4 flex items-baseline justify-between gap-3">
+                <h2 className="text-sm font-semibold text-gray-900">
                   Upload documents
                 </h2>
+                <span className="text-xs text-gray-400">
+                  Up to {MAX_UPLOAD_FILES} files · PDF, Word, Excel or text
+                </span>
               </div>
 
-              {hasVerdict && !isRunning ? (
-                <div>
-                  <p className="text-sm text-gray-600">
-                    Review finished —{' '}
-                    {verdictData?.documents?.length ?? 0} document
-                    {(verdictData?.documents?.length ?? 0) === 1 ? '' : 's'}{' '}
-                    checked. The results are shown on the right.
-                  </p>
-                  <Button
-                    onClick={handleReset}
-                    className="mt-4 w-full rounded-lg bg-black text-white hover:bg-gray-800"
-                  >
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    New review
-                  </Button>
-                </div>
-              ) : (
-                <>
-              {!isRunning && (
-                <FileUpload onFilesSelect={handleFilesSelect} disabled={isRunning} />
-              )}
+              <FileUpload onFilesSelect={handleFilesSelect} disabled={isRunning} />
 
-              {pendingFiles.length > 0 && !isRunning && (
-                <ul className="mt-3 space-y-1.5">
+              {pendingFiles.length > 0 && (
+                <ul className="mt-3 grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
                   {pendingFiles.map((file, i) => (
                     <li
                       key={`${file.name}-${i}`}
-                      className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-700"
+                      className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700"
                     >
                       <FileText className="h-3.5 w-3.5 shrink-0 text-gray-400" />
                       <span className="min-w-0 flex-1 truncate">{file.name}</span>
@@ -176,217 +170,299 @@ export default function CompliancePage() {
                 </ul>
               )}
 
-              <div className="mt-4 flex flex-col gap-2">
-                <Button
-                  onClick={handleRun}
-                  disabled={!pendingFiles.length || isRunning}
-                  className="w-full rounded-lg bg-black text-white hover:bg-gray-800"
-                >
-                  {isRunning ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Play className="mr-2 h-4 w-4" />
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4">
+                <p className="text-xs text-gray-400">
+                  {pendingFiles.length
+                    ? `${pendingFiles.length} document${
+                        pendingFiles.length === 1 ? '' : 's'
+                      } ready for review`
+                    : 'Add documents to start a review'}
+                </p>
+                <div className="flex gap-2">
+                  {error && (
+                    <Button
+                      variant="outline"
+                      onClick={handleReset}
+                      className="rounded-lg border-gray-200 text-gray-600 hover:bg-gray-50"
+                    >
+                      <RotateCcw className="mr-2 h-4 w-4" />
+                      Start over
+                    </Button>
                   )}
-                  {isRunning
-                    ? state === 'uploading'
-                      ? 'Uploading…'
-                      : 'Reviewing…'
-                    : `Run review${
-                        pendingFiles.length ? ` (${pendingFiles.length})` : ''
-                      }`}
-                </Button>
-                {error && !isRunning && (
                   <Button
-                    variant="outline"
-                    onClick={handleReset}
-                    className="w-full rounded-lg border-gray-200 text-gray-600 hover:bg-gray-50"
+                    onClick={handleRun}
+                    disabled={!pendingFiles.length}
+                    className="rounded-lg bg-black px-6 text-white hover:bg-gray-800"
                   >
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    New review
+                    <Play className="mr-2 h-4 w-4" />
+                    Run review
                   </Button>
-                )}
+                </div>
               </div>
 
               {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
-                </>
-              )}
             </section>
+          )}
 
-            {isRunning && thinkingLogs.length > 0 && (
-              <ThinkingWidget logs={thinkingLogs} isComplete={!isRunning} />
-            )}
-
-            {verdictData?.documents && verdictData.documents.length > 0 && (
-              <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-                <div className="border-b border-gray-100 px-4 py-2.5">
-                  <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-                    Documents ({verdictData.documents.length})
-                  </h2>
-                </div>
-                <ul className="divide-y divide-gray-100">
-                  {verdictData.documents.map((doc) => (
-                    <li key={doc.file} className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 shrink-0 text-gray-400" />
-                        <span className="min-w-0 flex-1 truncate text-xs font-medium text-gray-900">
-                          {doc.file}
-                        </span>
-                      </div>
-                      <p className="mt-1 pl-6 text-[11px] text-gray-500">
-                        {doc.label || doc.doc_type} ·{' '}
-                        {Math.round(doc.confidence * 100)}%
-                        {doc.pages_read != null &&
-                          ` · ${doc.pages_read}${
-                            doc.total_pages ? `/${doc.total_pages}` : ''
-                          } pages`}
-                      </p>
-                      {doc.error && (
-                        <p className="mt-1 pl-6 text-[11px] text-red-600">
-                          {doc.error}
-                        </p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-          </div>
-
-          {/* Right: results */}
-          <section className="rounded-xl border border-gray-200 bg-white p-6">
-            <div className="mb-4 flex items-center gap-2.5">
-              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-500">
-                2
-              </span>
-              <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-                Review results
-              </h2>
-            </div>
-
-            {verdictData && (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-5 rounded-lg border border-gray-200 p-4"
-              >
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                      verdictData.status === 'PASS'
-                        ? 'bg-emerald-100 text-emerald-600'
-                        : 'bg-red-100 text-red-600'
-                    }`}
-                  >
-                    {verdictData.status === 'PASS' ? (
-                      <CheckCircle2 className="h-5 w-5" />
-                    ) : (
-                      <XCircle className="h-5 w-5" />
-                    )}
-                  </div>
-                  <p
-                    className={`min-w-0 flex-1 text-base font-semibold ${
-                      verdictData.status === 'PASS'
-                        ? 'text-emerald-700'
-                        : 'text-red-700'
-                    }`}
-                  >
-                    {verdictData.status === 'PASS'
-                      ? 'Looks compliant'
-                      : 'Needs attention'}
-                    <span className="ml-2 text-xs font-normal text-gray-400">
-                      {verdictData.confidence}% confidence
-                    </span>
+          {isRunning && (
+            <div className="space-y-4">
+              <section className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
+                <Loader2 className="h-5 w-5 shrink-0 animate-spin text-gray-400" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900">
+                    {state === 'uploading'
+                      ? 'Uploading your documents…'
+                      : 'Review in progress'}
                   </p>
-                  {verdictData.summary && (
-                    <div className="flex divide-x divide-gray-100 text-center text-[11px] text-gray-400">
-                      {(
-                        [
-                          ['Checks', verdictData.summary.total, 'text-gray-900'],
-                          ['Passed', verdictData.summary.passed, 'text-emerald-600'],
-                          ['Failed', verdictData.summary.failed, 'text-red-600'],
-                          [
-                            'Not verified',
-                            verdictData.summary.skipped,
-                            'text-amber-600',
-                          ],
-                        ] as const
-                      ).map(([label, value, color]) => (
-                        <div key={label} className="px-3">
-                          <p
-                            className={`text-base font-semibold leading-none ${color}`}
-                          >
-                            {value}
-                          </p>
-                          <p className="mt-0.5">{label}</p>
-                        </div>
-                      ))}
+                  <p className="text-xs text-gray-500">
+                    Your documents are being checked against the six compliance
+                    and data-integrity checks.
+                  </p>
+                </div>
+              </section>
+
+              {thinkingLogs.length > 0 && (
+                <ThinkingWidget logs={thinkingLogs} isComplete={!isRunning} />
+              )}
+            </div>
+          )}
+
+          {verdictData && (
+            <motion.section
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={`rounded-xl border p-6 shadow-sm ${
+                verdictData.status === 'PASS'
+                  ? 'border-emerald-200 bg-emerald-50/70'
+                  : 'border-red-200 bg-red-50/70'
+              }`}
+            >
+              <div className="flex flex-wrap items-start justify-between gap-5">
+                <div className="min-w-[260px] flex-1">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
+                        verdictData.status === 'PASS'
+                          ? 'bg-emerald-100 text-emerald-600'
+                          : 'bg-red-100 text-red-600'
+                      }`}
+                    >
+                      {verdictData.status === 'PASS' ? (
+                        <CheckCircle2 className="h-6 w-6" />
+                      ) : (
+                        <XCircle className="h-6 w-6" />
+                      )}
                     </div>
+                    <div>
+                      <p
+                        className={`text-lg font-bold ${
+                          verdictData.status === 'PASS'
+                            ? 'text-emerald-800'
+                            : 'text-red-800'
+                        }`}
+                      >
+                        {verdictData.status === 'PASS'
+                          ? 'Looks compliant'
+                          : 'Needs attention'}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {verdictData.confidence}% confidence ·{' '}
+                        {verdictData.documents?.length ?? 0} document
+                        {(verdictData.documents?.length ?? 0) === 1 ? '' : 's'}{' '}
+                        reviewed
+                      </p>
+                    </div>
+                  </div>
+                  {verdictData.summary && (
+                    <p className="mt-3 max-w-2xl text-sm leading-relaxed text-gray-600">
+                      We ran {verdictData.summary.total} automated checks:{' '}
+                      {verdictData.summary.passed} passed,{' '}
+                      {verdictData.summary.failed} found problems that need
+                      fixing
+                      {verdictData.summary.skipped > 0 &&
+                        `, and ${verdictData.summary.skipped} could not be confirmed from the documents provided`}
+                      . Open a check below to see exactly what was caught and
+                      where.
+                    </p>
                   )}
                 </div>
-                {verdictData.summary && (
-                  <p className="mt-3 border-t border-gray-100 pt-3 text-xs leading-relaxed text-gray-500">
-                    We ran {verdictData.summary.total} automated checks on your
-                    documents: {verdictData.summary.passed} passed,{' '}
-                    {verdictData.summary.failed} found problems that need
-                    fixing
-                    {verdictData.summary.skipped > 0 &&
-                      `, and ${verdictData.summary.skipped} could not be confirmed because the documents did not contain the needed data`}
-                    . Open a row below to see exactly what was caught and
-                    where.
-                  </p>
-                )}
-              </motion.div>
-            )}
 
-            {groups.map((group) => {
-              const reqs = REQUIREMENTS.filter(
-                (req) => req.category === group.category
-              );
-              if (!reqs.length) return null;
-              return (
-                <div key={group.category} className="mb-5 last:mb-0">
-                  <div className="mb-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">
-                      {group.label}
-                    </p>
-                    <p className="text-[11px] text-gray-400">{group.blurb}</p>
-                  </div>
-                  <div className="space-y-2">
-                    {reqs.map((req) => (
-                      <RequirementCard
-                        key={req.task}
-                        info={req}
-                        stats={verdictData?.tasks?.[req.task]}
-                        findings={findingsByTask[req.task] ?? []}
-                        checkerRan={checkersRun.includes(req.checkerNode)}
-                        hasVerdict={hasVerdict}
-                      />
+                {verdictData.summary && (
+                  <div className="grid shrink-0 grid-cols-4 gap-2">
+                    {(
+                      [
+                        ['Checks', verdictData.summary.total, 'text-gray-900'],
+                        ['Passed', verdictData.summary.passed, 'text-emerald-600'],
+                        ['Failed', verdictData.summary.failed, 'text-red-600'],
+                        [
+                          'Not verified',
+                          verdictData.summary.skipped,
+                          'text-amber-600',
+                        ],
+                      ] as const
+                    ).map(([label, value, color]) => (
+                      <div
+                        key={label}
+                        className="min-w-[76px] rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-center"
+                      >
+                        <p className={`text-xl font-bold leading-none ${color}`}>
+                          {value}
+                        </p>
+                        <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                          {label}
+                        </p>
+                      </div>
                     ))}
                   </div>
-                </div>
-              );
-            })}
-
-            {notVerified.length > 0 && (
-              <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
-                <h3 className="text-xs font-semibold text-amber-900">
-                  Could not be confirmed ({notVerified.length})
-                </h3>
-                <p className="mt-1 text-xs text-amber-800">
-                  These checks ran, but the uploaded documents did not contain
-                  the data needed to confirm them either way:
-                </p>
-                <ul className="mt-2 space-y-1 text-xs text-amber-900">
-                  {notVerified.map((item, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span className="select-none">•</span>
-                      <span className="break-words">{item}</span>
-                    </li>
-                  ))}
-                </ul>
+                )}
               </div>
-            )}
-          </section>
+            </motion.section>
+          )}
+
+          {hasVerdict ? (
+            <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 text-sm font-semibold text-gray-900">
+                Results by check
+              </h2>
+
+              {groups.map((group) => {
+                const reqs = REQUIREMENTS.filter(
+                  (req) => req.category === group.category
+                );
+                if (!reqs.length) return null;
+                return (
+                  <div key={group.category} className="mb-5 last:mb-0">
+                    <div className="mb-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">
+                        {group.label}
+                      </p>
+                      <p className="text-[11px] text-gray-400">{group.blurb}</p>
+                    </div>
+                    <div className="space-y-2">
+                      {reqs.map((req) => (
+                        <RequirementCard
+                          key={req.task}
+                          info={req}
+                          stats={verdictData?.tasks?.[req.task]}
+                          findings={findingsByTask[req.task] ?? []}
+                          checkerRan={checkersRun.includes(req.checkerNode)}
+                          hasVerdict={hasVerdict}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {notVerified.length > 0 && (
+                <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                  <h3 className="text-xs font-semibold text-amber-900">
+                    Could not be confirmed ({notVerified.length})
+                  </h3>
+                  <p className="mt-1 text-xs text-amber-800">
+                    These checks ran, but the uploaded documents did not contain
+                    the data needed to confirm them either way:
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs text-amber-900">
+                    {notVerified.map((item, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span className="select-none">•</span>
+                        <span className="break-words">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </section>
+          ) : (
+            !isRunning && (
+              /* Pre-run: a static preview of the six checks instead of empty result rows. */
+              <div className="space-y-5">
+                {groups.map((group) => {
+                  const reqs = REQUIREMENTS.filter(
+                    (req) => req.category === group.category
+                  );
+                  if (!reqs.length) return null;
+                  return (
+                    <section key={group.category}>
+                      <div className="mb-2.5">
+                        <h2 className="text-sm font-semibold text-gray-900">
+                          {group.label}
+                        </h2>
+                        <p className="text-xs text-gray-400">{group.blurb}</p>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-3">
+                        {reqs.map((req) => (
+                          <div
+                            key={req.task}
+                            className="flex flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+                          >
+                            <p className="text-sm font-medium text-gray-900">
+                              {req.name}
+                            </p>
+                            <p className="mt-1 flex-1 text-xs leading-relaxed text-gray-500">
+                              {req.description}
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-1">
+                              {req.documents.slice(0, 3).map((doc) => (
+                                <span
+                                  key={doc}
+                                  className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600"
+                                >
+                                  {doc}
+                                </span>
+                              ))}
+                              {req.documents.length > 3 && (
+                                <span className="rounded-md bg-gray-100 px-2 py-0.5 text-[10px] text-gray-400">
+                                  +{req.documents.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+            )
+          )}
+
+          {/* Documents reviewed */}
+          {verdictData?.documents && verdictData.documents.length > 0 && (
+            <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div className="border-b border-gray-100 px-5 py-3">
+                <h2 className="text-sm font-semibold text-gray-900">
+                  Documents reviewed ({verdictData.documents.length})
+                </h2>
+              </div>
+              <ul className="grid divide-y divide-gray-100 sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-3">
+                {verdictData.documents.map((doc) => (
+                  <li key={doc.file} className="px-5 py-3">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 shrink-0 text-gray-400" />
+                      <span className="min-w-0 flex-1 truncate text-xs font-medium text-gray-900">
+                        {doc.file}
+                      </span>
+                    </div>
+                    <p className="mt-1 pl-6 text-[11px] text-gray-500">
+                      {doc.label || doc.doc_type} ·{' '}
+                      {Math.round(doc.confidence * 100)}%
+                      {doc.pages_read != null &&
+                        ` · ${doc.pages_read}${
+                          doc.total_pages ? `/${doc.total_pages}` : ''
+                        } pages`}
+                    </p>
+                    {doc.error && (
+                      <p className="mt-1 pl-6 text-[11px] text-red-600">
+                        {doc.error}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
       </div>
     </div>

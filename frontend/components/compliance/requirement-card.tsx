@@ -222,10 +222,6 @@ export function RequirementCard({
               <dd>{info.description}</dd>
             </div>
             <div>
-              <dt className="font-semibold text-slate-700">Owner</dt>
-              <dd>{info.owner}</dd>
-            </div>
-            <div>
               <dt className="font-semibold text-slate-700">Documents</dt>
               <dd className="mt-1 flex flex-wrap gap-1">
                 {info.documents.map((doc) => (

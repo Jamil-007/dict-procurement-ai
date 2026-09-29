@@ -23,11 +23,11 @@ const ACTION_LABELS: Record<string, string> = {
 function severityClass(severity: string): string {
   switch (severity) {
     case 'high':
-      return 'bg-black text-white border-black';
+      return 'bg-red-600 text-white border-red-600';
     case 'medium':
-      return 'bg-gray-700 text-white border-gray-700';
+      return 'bg-amber-500 text-white border-amber-500';
     case 'low':
-      return 'bg-gray-300 text-black border-gray-300';
+      return 'bg-gray-200 text-gray-700 border-gray-200';
     default:
       return 'bg-gray-100 text-gray-700 border-gray-200';
   }

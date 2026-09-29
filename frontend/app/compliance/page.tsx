@@ -91,8 +91,16 @@ export default function CompliancePage() {
   const checkersRun = verdictData?.checkers_run ?? [];
 
   const groups = [
-    { label: 'Compliance', category: 'COMPLIANCE' },
-    { label: 'Data integrity', category: 'DATA INTEGRITY' },
+    {
+      label: 'Compliance',
+      category: 'COMPLIANCE',
+      blurb: 'Each document is checked against procurement rules',
+    },
+    {
+      label: 'Data integrity',
+      category: 'DATA INTEGRITY',
+      blurb: 'Documents are cross-checked against each other for mismatches',
+    },
   ] as const;
 
   return (
@@ -123,6 +131,24 @@ export default function CompliancePage() {
                 </h2>
               </div>
 
+              {hasVerdict && !isRunning ? (
+                <div>
+                  <p className="text-sm text-gray-600">
+                    Review finished —{' '}
+                    {verdictData?.documents?.length ?? 0} document
+                    {(verdictData?.documents?.length ?? 0) === 1 ? '' : 's'}{' '}
+                    checked. The results are shown on the right.
+                  </p>
+                  <Button
+                    onClick={handleReset}
+                    className="mt-4 w-full rounded-lg bg-black text-white hover:bg-gray-800"
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    New review
+                  </Button>
+                </div>
+              ) : (
+                <>
               {!isRunning && (
                 <FileUpload onFilesSelect={handleFilesSelect} disabled={isRunning} />
               )}
@@ -169,7 +195,7 @@ export default function CompliancePage() {
                         pendingFiles.length ? ` (${pendingFiles.length})` : ''
                       }`}
                 </Button>
-                {(hasVerdict || error) && !isRunning && (
+                {error && !isRunning && (
                   <Button
                     variant="outline"
                     onClick={handleReset}
@@ -182,6 +208,8 @@ export default function CompliancePage() {
               </div>
 
               {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
+                </>
+              )}
             </section>
 
             {isRunning && thinkingLogs.length > 0 && (
@@ -295,6 +323,18 @@ export default function CompliancePage() {
                     </div>
                   )}
                 </div>
+                {verdictData.summary && (
+                  <p className="mt-3 border-t border-gray-100 pt-3 text-xs leading-relaxed text-gray-500">
+                    We ran {verdictData.summary.total} automated checks on your
+                    documents: {verdictData.summary.passed} passed,{' '}
+                    {verdictData.summary.failed} found problems that need
+                    fixing
+                    {verdictData.summary.skipped > 0 &&
+                      `, and ${verdictData.summary.skipped} could not be confirmed because the documents did not contain the needed data`}
+                    . Open a row below to see exactly what was caught and
+                    where.
+                  </p>
+                )}
               </motion.div>
             )}
 
@@ -305,9 +345,12 @@ export default function CompliancePage() {
               if (!reqs.length) return null;
               return (
                 <div key={group.category} className="mb-5 last:mb-0">
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-gray-400">
-                    {group.label}
-                  </p>
+                  <div className="mb-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">
+                      {group.label}
+                    </p>
+                    <p className="text-[11px] text-gray-400">{group.blurb}</p>
+                  </div>
                   <div className="space-y-2">
                     {reqs.map((req) => (
                       <RequirementCard
@@ -327,8 +370,12 @@ export default function CompliancePage() {
             {notVerified.length > 0 && (
               <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
                 <h3 className="text-xs font-semibold text-amber-900">
-                  Not verified ({notVerified.length})
+                  Could not be confirmed ({notVerified.length})
                 </h3>
+                <p className="mt-1 text-xs text-amber-800">
+                  These checks ran, but the uploaded documents did not contain
+                  the data needed to confirm them either way:
+                </p>
                 <ul className="mt-2 space-y-1 text-xs text-amber-900">
                   {notVerified.map((item, i) => (
                     <li key={i} className="flex gap-2">

@@ -64,18 +64,64 @@ function statusText(status: Status, stats?: TaskStats): string {
     case 'ready':
       return 'Waiting for documents';
     case 'issues':
-      return `${stats!.failed} issue${stats!.failed === 1 ? '' : 's'}${
-        stats!.high > 0 ? ` · ${stats!.high} critical` : ''
-      }`;
+      return `Found ${stats!.failed} problem${
+        stats!.failed === 1 ? '' : 's'
+      } out of ${stats!.total} checks`;
     case 'clean':
-      return `${stats!.passed} check${stats!.passed === 1 ? '' : 's'} passed${
-        stats!.skipped > 0 ? ` · ${stats!.skipped} not verified` : ''
-      }`;
+      return stats!.skipped > 0
+        ? `All ${stats!.passed} checks passed · ${stats!.skipped} could not be confirmed`
+        : `All ${stats!.passed} checks passed — no problems found`;
     case 'not_verified':
-      return 'Not verified';
+      return 'Ran, but the documents did not contain the data needed to confirm';
     case 'not_applicable':
-      return 'Not applicable';
+      return 'Skipped — none of the uploaded documents are the kind this check reviews';
   }
+}
+
+/** Count badges shown on the row header once a review has run. */
+function StatusBadges({ status, stats }: { status: Status; stats?: TaskStats }) {
+  if (status === 'ready') return null;
+  const badges: { label: string; className: string }[] = [];
+  if (status === 'not_applicable') {
+    badges.push({
+      label: 'Not applicable',
+      className: 'bg-gray-100 text-gray-500',
+    });
+  } else if (stats) {
+    if (stats.failed > 0)
+      badges.push({
+        label: `${stats.failed} issue${stats.failed === 1 ? '' : 's'}`,
+        className: 'bg-red-100 text-red-700',
+      });
+    if (stats.high > 0)
+      badges.push({ label: `${stats.high} critical`, className: 'bg-black text-white' });
+    if (stats.passed > 0)
+      badges.push({
+        label: `${stats.passed} passed`,
+        className: 'bg-emerald-100 text-emerald-700',
+      });
+    if (stats.skipped > 0)
+      badges.push({
+        label: `${stats.skipped} not verified`,
+        className: 'bg-amber-100 text-amber-800',
+      });
+  }
+  if (!badges.length) return null;
+  return (
+    <span className="hidden shrink-0 items-center gap-1 sm:flex">
+      {badges.map((b) => (
+        <span
+          key={b.label}
+          className={cn(
+            'whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-semibold',
+            b.className
+          )}
+        >
+          {b.label}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 export function RequirementCard({
@@ -127,9 +173,7 @@ export function RequirementCard({
             {statusText(status, stats)}
           </span>
         </span>
-        <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-slate-300">
-          {info.task}
-        </span>
+        <StatusBadges status={status} stats={stats} />
         <ChevronDown
           className={cn(
             'h-4 w-4 shrink-0 text-slate-400 transition-transform',
@@ -140,6 +184,34 @@ export function RequirementCard({
 
       {open && (
         <div className="space-y-3 border-t border-slate-100 px-4 py-3">
+          {status === 'not_applicable' && (
+            <div className="rounded-lg bg-gray-50 px-3 py-2.5 text-xs text-gray-600">
+              <p className="font-semibold text-gray-700">
+                Why was this skipped?
+              </p>
+              <p className="mt-1">
+                This check only applies to certain document types, and none of
+                the files you uploaded match them. To run it, include:{' '}
+                {info.documents.join(', ')}.
+              </p>
+            </div>
+          )}
+
+          {status === 'clean' && findings.length === 0 && (
+            <div className="rounded-lg bg-emerald-50 px-3 py-2.5 text-xs text-emerald-800">
+              Everything this check looks for was present and correct in your
+              documents.
+            </div>
+          )}
+
+          {status === 'not_verified' && (
+            <div className="rounded-lg bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+              The check ran, but the uploaded documents did not contain the
+              data it needs to confirm a pass or a fail. This is not a
+              failure — it just could not be verified.
+            </div>
+          )}
+
           {findings.map((finding, i) => (
             <FindingDetailCard key={`${finding.rule_id}-${i}`} finding={finding} />
           ))}

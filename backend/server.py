@@ -304,6 +304,16 @@ async def run_graph_async(initial_state, config, thread_id):
                 if chunk:
                     # Update result state
                     for node_name, node_state in chunk.items():
+                        # The last thing a graph compiled with `interrupt_after`
+                        # emits is {"__interrupt__": (Interrupt(...),)} -- a
+                        # tuple, not a state update. Merging it raised "'tuple'
+                        # object is not a mapping" at the very end of every run,
+                        # after the compiler had already written the verdict, so
+                        # the stream reported a failure on a review that had in
+                        # fact succeeded. Anything that is not a state mapping
+                        # is a control signal and is not state.
+                        if not isinstance(node_state, dict):
+                            continue
                         result_state = {**result_state, **node_state}
 
                     # Store updated state so SSE can pick it up

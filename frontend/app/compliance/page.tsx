@@ -90,311 +90,257 @@ export default function CompliancePage() {
 
   const checkersRun = verdictData?.checkers_run ?? [];
 
+  const groups = [
+    { label: 'Compliance', category: 'COMPLIANCE' },
+    { label: 'Data integrity', category: 'DATA INTEGRITY' },
+  ] as const;
+
   return (
-    <div className="h-full overflow-y-auto bg-slate-50">
+    <div className="flex h-full flex-col overflow-hidden bg-white">
       <SessionArchive />
 
-      <div className="mx-auto max-w-5xl space-y-6 px-6 py-10">
-        {/* Header */}
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-blue-600">
-              DICT · Procurement
-            </p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">
-              Compliance Suite
-            </h1>
-            <p className="mt-1.5 text-sm text-slate-500">
-              Upload documents — each requirement below shows what the review
-              found.
-            </p>
-          </div>
-          <div className="flex divide-x divide-slate-200 rounded-2xl bg-white ring-1 ring-slate-200">
-            {(
-              [
-                ['6', 'Requirements'],
-                ['64', 'Rules'],
-                ['35', 'Cross-checks'],
-              ] as const
-            ).map(([value, label]) => (
-              <div key={label} className="px-5 py-3 text-center">
-                <p className="text-lg font-semibold leading-none text-slate-900">
-                  {value}
-                </p>
-                <p className="mt-1 text-[11px] text-slate-400">{label}</p>
-              </div>
-            ))}
-          </div>
+      <div className="mx-auto w-full max-w-7xl flex-1 overflow-y-auto px-6 py-6">
+        <div className="mb-6">
+          <h1 className="text-lg font-bold tracking-tight text-gray-900">
+            Compliance &amp; Data Integrity
+          </h1>
+          <p className="mt-0.5 max-w-xl text-sm text-gray-500">
+            Upload your procurement documents to review them against the six
+            assigned compliance checks.
+          </p>
         </div>
 
-        {/* Run panel */}
-        <section className="rounded-2xl bg-white p-5 ring-1 ring-slate-200">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-sm font-semibold text-slate-900">
-              Run a review
-            </h2>
-            <p className="text-xs text-slate-400">
-              PDF, Word, Excel or text · up to {MAX_UPLOAD_FILES} files
-            </p>
-          </div>
-
-          {!isRunning && (
-            <div className="mt-4">
-              <FileUpload onFilesSelect={handleFilesSelect} disabled={isRunning} />
-            </div>
-          )}
-
-          {pendingFiles.length > 0 && !isRunning && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {pendingFiles.map((file, i) => (
-                <span
-                  key={`${file.name}-${i}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs text-slate-700"
-                >
-                  <FileText className="h-3.5 w-3.5 text-slate-400" />
-                  <span className="max-w-[220px] truncate">{file.name}</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setPendingFiles((prev) => prev.filter((_, j) => j !== i))
-                    }
-                    className="text-slate-400 hover:text-slate-900"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+          {/* Left: upload */}
+          <div className="space-y-4">
+            <section className="rounded-xl border border-gray-200 bg-white p-6">
+              <div className="mb-4 flex items-center gap-2.5">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-500">
+                  1
                 </span>
-              ))}
-            </div>
-          )}
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                  Upload documents
+                </h2>
+              </div>
 
-          <div className="mt-4 flex items-center gap-3">
-            <Button
-              onClick={handleRun}
-              disabled={!pendingFiles.length || isRunning}
-              className="rounded-xl bg-blue-600 text-white shadow-sm hover:bg-blue-700"
-            >
-              {isRunning ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Play className="mr-2 h-4 w-4" />
+              {!isRunning && (
+                <FileUpload onFilesSelect={handleFilesSelect} disabled={isRunning} />
               )}
-              {isRunning
-                ? state === 'uploading'
-                  ? 'Uploading…'
-                  : 'Reviewing…'
-                : `Run compliance review${
-                    pendingFiles.length
-                      ? ` (${pendingFiles.length} file${
-                          pendingFiles.length === 1 ? '' : 's'
-                        })`
-                      : ''
-                  }`}
-            </Button>
-            {(hasVerdict || error) && !isRunning && (
-              <Button
-                variant="outline"
-                onClick={handleReset}
-                className="rounded-xl border-slate-200 text-slate-600 hover:bg-slate-50"
-              >
-                <RotateCcw className="mr-2 h-4 w-4" />
-                New review
-              </Button>
+
+              {pendingFiles.length > 0 && !isRunning && (
+                <ul className="mt-3 space-y-1.5">
+                  {pendingFiles.map((file, i) => (
+                    <li
+                      key={`${file.name}-${i}`}
+                      className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-700"
+                    >
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                      <span className="min-w-0 flex-1 truncate">{file.name}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPendingFiles((prev) => prev.filter((_, j) => j !== i))
+                        }
+                        className="text-gray-400 hover:text-gray-900"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <div className="mt-4 flex flex-col gap-2">
+                <Button
+                  onClick={handleRun}
+                  disabled={!pendingFiles.length || isRunning}
+                  className="w-full rounded-lg bg-black text-white hover:bg-gray-800"
+                >
+                  {isRunning ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="mr-2 h-4 w-4" />
+                  )}
+                  {isRunning
+                    ? state === 'uploading'
+                      ? 'Uploading…'
+                      : 'Reviewing…'
+                    : `Run review${
+                        pendingFiles.length ? ` (${pendingFiles.length})` : ''
+                      }`}
+                </Button>
+                {(hasVerdict || error) && !isRunning && (
+                  <Button
+                    variant="outline"
+                    onClick={handleReset}
+                    className="w-full rounded-lg border-gray-200 text-gray-600 hover:bg-gray-50"
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    New review
+                  </Button>
+                )}
+              </div>
+
+              {error && <p className="mt-3 text-xs text-red-600">{error}</p>}
+            </section>
+
+            {isRunning && thinkingLogs.length > 0 && (
+              <ThinkingWidget logs={thinkingLogs} isComplete={!isRunning} />
+            )}
+
+            {verdictData?.documents && verdictData.documents.length > 0 && (
+              <section className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                <div className="border-b border-gray-100 px-4 py-2.5">
+                  <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                    Documents ({verdictData.documents.length})
+                  </h2>
+                </div>
+                <ul className="divide-y divide-gray-100">
+                  {verdictData.documents.map((doc) => (
+                    <li key={doc.file} className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 shrink-0 text-gray-400" />
+                        <span className="min-w-0 flex-1 truncate text-xs font-medium text-gray-900">
+                          {doc.file}
+                        </span>
+                      </div>
+                      <p className="mt-1 pl-6 text-[11px] text-gray-500">
+                        {doc.label || doc.doc_type} ·{' '}
+                        {Math.round(doc.confidence * 100)}%
+                        {doc.pages_read != null &&
+                          ` · ${doc.pages_read}${
+                            doc.total_pages ? `/${doc.total_pages}` : ''
+                          } pages`}
+                      </p>
+                      {doc.error && (
+                        <p className="mt-1 pl-6 text-[11px] text-red-600">
+                          {doc.error}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </section>
             )}
           </div>
 
-          {isRunning && thinkingLogs.length > 0 && (
-            <div className="mt-4">
-              <ThinkingWidget logs={thinkingLogs} isComplete={!isRunning} />
-            </div>
-          )}
-
-          {error && (
-            <p className="mt-3 text-sm text-red-600">{error}</p>
-          )}
-        </section>
-
-        {/* Verdict banner */}
-        {verdictData && (
-          <motion.section
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl bg-white p-5 ring-1 ring-slate-200"
-          >
-            <div className="flex flex-wrap items-center gap-4">
-              <div
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
-                  verdictData.status === 'PASS'
-                    ? 'bg-emerald-100 text-emerald-600'
-                    : 'bg-red-100 text-red-600'
-                }`}
-              >
-                {verdictData.status === 'PASS' ? (
-                  <CheckCircle2 className="h-6 w-6" />
-                ) : (
-                  <XCircle className="h-6 w-6" />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p
-                  className={`text-lg font-semibold ${
-                    verdictData.status === 'PASS'
-                      ? 'text-emerald-700'
-                      : 'text-red-700'
-                  }`}
-                >
-                  {verdictData.status === 'PASS'
-                    ? 'Looks compliant'
-                    : 'Needs attention'}
-                  <span className="ml-2 text-sm font-normal text-slate-400">
-                    {verdictData.confidence}% confidence
-                  </span>
-                </p>
-                <p className="mt-0.5 text-sm text-slate-500">
-                  {verdictData.title}
-                </p>
-              </div>
-              {verdictData.summary && (
-                <div className="flex divide-x divide-slate-100 text-center text-xs text-slate-400">
-                  {(
-                    [
-                      ['Checks', verdictData.summary.total, 'text-slate-900'],
-                      ['Passed', verdictData.summary.passed, 'text-emerald-600'],
-                      ['Failed', verdictData.summary.failed, 'text-red-600'],
-                      [
-                        'Not verified',
-                        verdictData.summary.skipped,
-                        'text-amber-600',
-                      ],
-                    ] as const
-                  ).map(([label, value, color]) => (
-                    <div key={label} className="px-4">
-                      <p
-                        className={`text-lg font-semibold leading-none ${color}`}
-                      >
-                        {value}
-                      </p>
-                      <p className="mt-1">{label}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </motion.section>
-        )}
-
-        {/* Documents reviewed */}
-        {verdictData?.documents && verdictData.documents.length > 0 && (
-          <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-slate-200">
-            <div className="border-b border-slate-100 px-5 py-3">
-              <h2 className="text-sm font-semibold text-slate-900">
-                Documents reviewed ({verdictData.documents.length})
+          {/* Right: results */}
+          <section className="rounded-xl border border-gray-200 bg-white p-6">
+            <div className="mb-4 flex items-center gap-2.5">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-semibold text-gray-500">
+                2
+              </span>
+              <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                Review results
               </h2>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50/70 text-[11px] uppercase tracking-wider text-slate-400">
-                  <tr>
-                    <th className="px-5 py-2 font-medium">File</th>
-                    <th className="px-5 py-2 font-medium">Detected type</th>
-                    <th className="px-5 py-2 font-medium">Confidence</th>
-                    <th className="px-5 py-2 font-medium">Pages read</th>
-                    <th className="px-5 py-2 font-medium">Source</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {verdictData.documents.map((doc) => (
-                    <React.Fragment key={doc.file}>
-                      <tr>
-                        <td className="max-w-[260px] truncate px-5 py-2 font-medium text-black">
-                          {doc.file}
-                        </td>
-                        <td className="px-5 py-2 text-gray-700">
-                          {doc.label || doc.doc_type}
-                        </td>
-                        <td className="px-5 py-2 text-gray-700">
-                          {Math.round(doc.confidence * 100)}%
-                        </td>
-                        <td className="px-5 py-2 text-gray-700">
-                          {doc.pages_read ?? '—'}
-                          {doc.total_pages ? ` / ${doc.total_pages}` : ''}
-                        </td>
-                        <td className="px-5 py-2 text-gray-700">
-                          {doc.ingest_source || '—'}
-                        </td>
-                      </tr>
-                      {doc.error && (
-                        <tr>
-                          <td colSpan={5} className="bg-red-50 px-5 py-2 text-red-700">
-                            {doc.error}
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
+
+            {verdictData && (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-5 rounded-lg border border-gray-200 p-4"
+              >
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <div
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                      verdictData.status === 'PASS'
+                        ? 'bg-emerald-100 text-emerald-600'
+                        : 'bg-red-100 text-red-600'
+                    }`}
+                  >
+                    {verdictData.status === 'PASS' ? (
+                      <CheckCircle2 className="h-5 w-5" />
+                    ) : (
+                      <XCircle className="h-5 w-5" />
+                    )}
+                  </div>
+                  <p
+                    className={`min-w-0 flex-1 text-base font-semibold ${
+                      verdictData.status === 'PASS'
+                        ? 'text-emerald-700'
+                        : 'text-red-700'
+                    }`}
+                  >
+                    {verdictData.status === 'PASS'
+                      ? 'Looks compliant'
+                      : 'Needs attention'}
+                    <span className="ml-2 text-xs font-normal text-gray-400">
+                      {verdictData.confidence}% confidence
+                    </span>
+                  </p>
+                  {verdictData.summary && (
+                    <div className="flex divide-x divide-gray-100 text-center text-[11px] text-gray-400">
+                      {(
+                        [
+                          ['Checks', verdictData.summary.total, 'text-gray-900'],
+                          ['Passed', verdictData.summary.passed, 'text-emerald-600'],
+                          ['Failed', verdictData.summary.failed, 'text-red-600'],
+                          [
+                            'Not verified',
+                            verdictData.summary.skipped,
+                            'text-amber-600',
+                          ],
+                        ] as const
+                      ).map(([label, value, color]) => (
+                        <div key={label} className="px-3">
+                          <p
+                            className={`text-base font-semibold leading-none ${color}`}
+                          >
+                            {value}
+                          </p>
+                          <p className="mt-0.5">{label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            {groups.map((group) => {
+              const reqs = REQUIREMENTS.filter(
+                (req) => req.category === group.category
+              );
+              if (!reqs.length) return null;
+              return (
+                <div key={group.category} className="mb-5 last:mb-0">
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-gray-400">
+                    {group.label}
+                  </p>
+                  <div className="space-y-2">
+                    {reqs.map((req) => (
+                      <RequirementCard
+                        key={req.task}
+                        info={req}
+                        stats={verdictData?.tasks?.[req.task]}
+                        findings={findingsByTask[req.task] ?? []}
+                        checkerRan={checkersRun.includes(req.checkerNode)}
+                        hasVerdict={hasVerdict}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {notVerified.length > 0 && (
+              <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <h3 className="text-xs font-semibold text-amber-900">
+                  Not verified ({notVerified.length})
+                </h3>
+                <ul className="mt-2 space-y-1 text-xs text-amber-900">
+                  {notVerified.map((item, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="select-none">•</span>
+                      <span className="break-words">{item}</span>
+                    </li>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </ul>
+              </div>
+            )}
           </section>
-        )}
-
-        {/* The six requirements */}
-        <section>
-          <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-lg font-semibold text-slate-900">
-              Assigned requirements
-            </h2>
-            <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
-              <span className="inline-flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                Passed
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-red-500" />
-                Issues
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-amber-400" />
-                Not verified
-              </span>
-              <span className="inline-flex items-center gap-1">
-                <span className="h-2 w-2 rounded-full bg-slate-300" />
-                Not applicable
-              </span>
-            </div>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-2">
-            {REQUIREMENTS.map((req) => (
-              <RequirementCard
-                key={req.task}
-                info={req}
-                stats={verdictData?.tasks?.[req.task]}
-                findings={findingsByTask[req.task] ?? []}
-                checkerRan={checkersRun.includes(req.checkerNode)}
-                hasVerdict={hasVerdict}
-              />
-            ))}
-          </div>
-        </section>
-
-        {/* Checks that could not run */}
-        {notVerified.length > 0 && (
-          <section className="rounded-2xl bg-amber-50 p-5 ring-1 ring-amber-200">
-            <h2 className="text-sm font-semibold text-amber-900">
-              Not verified ({notVerified.length})
-            </h2>
-            <p className="mt-0.5 text-xs text-amber-800">
-              These checks could not run on this upload.
-            </p>
-            <ul className="mt-3 space-y-1.5 text-xs text-amber-900">
-              {notVerified.map((item, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="select-none">•</span>
-                  <span className="break-words">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        </div>
       </div>
     </div>
   );

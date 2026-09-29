@@ -11,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Procurement AI Analyst",
-  description: "Intelligent document analysis for procurement compliance",
+  title: "DICT Procurement",
+  description: "Procurement document compliance review",
   icons: {
     icon: [
       { url: "/dict-logo.png" },

@@ -96,11 +96,12 @@ export function FileUpload({ onFilesSelect, disabled }: FileUploadProps) {
       </div>
 
       <div className="text-center pointer-events-none">
-        <p className="text-sm font-medium text-black mb-1">
+        <p className="text-sm font-semibold text-black mb-1">
           {isDragging
             ? 'Drop your procurement documents here'
-            : `Drop ${SUPPORTED_UPLOAD_LABEL} documents here or click to browse`}
+            : 'Drag & drop your procurement documents here'}
         </p>
+        <p className="text-xs text-gray-500">{SUPPORTED_UPLOAD_LABEL}</p>
       </div>
     </div>
   );

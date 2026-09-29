@@ -94,13 +94,30 @@ export function FinalReportTab({
       .catch(() => setFindings([]));
   }, [procurement.ref]);
 
+  const finalized = procurement.status === "finalized";
+
+  // The draft shows every finding still in play (rejected are already dropped
+  // above). The finalized report is the official record: it lists only the
+  // findings the committee confirmed — accepted, or accepted with edits
+  // (modified). Pending and further-review findings are left out; the pending
+  // count is noted separately so the exclusion is on the record.
+  const reportFindings = useMemo(
+    () =>
+      finalized
+        ? findings.filter(
+            (f) => f.decision === "accepted" || f.decision === "modified"
+          )
+        : findings,
+    [finalized, findings]
+  );
+
   const counts = useMemo(() => {
     const out = Object.fromEntries(
       SEVERITY_KEYS.map((key) => [key, 0])
     ) as Record<Severity, number>;
-    findings.forEach((f) => (out[f.severity] += 1));
+    reportFindings.forEach((f) => (out[f.severity] += 1));
     return out;
-  }, [findings]);
+  }, [reportFindings]);
 
   /** The document types the engine actually read, in the order they appear. */
   const docTypes = useMemo(() => {
@@ -112,12 +129,11 @@ export function FinalReportTab({
   }, [procurement.documents]);
 
   const dimensionCount = useMemo(
-    () => new Set(findings.map((f) => f.dimension)).size,
-    [findings]
+    () => new Set(reportFindings.map((f) => f.dimension)).size,
+    [reportFindings]
   );
 
   const undecided = findings.filter((f) => !f.decision).length;
-  const finalized = procurement.status === "finalized";
 
   async function saveNotes() {
     setBusy(true);
@@ -266,7 +282,8 @@ export function FinalReportTab({
               {undecided} finding{undecided === 1 ? "" : "s"} pending BAC action
             </div>
             <p className="mt-0.5 text-[12.5px] text-subtle">
-              These findings will appear in the report as pending.
+              They show in the draft as pending — record an action to include them
+              in the finalized report.
             </p>
           </div>
           <button
@@ -280,7 +297,7 @@ export function FinalReportTab({
       )}
 
       {/* The document sheet. */}
-      <article className="overflow-hidden rounded-xl border border-line bg-white print:rounded-none print:border-0">
+      <article className="overflow-hidden rounded-xl border border-line bg-white print:overflow-visible print:rounded-none print:border-0">
         <div className="h-1.5 bg-gradient-to-r from-navy via-brand to-sky print:hidden" />
 
         <div className="px-6 py-8 sm:px-10 sm:py-10">
@@ -353,28 +370,38 @@ export function FinalReportTab({
                 {spelled(dimensionCount)}
               </strong>{" "}
               review dimension{dimensionCount === 1 ? "" : "s"}, raising{" "}
-              <strong className="font-bold">{spelled(findings.length)}</strong>{" "}
-              finding{findings.length === 1 ? "" : "s"} for the BAC to verify.
+              <strong className="font-bold">{spelled(reportFindings.length)}</strong>{" "}
+              finding{reportFindings.length === 1 ? "" : "s"}
+              {finalized ? " confirmed by the BAC" : " for the BAC to verify"}.
               Each finding is a point for the committee to confirm, not a
               determination.
             </p>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <Stat value={procurement.documents.length} label="Documents analyzed" />
-              <Stat value={findings.length} label="Audit findings" />
-              <SeverityBreakdown counts={counts} total={findings.length} />
+              <Stat value={reportFindings.length} label="Audit findings" />
+              <SeverityBreakdown counts={counts} total={reportFindings.length} />
             </div>
           </div>
 
           {/* III — Findings */}
           <SectionHead numeral="III" title="Findings & Resolutions" tag="Audit matrix" />
-          {findings.length === 0 ? (
+          {finalized && undecided > 0 && (
+            <p className="mt-3 rounded-lg border border-warning/30 bg-warning/5 px-5 py-3 text-[12.5px] leading-relaxed text-ink">
+              {undecided} finding{undecided === 1 ? " was" : "s were"} left pending
+              (no committee action recorded) at finalization and{" "}
+              {undecided === 1 ? "is" : "are"} not included below.
+            </p>
+          )}
+          {reportFindings.length === 0 ? (
             <p className="mt-3 rounded-lg bg-page px-5 py-4 text-[13px] text-subtle">
-              No findings were recorded for this procurement.
+              {finalized
+                ? "No findings were accepted by the committee for this procurement."
+                : "No findings were recorded for this procurement."}
             </p>
           ) : (
             <ol className="mt-3 space-y-3">
-              {findings.map((finding, index) => (
+              {reportFindings.map((finding, index) => (
                 <li
                   key={finding.id}
                   className="overflow-hidden rounded-lg border border-line break-inside-avoid"
@@ -484,8 +511,9 @@ export function FinalReportTab({
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
               <span className="text-[12.5px] text-ink">
                 {undecided} finding{undecided === 1 ? " has" : "s have"} no
-                recorded action. You can finalize anyway, and they will be listed
-                as pending.
+                recorded action. You can finalize anyway; findings without a
+                committee action are excluded from the finalized report, and
+                their count is noted.
               </span>
             </div>
           )}

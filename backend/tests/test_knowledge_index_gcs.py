@@ -215,6 +215,54 @@ def test_fresh_instance_pulls_index_from_gcs_and_can_retrieve_new_content(fake_g
     assert any("freshly uploaded" in p.chunk.text for p in result.provisions)
 
 
+def test_append_from_stale_instance_does_not_overwrite_prior_append(fake_gcs):
+    """
+    Multi-instance safety: instance B appending after instance A must pull A's
+    durable append down from GCS first, not overwrite it from a stale local copy.
+    Without the sync-before-append, B (which never saw A's doc) would upload
+    seed+B and silently drop A's document from the durable index.
+    """
+    buckets, index_root = fake_gcs
+    _write_local_seed(index_root)
+    load_index(str(index_root))  # bootstrap GCS from the seed
+    reset_cache()
+
+    # Instance A appends doc A.
+    chunk_a = Chunk(
+        id="a#0001", doc_id="doca", doc_title="Doc A", section="S", page=1,
+        text="Provision A from the first instance.",
+    )
+    src_a = SourceDocument(
+        doc_id="doca", title="Doc A", filename="a.pdf", sha256="a", pages=1, chunks=1
+    )
+    append_to_index([chunk_a], None, src_a, root=str(index_root))
+    reset_cache()
+
+    # Simulate a different instance B that never saw doc A: wipe local files so
+    # its local copy is stale/empty before it appends.
+    for name in ("chunks.jsonl", "vectors.npy", "manifest.json"):
+        p = index_root / name
+        if p.exists():
+            p.unlink()
+
+    chunk_b = Chunk(
+        id="b#0001", doc_id="docb", doc_title="Doc B", section="S", page=1,
+        text="Provision B from the second instance.",
+    )
+    src_b = SourceDocument(
+        doc_id="docb", title="Doc B", filename="b.pdf", sha256="b", pages=1, chunks=1
+    )
+    append_to_index([chunk_b], None, src_b, root=str(index_root))
+
+    bucket = buckets[TEST_BUCKET]
+    uploaded = bucket["knowledge_index/chunks.jsonl"].decode("utf-8")
+    assert "seeded provision" in uploaded  # original seed survived
+    assert "Provision A from the first instance." in uploaded  # A's append NOT lost
+    assert "Provision B from the second instance." in uploaded  # B's append present
+    manifest = json.loads(bucket["knowledge_index/manifest.json"])
+    assert manifest["chunk_count"] == 3
+
+
 def test_gcs_bucket_unset_behaves_exactly_as_local_only(tmp_path, monkeypatch):
     """No GCS_BUCKET: no storage client is even touched, local disk is the
     whole story — the existing (pre-Task-9) behavior."""

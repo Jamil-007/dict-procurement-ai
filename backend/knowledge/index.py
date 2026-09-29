@@ -325,17 +325,26 @@ def append_to_index(
     `load_index()` call picks up the change; this function only writes to
     disk.
 
-    When `GCS_BUCKET` is set, the updated files are also uploaded to GCS
-    (under `KNOWLEDGE_INDEX_PREFIX`) before returning, so the append survives
-    this instance's own restart. It does not make other already-running
-    instances see the change — see the cross-instance staleness note on
-    `load_index`.
+    When `GCS_BUCKET` is set, the latest durable copy is first synced down from
+    GCS (so this append builds on any prior append, including one made by a
+    different Cloud Run instance, instead of overwriting it from a stale local
+    copy), and the updated files are uploaded back before returning, so the
+    append survives this instance's own restart and is not lost to a concurrent
+    instance. It still does not make other already-running instances *see* the
+    change until they reload — see the read-side staleness note on `load_index`.
     """
     import numpy as np
 
     with _append_lock:
         index_root = Path(root) if root else Path(index_dir())
         index_root.mkdir(parents=True, exist_ok=True)
+
+        # Pull the latest durable copy from GCS FIRST, so this append builds on
+        # any prior append (possibly from a different Cloud Run instance) rather
+        # than on a stale local copy. Without this, a stale instance's upload
+        # would silently overwrite and lose an earlier instance's durable append.
+        if settings.GCS_BUCKET:
+            _sync_from_gcs(index_root)
 
         chunks_path = index_root / CHUNKS_FILE
         manifest_path = index_root / MANIFEST_FILE

@@ -1,0 +1,182 @@
+id: contract_to_payment
+task: T4
+name: Contract-to-Payment Consistency Checker
+description: >
+  Compares what was contracted against what was delivered, accepted and paid.
+  Where the two diverge, the remedy depends on what is being procured: for
+  goods an increase or decrease in quantity is an Amendment to Order under
+  IRR Section 71.1.1, while for infrastructure the same change is a Variation
+  Order under Section 71.2.1, evaluated against the checklist at Annex B of
+  COA Circular No. 2009-001. Tagging the discrepancy with the right one is
+  the point of this profile -- an office that files the wrong instrument has
+  documented the change and still not authorised it.
+
+left: [contract, noa, ntp]
+right:
+  - disbursement_voucher
+  - ors
+  - invoice
+  - delivery_receipt
+  - iar
+  - inspection_report
+  - par
+  - ics
+  - warranty_certificate
+
+defaults:
+  severity: high
+  category: Contract vs Payment
+
+compare:
+
+  # -- the join key ------------------------------------------------------
+
+  - field: contract_no
+    match: normalized_exact
+    severity: high
+    title: Every payment document cites the same contract
+    remediation: >
+      A payment document citing a different contract cannot be traced to the
+      obligation it is drawn against. Confirm which reference is correct
+      before the voucher is certified.
+    authority:
+      doc: Government Accounting Manual, Volume I
+      query: disbursement voucher supported by contract purchase order obligation charged against
+
+  - field: supplier
+    match: fuzzy
+    severity: high
+    title: The supplier named on the payment documents is the contracted party
+    params:
+      threshold: 0.88
+    remediation: >
+      Payment to a party other than the contracted supplier has no
+      contractual basis, whatever the invoice says.
+    authority:
+      doc: IRR of RA 12009
+      query: contract shall be awarded to the bidder payment to the supplier contractor
+
+  # -- what was bought vs what arrived -----------------------------------
+
+  - field: items
+    match: item_coverage
+    severity: high
+    title: Every contracted item appears in the delivery and payment records
+    category: Scope of Delivery
+    action_hint: amendment_to_order
+    remediation: >
+      An item contracted for but absent from the delivery and acceptance
+      records was either never delivered or was delivered undocumented.
+      Neither can be paid for.
+    authority:
+      doc: IRR of RA 12009
+      section: "71.1.1"
+
+  - field: items[].qty
+    match: numeric_tolerance
+    severity: high
+    title: Delivered quantities match the contracted quantities
+    category: Scope of Delivery
+    action_hint: amendment_to_order
+    remediation: >
+      For goods, a change in quantity requires an Amendment to Order issued
+      before the change is made, within the limits of IRR Section 71.1.1.
+      For infrastructure the equivalent instrument is a Variation Order under
+      Section 71.2.1. Neither can be issued retroactively to regularise a
+      delivery that has already been accepted and paid.
+    authority:
+      doc: IRR of RA 12009
+      section: "71.1.1"
+
+  - field: items[].description
+    match: text_equivalent
+    severity: high
+    title: Delivered items match the contracted specifications
+    category: Scope of Delivery
+    params:
+      threshold: 0.82
+    remediation: >
+      A delivered item whose specification differs from the contract is a
+      substitution. It requires the same instrument as a quantity change and
+      the same prior approval.
+    authority:
+      doc: IRR of RA 12009
+      section: "71.1.1"
+
+  - field: items[].unit_price
+    match: numeric_tolerance
+    severity: high
+    title: Invoiced unit prices match the contracted unit prices
+    category: Payment Amount
+    remediation: >
+      Unit prices are fixed by the contract. A higher invoiced price is an
+      overpayment regardless of whether the total happens to reconcile.
+    authority:
+      doc: IRR of RA 12009
+      query: contract price shall not be adjusted fixed price basis unit prices bid
+
+  # -- what was paid -----------------------------------------------------
+
+  - field: amounts.contract_amount
+    match: numeric_not_exceeding
+    left_field: amounts.contract_amount
+    right_field: amounts.gross
+    severity: high
+    title: Payment does not exceed the contract amount
+    category: Payment Amount
+    action_hint: amendment_to_order
+    remediation: >
+      A payment above the contract amount has no contractual basis. If the
+      scope genuinely increased, the increase must have been covered by an
+      Amendment to Order or Variation Order issued beforehand, and the
+      instrument must be attached to the voucher.
+    authority:
+      doc: IRR of RA 12009
+      section: "71.1.1"
+
+  # -- when ---------------------------------------------------------------
+
+  - field: dates.delivery
+    match: date_not_after
+    left_field: dates.delivery_due
+    right_field: dates.delivery
+    severity: medium
+    title: Delivery was made within the contractual period
+    category: Contract Timeline
+    params:
+      days: 0
+    remediation: >
+      Late delivery attracts liquidated damages. If none were deducted on the
+      voucher, the file must record why -- a time extension, a suspension
+      order, or an excusable delay -- and the approval that granted it.
+    authority:
+      doc: IRR of RA 12009
+      query: liquidated damages delay in the performance of its obligations amount of liquidated damages
+
+  - field: dates.delivery_start
+    match: date_not_before
+    left_field: dates.ntp
+    right_field: dates.delivery
+    severity: medium
+    title: Delivery followed the Notice to Proceed
+    category: Contract Timeline
+    remediation: >
+      Goods delivered before the Notice to Proceed were supplied outside the
+      contract period. Establish when performance actually started.
+    authority:
+      doc: IRR of RA 12009
+      query: notice to proceed contract effectivity commencement of the contract time
+
+  - field: dates.acceptance
+    match: date_not_before
+    left_field: dates.contract_signed
+    right_field: dates.acceptance
+    severity: high
+    title: Acceptance followed the signing of the contract
+    category: Contract Timeline
+    remediation: >
+      Acceptance dated before the contract was signed means the agency took
+      delivery of goods it had not yet contracted for.
+    authority:
+      doc: IRR of RA 12009
+      query: contract shall be signed by the parties within calendar days from receipt of notice of award

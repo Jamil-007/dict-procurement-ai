@@ -3,6 +3,11 @@
 import React, { useCallback, useState, useRef } from 'react';
 import { FolderOpen, UploadCloud } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  UPLOAD_ACCEPT,
+  filterSupportedFiles,
+  SUPPORTED_UPLOAD_LABEL,
+} from '@/lib/uploads';
 
 interface FileUploadProps {
   onFilesSelect: (files: File[]) => void;
@@ -32,20 +37,18 @@ export function FileUpload({ onFilesSelect, disabled, className }: FileUploadPro
 
     if (disabled) return;
 
-    const pdfFiles = Array.from(e.dataTransfer.files).filter(
-      (file) => file.type === 'application/pdf'
-    );
-    if (pdfFiles.length > 0) {
-      onFilesSelect(pdfFiles);
+    const { accepted } = filterSupportedFiles(e.dataTransfer.files);
+    if (accepted.length > 0) {
+      onFilesSelect(accepted);
     }
   }, [disabled, onFilesSelect]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const pdfFiles = Array.from(files).filter((file) => file.type === 'application/pdf');
-      if (pdfFiles.length > 0) {
-        onFilesSelect(pdfFiles);
+      const { accepted } = filterSupportedFiles(files);
+      if (accepted.length > 0) {
+        onFilesSelect(accepted);
       }
       e.target.value = '';
     }
@@ -75,7 +78,7 @@ export function FileUpload({ onFilesSelect, disabled, className }: FileUploadPro
       <input
         ref={fileInputRef}
         type="file"
-        accept=".pdf"
+        accept={UPLOAD_ACCEPT}
         onChange={handleFileInput}
         disabled={disabled}
         style={{ display: 'none' }}
@@ -88,9 +91,11 @@ export function FileUpload({ onFilesSelect, disabled, className }: FileUploadPro
 
       <div className="pointer-events-none">
         <p className="text-[15px] font-semibold text-navy">
-          {isDragging ? 'Drop your PDF here' : 'Drag and drop a PDF file here'}
+          {isDragging
+            ? 'Drop your procurement documents here'
+            : 'Drag and drop your procurement documents here'}
         </p>
-        <p className="mt-1 text-[13px] text-subtle">or click to browse</p>
+        <p className="mt-1 text-[13px] text-subtle">{SUPPORTED_UPLOAD_LABEL}</p>
       </div>
 
       <button

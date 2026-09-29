@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     # Anthropic Configuration
     ANTHROPIC_API_KEY: str = ""
 
+    # Gemini via Google AI Studio (preferred when set)
+    GOOGLE_API_KEY: str = ""
+    GEMINI_MODEL_NAME: str = "gemini-2.5-flash"
+
     # Tavily Configuration
     TAVILY_API_KEY: str = ""
 
@@ -36,9 +40,12 @@ class Settings(BaseSettings):
     # Tesseract locally.
     TESSERACT_CMD: str = ""
 
-    # State Persistence (LangGraph checkpointer — currently MemorySaver only;
-    # the sqlite/postgres options are not implemented)
-    STATE_STORAGE: Literal["memory", "sqlite", "postgres"] = "memory"
+    # State Persistence. SQLite by default: with MemorySaver a backend restart
+    # loses every in-flight review, including any paused at the human-in-the-
+    # loop interrupt, and the archive has nothing to point at. Read only by
+    # persistence/checkpoint.py, which backs the checker graph; the legacy
+    # analysis graph in graph.py still constructs its own MemorySaver.
+    STATE_STORAGE: Literal["memory", "sqlite", "postgres"] = "sqlite"
 
     # Record storage for procurements, findings and the Knowledge Hub.
     # "memory" is per-process and dies with the container — use "firestore"
@@ -64,7 +71,7 @@ class Settings(BaseSettings):
     # Model Configuration
     VERTEX_MODEL_NAME: str = "gemini-2.0-flash-exp"  # Options: gemini-2.0-flash-exp, gemini-1.5-pro-002, gemini-1.5-flash-002
     GEMINI_MODEL_NAME: str = "gemini-2.0-flash"
-    ANTHROPIC_MODEL_NAME: str = "claude-3-5-sonnet-20241022"
+    ANTHROPIC_MODEL_NAME: str = "claude-opus-5"
     TEMPERATURE: float = 0.7
 
     # How many tokens Gemini may spend thinking before it answers. The 2.5
@@ -105,6 +112,35 @@ class Settings(BaseSettings):
     FEEDBACK_MIN_REPEATS: int = 3
     # How many similarity-ranked candidates to scan when counting repeats.
     FEEDBACK_TRUST_SCAN: int = 200
+
+    # OCR / Ingestion Configuration
+    # Every real DICT transaction document is a scanned image with no text layer,
+    # so pages are rendered and read by Claude vision. Results are cached on disk.
+    # TESSERACT_CMD is declared with the other storage settings above.
+    OCR_MODEL_NAME: str = "claude-opus-5"
+    OCR_DPI: int = 300
+    OCR_MAX_EDGE_PX: int = 2200  # Shared render cap; Anthropic downscales >1568 anyway
+    OCR_MAX_PAGES: int = 40  # Page budget per document; longer docs are sampled
+    OCR_MAX_CONCURRENCY: int = 4
+    OCR_CACHE_DIR: str = "./cache/ocr"
+    # A page with fewer than this many extractable characters is treated as scanned.
+    OCR_MIN_CHARS_PER_PAGE: int = 100
+
+    # Fact extraction
+    EXTRACT_TEXT_LIMIT: int = 200000
+
+    # Legal knowledge base (retrieved citations)
+    KB_INDEX_PATH: str = "./kb/index.json"
+    KB_TOP_K: int = 4
+
+    # Application database (sessions, documents, findings, checkpoints)
+    DB_PATH: str = "./data/procurement.db"
+
+    # Upload budget. The 3-file cap is gone -- a payment packet is 10+ files --
+    # but a total budget still bounds cost and latency.
+    MAX_UPLOAD_FILES: int = 50
+    MAX_UPLOAD_TOTAL_MB: int = 300
+    MAX_UPLOAD_FILE_MB: int = 50
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore"

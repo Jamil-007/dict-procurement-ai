@@ -1,0 +1,89 @@
+{
+  "id": "brand_name_specification",
+  "task": "T2",
+  "description": "The TOR specifies a Motorola transceiver by name, which restricts competition to one manufacturer.",
+  "expect_rules": [
+    "ra12009.no_brand_name_specification"
+  ],
+  "expect_discrepancies": [],
+  "forbid_rules": [],
+  "max_severity": null,
+  "documents": [
+    {
+      "doc_type": "tor",
+      "doc_type_confidence": 0.95,
+      "project_title": "Supply, Delivery and Installation of Government Emergency Communications System (GECS) Equipment",
+      "entity_name": "Department of Information and Communications Technology",
+      "extraction_confidence": 0.9,
+      "doc_number": "TOR-GECS-2024-001",
+      "mode_of_procurement": "Competitive Bidding",
+      "amounts": {
+        "abc": 7200000.0
+      },
+      "items": [
+        {
+          "line_no": "1",
+          "description": "Motorola VHF Base Radio Transceiver, 50W, with power supply",
+          "qty": 25.0,
+          "unit": "unit",
+          "unit_price": 145000.0,
+          "amount": 3625000.0,
+          "serial_numbers": [
+            "NBT-VHF-24001",
+            "NBT-VHF-24002",
+            "NBT-VHF-24003"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "2",
+          "description": "Portable VHF Handheld Radio, IP67, with spare battery",
+          "qty": 60.0,
+          "unit": "unit",
+          "unit_price": 32500.0,
+          "amount": 1950000.0,
+          "serial_numbers": [
+            "NBT-HH-24101",
+            "NBT-HH-24102"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "3",
+          "description": "Repeater Station with Antenna System and Mast",
+          "qty": 5.0,
+          "unit": "set",
+          "unit_price": 285000.0,
+          "amount": 1425000.0,
+          "serial_numbers": [
+            "NBT-RPT-24201"
+          ],
+          "page": 2
+        }
+      ],
+      "delivery_period": "Ninety (90) calendar days from receipt of the Notice to Proceed",
+      "warranty_period": "One (1) year from the date of acceptance",
+      "deliverables": [
+        "Delivery of all equipment to the DICT Central Office warehouse",
+        "Installation and commissioning of five (5) repeater stations",
+        "Two (2) days of operator training for twenty (20) personnel",
+        "Submission of as-built documentation and frequency coordination records"
+      ],
+      "milestones": [
+        "Delivery within ninety (90) calendar days from NTP",
+        "Installation and commissioning within thirty (30) days from delivery"
+      ],
+      "dates": {
+        "document": "June 20, 2024"
+      },
+      "source": {
+        "file": "fixtures/02 Terms of Reference.pdf",
+        "filename": "02 Terms of Reference.pdf",
+        "total_pages": 8,
+        "pages_read": 8,
+        "skipped_pages": [],
+        "ingest_source": "fixture"
+      }
+    }
+  ]
+}

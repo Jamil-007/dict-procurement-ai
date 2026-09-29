@@ -4,6 +4,8 @@ import React, { useState, useRef } from 'react';
 import { Paperclip, ArrowUp, X, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { UPLOAD_ACCEPT, filterSupportedFiles } from '@/lib/uploads';
+import { toast } from 'sonner';
 
 interface InputAreaProps {
   onFilesSelect: (files: File[]) => void;
@@ -30,7 +32,16 @@ export function InputArea({
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      onFilesSelect(Array.from(files));
+      const { accepted, rejected } = filterSupportedFiles(files);
+      if (rejected.length > 0) {
+        // Named, not counted: the user needs to know which file was dropped.
+        toast.error(
+          `Not a supported document: ${rejected.map((f) => f.name).join(', ')}`
+        );
+      }
+      if (accepted.length > 0) {
+        onFilesSelect(accepted);
+      }
       // Reset the input so the same file can be selected again if needed
       e.target.value = '';
     }
@@ -74,7 +85,7 @@ export function InputArea({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf"
+                  accept={UPLOAD_ACCEPT}
                   onChange={handleFileInput}
                   disabled={disabled}
                   style={{ display: 'none' }}

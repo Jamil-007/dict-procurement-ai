@@ -1,0 +1,285 @@
+id: ra12009_planning
+task: T2
+name: RA 12009 Procurement Compliance Checker
+description: >
+  Checks planning and bidding documents against the New Government
+  Procurement Act (RA 12009), its IRR, GPPB issuances and COA rules. Every
+  finding carries the specific provision it rests on, retrieved verbatim
+  from the indexed corpus -- no section number in this pack is composed by
+  a language model.
+
+defaults:
+  category: RA 12009 Compliance
+  severity: medium
+
+rules:
+
+  # -- Mode of procurement ------------------------------------------------
+
+  - id: ra12009.recognised_mode_of_procurement
+    check: value_in_set
+    applies_to: [pr, ppmp, app, bidding_docs, rfq, bac_resolution, contract]
+    severity: high
+    title: Mode of procurement is one recognised under RA 12009
+    category: Procurement Modality
+    params:
+      field: mode_of_procurement
+      allowed:
+        - Competitive Bidding
+        - Limited Source Bidding
+        - Competitive Dialogue
+        - Unsolicited Offer with Bid Matching
+        - Direct Contracting
+        - Direct Acquisition
+        - Repeat Order
+        - Small Value Procurement
+        - Negotiated Procurement
+        - Direct Sales
+        - Direct Procurement for Science, Technology and Innovation
+    remediation: >
+      RA 12009 replaced the RA 9184 modalities. Modes such as "Shopping" and
+      "Direct Contracting under Sec. 50 of RA 9184" no longer exist; restate
+      the mode using the current list.
+    authority:
+      doc: IRR of RA 12009
+      section: "26.1"
+
+  - id: ra12009.mode_stated
+    check: field_present
+    applies_to: [pr, ppmp, app, bidding_docs, rfq]
+    severity: medium
+    title: Mode of procurement is stated
+    category: Procurement Modality
+    params:
+      fields: [mode_of_procurement]
+    authority:
+      doc: IRR of RA 12009
+      section: "26.1"
+
+  # -- Budget and cost ----------------------------------------------------
+
+  - id: ra12009.abc_stated
+    check: any_field_present
+    applies_to: [tor, bidding_docs, rfq, dcb, ppmp, app]
+    severity: high
+    title: Approved Budget for the Contract is stated
+    category: Budget
+    params:
+      fields: [amounts.abc, amounts.total]
+    remediation: >
+      The ABC is the ceiling for bid evaluation. A solicitation without one
+      cannot be evaluated for responsiveness on price.
+    authority:
+      doc: IRR of RA 12009
+      query: approved budget for the contract ABC ceiling bid exceeding shall be disqualified
+
+  - id: ra12009.cost_breakdown_arithmetic
+    check: line_item_arithmetic
+    applies_to: [dcb, tor, bidding_docs, rfq, pr, ppmp, app, market_study]
+    severity: high
+    title: Cost line items compute correctly
+    category: Budget
+    authority:
+      doc: IRR of RA 12009
+      section: "61.2.3"
+
+  - id: ra12009.cost_total_matches_items
+    check: items_total_matches
+    applies_to: [dcb, pr, ppmp, app]
+    severity: high
+    title: Stated total equals the sum of the cost line items
+    category: Budget
+    params:
+      total: amounts.total
+    authority:
+      doc: IRR of RA 12009
+      section: "61.2.3"
+
+  # -- Specifications -----------------------------------------------------
+
+  - id: ra12009.no_brand_name_specification
+    check: text_absent
+    applies_to: [tor, bidding_docs, rfq, pr, dcb]
+    severity: high
+    title: Technical specifications do not name a brand
+    category: Technical Specifications
+    params:
+      fields: ["items[].description", "items[].brand_model", deliverables]
+      phrases:
+        - brand name
+        - "brand:"
+        - Cisco
+        - Hewlett Packard
+        - Hewlett-Packard
+        - Motorola
+        - Garmin
+        - Iridium
+        - Inmarsat
+        - Thuraya
+        - Starlink
+        - Kenwood
+        - Yaesu
+        - Hytera
+        - Zello
+    remediation: >
+      Reference to a brand name restricts competition. Restate the
+      requirement as a performance or functional specification; where a
+      brand must be named for compatibility, add "or equivalent" and record
+      the justification.
+    authority:
+      doc: IRR of RA 12009
+      query: specifications shall not refer to brand names technical specifications performance functional
+
+  - id: ra12009.items_quantified
+    check: item_field_present
+    applies_to: [tor, bidding_docs, rfq, pr, dcb, ppmp, app]
+    severity: high
+    title: Every requirement line carries a quantity and unit
+    category: Technical Specifications
+    params:
+      fields: [qty, unit]
+    remediation: >
+      Unquantified requirements cannot be priced consistently by bidders and
+      cannot be verified on delivery.
+    authority:
+      doc: IRR of RA 12009
+      query: schedule of requirements quantity unit technical specifications goods
+
+  - id: ra12009.requirements_listed
+    check: items_present
+    applies_to: [tor, bidding_docs, rfq, pr, dcb]
+    severity: high
+    title: The document lists the items or services being procured
+    category: Technical Specifications
+    params:
+      min_count: 1
+    authority:
+      doc: IRR of RA 12009
+      query: schedule of requirements technical specifications shall be included in the bidding documents
+
+  # -- Contract terms -----------------------------------------------------
+
+  - id: ra12009.delivery_period_stated
+    check: field_present
+    applies_to: [tor, bidding_docs, rfq, contract, ntp]
+    severity: high
+    title: Delivery period or contract duration is stated
+    category: Contract Terms
+    params:
+      fields: [delivery_period]
+    remediation: >
+      Without a delivery period there is no basis for computing liquidated
+      damages, and no defined point at which the contract is in delay.
+    authority:
+      doc: IRR of RA 12009
+      query: delivery period contract time liquidated damages delay in the delivery
+
+  - id: ra12009.warranty_stated
+    check: field_present
+    applies_to: [tor, bidding_docs, rfq, contract]
+    severity: medium
+    title: Warranty requirement is stated
+    category: Contract Terms
+    params:
+      fields: [warranty_period]
+    remediation: >
+      COA requires a minimum warranty of three months for expendable and one
+      year for semi-/non-expendable supplies after acceptance.
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  - id: ra12009.eligibility_requirements_stated
+    check: field_present
+    applies_to: [bidding_docs, rfq]
+    severity: high
+    title: Eligibility requirements are set out
+    category: Eligibility
+    params:
+      fields: [eligibility_requirements]
+    remediation: >
+      Bidders cannot be declared ineligible against criteria the solicitation
+      never published.
+    authority:
+      doc: IRR of RA 12009
+      query: eligibility requirements legal technical financial documents submitted by prospective bidders
+
+  - id: ra12009.deliverables_defined
+    check: field_present
+    applies_to: [tor]
+    severity: medium
+    title: Terms of Reference defines its deliverables
+    category: Technical Specifications
+    params:
+      fields: [deliverables]
+    authority:
+      doc: IRR of RA 12009
+      query: terms of reference scope of work deliverables outputs required
+
+  # -- Process and records ------------------------------------------------
+
+  - id: ra12009.pr_approved
+    check: signatory_present
+    applies_to: [pr]
+    severity: high
+    title: Purchase Request is requested and approved
+    category: Signatures and Approvals
+    params:
+      roles: [Request, Approv]
+      require_signed: true
+    authority:
+      doc: Government Accounting Manual, Volume I
+      query: purchase request approved by head of agency requesting official funds available
+
+  - id: ra12009.pr_funds_certified
+    check: signatory_present
+    applies_to: [pr]
+    severity: high
+    title: Availability of funds is certified on the Purchase Request
+    category: Budget
+    params:
+      roles: [Certif]
+      require_signed: true
+    remediation: >
+      Procurement may not commence without a certification that funds are
+      available for the purpose.
+    authority:
+      doc: Government Accounting Manual, Volume I
+      query: certificate of availability of funds chief accountant certification appropriation
+
+  - id: ra12009.bidding_docs_opening_date
+    check: field_present
+    applies_to: [bidding_docs, rfq]
+    severity: medium
+    title: Bid or quotation submission deadline is stated
+    category: Procurement Process
+    params:
+      fields: [dates.bid_opening]
+    authority:
+      doc: IRR of RA 12009
+      query: deadline for submission and receipt of bids opening of bids date time place
+
+  - id: ra12009.bac_resolution_recommends_award
+    check: field_present
+    applies_to: [bac_resolution, noa]
+    severity: high
+    title: Award document names the supplier and the contract amount
+    category: Procurement Process
+    params:
+      fields: [supplier, amounts.contract_amount]
+    authority:
+      doc: IRR of RA 12009
+      query: notice of award resolution recommending award lowest calculated responsive bid
+
+  - id: ra12009.contract_signed
+    check: signatory_present
+    applies_to: [contract]
+    severity: high
+    title: Contract is signed by both parties
+    category: Signatures and Approvals
+    params:
+      roles: [Procuring, Supplier]
+      require_signed: true
+    authority:
+      doc: IRR of RA 12009
+      query: contract shall be signed by the parties within calendar days from receipt of notice of award

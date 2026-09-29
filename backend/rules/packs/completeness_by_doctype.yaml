@@ -1,0 +1,396 @@
+id: completeness_by_doctype
+task: T3
+name: Procurement Document Review & Compliance Engine
+description: >
+  A completeness checklist for every document type the system accepts, so
+  that any uploaded file gets a meaningful review rather than being silently
+  ignored. Where a rulepack for a specific workflow already checks something
+  in depth (T1 for payment documents, T2 for planning documents), this pack
+  deliberately stays at the level of "is the document usable at all":
+  identity, dates, parties, figures and signatures.
+
+  Rules here are intentionally low-noise. A document that fails these is not
+  merely non-compliant -- it cannot be reviewed.
+
+defaults:
+  category: Document Completeness
+  severity: medium
+
+rules:
+
+  # -- Applies to every document -----------------------------------------
+
+  - id: complete.document_identified
+    check: field_present
+    applies_to: ["*"]
+    severity: medium
+    title: Document carries a reference number
+    params:
+      fields: [doc_number]
+    remediation: >
+      An unnumbered document cannot be referenced by any other document in
+      the transaction, which makes the whole packet impossible to trace.
+    authority:
+      doc: COA Circular No. 2023-004
+      query: documentary requirements common to all types of disbursements reference number
+
+  - id: complete.document_dated
+    check: field_present
+    applies_to: ["*"]
+    severity: medium
+    title: Document is dated
+    params:
+      fields: [dates.document]
+    remediation: >
+      Undated documents defeat every sequencing check: there is no way to
+      establish that acceptance preceded payment.
+    authority:
+      doc: Government Accounting Manual, Volume I
+      query: date of the transaction recorded documents supporting entries
+
+  - id: complete.readable
+    check: field_present
+    applies_to: ["*"]
+    severity: low
+    title: Document identifies its project or subject
+    category: Document Completeness
+    params:
+      fields: [project_title]
+
+  # -- Planning documents -------------------------------------------------
+
+  - id: complete.ppmp_core
+    check: field_present
+    applies_to: [ppmp, app]
+    severity: high
+    title: Procurement plan states the entity, mode and budget
+    params:
+      fields: [entity_name, mode_of_procurement, amounts.total]
+    authority:
+      doc: IRR of RA 12009
+      query: project procurement management plan annual procurement plan shall be prepared indicative budget
+
+  - id: complete.ppmp_items
+    check: items_present
+    applies_to: [ppmp, app, pr]
+    severity: high
+    title: Procurement plan lists the items to be procured
+    params:
+      min_count: 1
+    authority:
+      doc: IRR of RA 12009
+      query: project procurement management plan shall include the procurement projects
+
+  - id: complete.pr_core
+    check: field_present
+    applies_to: [pr]
+    severity: high
+    title: Purchase Request identifies requester, purpose and amount
+    params:
+      fields: [end_user, project_title, amounts.total]
+    authority:
+      doc: Government Accounting Manual, Volume I
+      query: purchase request requisitioning office purpose quantity estimated cost
+
+  - id: complete.tor_core
+    check: field_present
+    applies_to: [tor]
+    severity: high
+    title: Terms of Reference states scope, duration and budget
+    params:
+      fields: [project_title, delivery_period]
+    authority:
+      doc: IRR of RA 12009
+      query: terms of reference scope of work duration contract period
+
+  - id: complete.market_study_sources
+    check: items_present
+    applies_to: [market_study]
+    severity: high
+    title: Market research records the prices it surveyed
+    params:
+      min_count: 2
+    remediation: >
+      A market study citing a single source does not establish a reasonable
+      price. Record the suppliers or published price sources compared.
+    authority:
+      doc: IRR of RA 12009
+      query: market research price monitoring survey of prices reasonable determination of ABC
+
+  - id: complete.dcb_items
+    check: items_present
+    applies_to: [dcb]
+    severity: high
+    title: Detailed Cost Breakdown itemises its costs
+    params:
+      min_count: 1
+    authority:
+      doc: IRR of RA 12009
+      query: detailed breakdown of the approved budget for the contract cost estimates
+
+  - id: complete.dcb_priced
+    check: item_field_present
+    applies_to: [dcb, ppmp, app]
+    severity: medium
+    title: Every cost line carries a unit price and an amount
+    params:
+      fields: [unit_price, amount]
+    authority:
+      doc: IRR of RA 12009
+      query: detailed breakdown unit cost total cost estimate
+
+  - id: complete.bidding_docs_core
+    check: field_present
+    applies_to: [bidding_docs, rfq]
+    severity: high
+    title: Solicitation identifies the procuring entity and the budget
+    params:
+      fields: [entity_name, project_title]
+    authority:
+      doc: IRR of RA 12009
+      query: bidding documents shall include invitation to bid name of the procuring entity
+
+  - id: complete.sbb_references_solicitation
+    check: any_field_present
+    applies_to: [sbb]
+    severity: high
+    title: Supplemental Bid Bulletin references the solicitation it amends
+    params:
+      fields: [doc_number, project_title, reference_nos]
+    remediation: >
+      A bulletin that does not name the bidding documents it amends cannot be
+      shown to have reached the bidders it was meant to bind.
+    authority:
+      doc: IRR of RA 12009
+      query: supplemental bid bulletin issued to amend the bidding documents shall be posted
+
+  - id: complete.checklist_signed
+    check: signatory_present
+    applies_to: [checklist]
+    severity: medium
+    title: Readiness checklist is signed off
+    category: Signatures and Approvals
+    params:
+      roles: [Prepared, Review]
+      require_signed: true
+    authority:
+      doc: Government Accounting Manual, Volume I
+      query: checklist certified reviewed by accountable officer
+
+  # -- Award and contract -------------------------------------------------
+
+  - id: complete.bac_resolution_core
+    check: field_present
+    applies_to: [bac_resolution, abstract_of_bids]
+    severity: high
+    title: BAC document identifies the project and its date
+    params:
+      fields: [project_title, dates.document]
+    authority:
+      doc: IRR of RA 12009
+      query: bids and awards committee resolution abstract of bids recommendation
+
+  - id: complete.bac_resolution_quorum
+    check: signatory_present
+    applies_to: [bac_resolution]
+    severity: high
+    title: BAC Resolution is signed by the committee
+    category: Signatures and Approvals
+    params:
+      roles: [Chair, Member]
+      require_signed: true
+    remediation: >
+      A resolution signed by the Chairperson alone does not evidence that the
+      committee acted as a collegial body.
+    authority:
+      doc: IRR of RA 12009
+      query: bids and awards committee composition quorum majority vote of all its members
+
+  - id: complete.contract_core
+    check: field_present
+    applies_to: [contract]
+    severity: high
+    title: Contract states the parties, the amount and the period
+    params:
+      fields: [supplier, amounts.contract_amount, delivery_period]
+    authority:
+      doc: IRR of RA 12009
+      query: contract shall include the scope of work contract price period of performance
+
+  - id: complete.contract_items
+    check: items_present
+    applies_to: [contract]
+    severity: high
+    title: Contract enumerates what is being bought
+    params:
+      min_count: 1
+    remediation: >
+      Without a schedule of requirements in the contract there is nothing to
+      check the delivery against.
+    authority:
+      doc: IRR of RA 12009
+      query: contract documents schedule of requirements technical specifications form part of the contract
+
+  - id: complete.noa_core
+    check: field_present
+    applies_to: [noa, ntp]
+    severity: high
+    title: Award notice names the supplier and the amount
+    params:
+      fields: [supplier, amounts.contract_amount]
+    authority:
+      doc: IRR of RA 12009
+      query: notice of award shall be issued to the bidder with the lowest calculated responsive bid
+
+  - id: complete.noa_dated_and_signed
+    check: signatory_present
+    applies_to: [noa, ntp]
+    severity: high
+    title: Award notice is signed by the head of the procuring entity
+    category: Signatures and Approvals
+    params:
+      # One approval block, however it is captioned -- a NOA is signed once,
+      # not once by an approver and again by the head.
+      roles: [Approv]
+      require_signed: true
+    authority:
+      doc: IRR of RA 12009
+      query: notice of award approved by the head of the procuring entity
+
+  # -- Transaction documents ---------------------------------------------
+
+  - id: complete.ors_core
+    check: field_present
+    applies_to: [ors]
+    severity: high
+    title: Obligation Request identifies the payee and the amount obligated
+    params:
+      fields: [payee, amounts.total]
+    authority:
+      doc: Government Accounting Manual, Volume I
+      query: obligation request and status payee particulars amount obligated allotment
+
+  - id: complete.ors_certified
+    check: signatory_present
+    applies_to: [ors]
+    severity: high
+    title: Obligation Request carries the budget and accounting certifications
+    category: Signatures and Approvals
+    params:
+      roles: [Budget, Accountant]
+      require_signed: true
+    authority:
+      doc: Government Accounting Manual, Volume I
+      query: budget officer head of budget unit certifies allotment available accountant
+
+  - id: complete.invoice_core
+    check: field_present
+    applies_to: [invoice]
+    severity: high
+    title: Invoice identifies the supplier, the date and the amount
+    params:
+      fields: [supplier, dates.document, amounts.total]
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  - id: complete.invoice_items
+    check: items_present
+    applies_to: [invoice, delivery_receipt]
+    severity: high
+    title: Invoice or Delivery Receipt itemises what was supplied
+    params:
+      min_count: 1
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  - id: complete.tax_receipt_core
+    check: field_present
+    applies_to: [tax_receipt]
+    severity: medium
+    title: Tax receipt identifies the payment it evidences
+    params:
+      fields: [dates.document, amounts.total]
+    remediation: >
+      COA requires proof of remittance of the taxes withheld. A receipt that
+      cannot be tied to an amount does not discharge that requirement.
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  - id: complete.warranty_core
+    check: field_present
+    applies_to: [warranty_certificate]
+    severity: medium
+    title: Warranty certificate identifies the supplier and the covered goods
+    params:
+      fields: [supplier, warranty_period]
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  - id: complete.warranty_items
+    check: items_present
+    applies_to: [warranty_certificate]
+    severity: medium
+    title: Warranty certificate identifies what it covers
+    params:
+      min_count: 1
+    remediation: >
+      A warranty naming no equipment cannot be enforced against a specific
+      delivered unit.
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  - id: complete.inspection_report_core
+    check: field_present
+    applies_to: [inspection_report, iar]
+    severity: high
+    title: Inspection report states what was inspected and when
+    params:
+      fields: [dates.inspection]
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  - id: complete.par_core
+    check: field_present
+    applies_to: [par, ics]
+    severity: high
+    title: Property receipt identifies the custodian and the date
+    params:
+      fields: [recipient, dates.document]
+    authority:
+      doc: Government Accounting Manual, Volume I
+      query: property acknowledgement receipt inventory custodian slip accountable officer
+
+  - id: complete.par_items
+    check: items_present
+    applies_to: [par, ics, delivery_receipt, iar]
+    severity: high
+    title: Receiving document lists the items received
+    params:
+      min_count: 1
+    remediation: >
+      A receiving document with no itemised list cannot be cross-checked
+      against the contract or the invoice.
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  # -- Unclassified -------------------------------------------------------
+
+  - id: complete.document_classified
+    check: classification_confident
+    applies_to: ["*"]
+    severity: low
+    title: Document type was recognised
+    category: Document Classification
+    params:
+      min_confidence: 0.5
+    remediation: >
+      The system could not recognise this document, so no type-specific
+      checks were applied to it. Confirm it belongs in this packet, and if
+      it is a recognised procurement form, the classifier needs a sample.

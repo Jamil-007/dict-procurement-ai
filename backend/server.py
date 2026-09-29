@@ -33,9 +33,13 @@ from utils.storage import (
     generate_thread_id,
     file_exists,
     get_thread_upload_dir,
+    delete_thread_files,
+    is_supported_upload,
 )
 from utils.llm_factory import get_llm, get_llm_info
 from graph import graph, create_initial_state
+from ingest.loaders import SUPPORTED_EXTENSIONS
+from persistence import delete_session, get_session, init_db, list_sessions, save_session
 from prompts import CHAT_PROMPT, RA_12009_DIRECTIVE
 from config import settings
 from agents.doc_generation import service as forms_service
@@ -129,6 +133,11 @@ app.include_router(review_api.router)
 analysis_tasks = {}
 
 
+@app.on_event("startup")
+async def _startup() -> None:
+    init_db()
+
+
 def _extract_text_from_chunk_content(content: Any) -> str:
     """Normalize provider-specific chunk content into plain text."""
     if content is None:
@@ -212,21 +221,29 @@ async def analyze_document(files: List[UploadFile] = File(...)):
         thread_id and status for tracking analysis
     """
     if not files:
-        raise HTTPException(status_code=400, detail="At least one PDF file is required")
+        raise HTTPException(status_code=400, detail="At least one file is required")
 
-    if len(files) > 3:
-        raise HTTPException(status_code=400, detail="Maximum of 3 PDF files allowed")
+    # No small fixed cap: a payment packet is ten or more documents, and a
+    # cross-document consistency check is only meaningful when the whole
+    # packet is present. The budget is total files and total bytes instead,
+    # enforced in `save_uploaded_files`.
+    if len(files) > settings.MAX_UPLOAD_FILES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Maximum of {settings.MAX_UPLOAD_FILES} files per upload",
+        )
 
     for uploaded_file in files:
-        if not uploaded_file.filename or not uploaded_file.filename.lower().endswith(
-            ".pdf"
+        if not uploaded_file.filename or not is_supported_upload(
+            uploaded_file.filename
         ):
-            raise HTTPException(status_code=400, detail="Only PDF files are supported")
-
-        # Validate content type
-        content_type = uploaded_file.content_type or ""
-        if content_type and not content_type.startswith("application/pdf"):
-            raise HTTPException(status_code=400, detail="Invalid file content type")
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Unsupported file type. Supported: "
+                    + ", ".join(sorted(SUPPORTED_EXTENSIONS))
+                ),
+            )
 
     try:
         # Generate unique thread ID
@@ -294,6 +311,14 @@ async def run_graph_async(initial_state, config, thread_id):
         result = await asyncio.to_thread(stream_graph)
 
         analysis_tasks[thread_id] = {"status": "interrupted", "state": result}
+
+        # Archive the completed review. Done here rather than inside a graph
+        # node so that a storage failure cannot take down the analysis the
+        # user is waiting on.
+        try:
+            await asyncio.to_thread(save_session, thread_id, result)
+        except Exception as archive_error:
+            print(f"Archive error for {thread_id}: {archive_error}")
 
     except Exception as e:
         analysis_tasks[thread_id] = {
@@ -543,6 +568,38 @@ async def stream_chat_about_document(chat_request: ChatRequest, http_request: Re
             }
 
     return EventSourceResponse(event_generator())
+
+
+@app.get("/sessions")
+async def get_sessions(limit: int = 50, offset: int = 0):
+    """List past reviews, most recent first.
+
+    Every analysis is kept. A compliance review that vanishes when the tab
+    closes cannot be referred back to when the finding is questioned.
+    """
+    limit = max(1, min(limit, 200))
+    return {"sessions": await asyncio.to_thread(list_sessions, limit, max(offset, 0))}
+
+
+@app.get("/sessions/{thread_id}")
+async def get_archived_session(thread_id: str):
+    """One archived review in full: verdict, documents and findings."""
+    session = await asyncio.to_thread(get_session, thread_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
+@app.delete("/sessions/{thread_id}")
+async def delete_archived_session(thread_id: str):
+    """Delete a review: its archive rows, its checkpoints and its files."""
+    removed = await asyncio.to_thread(delete_session, thread_id)
+    files_removed = await asyncio.to_thread(delete_thread_files, thread_id)
+    analysis_tasks.pop(thread_id, None)
+
+    if not removed and not files_removed:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"status": "deleted", "thread_id": thread_id}
 
 
 @app.get("/status/{thread_id}")

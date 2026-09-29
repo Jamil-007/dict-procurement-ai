@@ -1,0 +1,310 @@
+id: dv_payment
+task: T1
+name: Payment Document & Disbursement Voucher Checker
+description: >
+  Checks Disbursement Vouchers and their supporting payment documents for
+  completeness, required fields, signatures, date sequencing and arithmetic.
+  The attachment checklist is taken from COA Circular No. 2023-004,
+  Section 9.3.1 (Supplies, Materials, Equipment and Motor Vehicles), which
+  is the governing documentary requirement for payment of delivered goods.
+
+  Note: the DV signatory matrix below is derived from the Government
+  Accounting Manual and COA Circular No. 2023-004. It is provisional until
+  DICT supplies its internal signatory SOP, which will name the actual
+  officers and the order in which they sign.
+
+defaults:
+  category: Payment Documentation
+  severity: medium
+
+rules:
+
+  # -- Disbursement Voucher: the voucher itself ---------------------------
+
+  - id: dv.required_fields
+    check: field_present
+    applies_to: [disbursement_voucher]
+    severity: high
+    title: Disbursement Voucher carries all mandatory fields
+    category: Payment Documentation
+    params:
+      fields:
+        - dv_no
+        - payee
+        - amounts.gross
+        - amounts.net
+        - dates.document
+    remediation: >
+      A voucher missing any of these cannot be processed; return it to the
+      preparer before it reaches the Accountant.
+    authority:
+      doc: Government Accounting Manual, Volume I
+      query: disbursement voucher shall be used by all government entities payee obligation
+
+  - id: dv.obligation_reference
+    check: any_field_present
+    applies_to: [disbursement_voucher]
+    severity: high
+    title: Voucher is linked to an obligation
+    category: Payment Documentation
+    params:
+      fields: [ors_no, contract_no, po_no]
+    remediation: >
+      An unobligated disbursement has no charge against an allotment.
+      Attach the Obligation Request and Status (ORS) reference.
+    authority:
+      doc: Government Accounting Manual, Volume I
+      query: obligation request and status certification of availability of allotment
+
+  - id: dv.amount_in_words_matches_figures
+    check: amount_in_words_matches
+    applies_to: [disbursement_voucher]
+    severity: high
+    title: Amount in words agrees with the amount in figures
+    category: Payment Documentation
+    params:
+      figures: amounts.net
+    remediation: >
+      Where the words and figures disagree the words control, so this
+      changes what the voucher legally directs to be paid. Correct and
+      re-certify before release.
+    authority:
+      doc: IRR of RA 12009
+      section: "61.2.3"
+
+  - id: dv.net_amount_reconciles
+    check: arithmetic_sum
+    applies_to: [disbursement_voucher]
+    severity: high
+    title: Net amount due reconciles against gross less deductions
+    category: Payment Arithmetic
+    params:
+      result: amounts.net
+      add: [amounts.gross]
+      subtract:
+        - amounts.tax
+        - amounts.retention
+        - amounts.discount
+        - amounts.other_deductions
+      tolerance: 0.01
+    remediation: >
+      Recompute the deductions. An over-payment here is a disallowance
+      waiting to happen.
+    authority:
+      doc: Government Accounting Manual, Volume I
+      query: withholding tax deductions net amount due disbursement
+
+  - id: dv.required_signatories
+    check: signatory_present
+    applies_to: [disbursement_voucher]
+    severity: high
+    title: All required voucher signatories have signed
+    category: Signatures and Approvals
+    params:
+      roles:
+        - Prepared
+        - Certified
+        - Approved
+        - Received
+      require_signed: true
+    remediation: >
+      An unsigned certification box is among the most frequently cited COA
+      deficiencies. A printed name is not a signature.
+    authority:
+      doc: Government Accounting Manual, Volume I
+      query: certified expenses necessary lawful incurred under my direct supervision approved for payment
+
+  - id: dv.signatory_dates_in_order
+    check: signatory_order
+    applies_to: [disbursement_voucher]
+    severity: high
+    title: Certification precedes approval
+    category: Signatures and Approvals
+    params:
+      sequence:
+        - Prepared
+        - Certified
+        - Approved
+    remediation: >
+      An approval dated before the supporting certification means the
+      approving officer signed before funds were certified available.
+    authority:
+      doc: Government Accounting Manual, Volume I
+      query: certification of availability of funds prior to approval of disbursement
+
+  - id: dv.supporting_documents_goods
+    check: attachment_present
+    applies_to: [disbursement_voucher]
+    severity: high
+    title: Supporting documents required for payment of delivered goods
+    category: Payment Documentation
+    params:
+      attachments:
+        - Purchase Request
+        - Supplier Invoice
+        - Delivery Receipt
+        - Inspection and Acceptance Report
+        - Property Acknowledgement Receipt
+        - Warranty Security
+        - Tax Receipt
+      aliases:
+        Purchase Request: [Purchase Requisition, PR]
+        Supplier Invoice: [Sales Invoice, Dealers Invoice, Billing Statement, Charge Invoice]
+        Delivery Receipt: [DR, Delivery Note]
+        Inspection and Acceptance Report: [IAR, Certificate of Acceptance, Technical Inspection Report]
+        Property Acknowledgement Receipt: [PAR, Inventory Custodian Slip, ICS]
+        Warranty Security: [Warranty Certificate, Warranty Bond]
+        Tax Receipt: [BIR Receipt, Bureau of Customs Receipt, Official Receipt]
+    remediation: >
+      Attach the missing documents or record on the voucher why the
+      requirement does not apply to this transaction.
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  - id: dv.payment_date_sequence
+    check: date_order
+    applies_to: [disbursement_voucher]
+    severity: high
+    title: Payment follows delivery, inspection and acceptance
+    category: Payment Sequencing
+    params:
+      sequence:
+        - dates.delivery
+        - dates.inspection
+        - dates.acceptance
+        - dates.document
+        - dates.payment
+      allow_same_day: true
+    remediation: >
+      A voucher dated before acceptance means payment was prepared for goods
+      not yet accepted. Verify the dates against the IAR and Delivery Receipt.
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  # -- Supporting documents in the payment packet -------------------------
+
+  - id: payment.invoice_arithmetic
+    check: line_item_arithmetic
+    applies_to: [invoice, delivery_receipt, par, ics]
+    severity: high
+    title: Line item amounts equal quantity times unit price
+    category: Payment Arithmetic
+    authority:
+      doc: IRR of RA 12009
+      section: "61.2.3"
+
+  - id: payment.invoice_total_matches_items
+    check: items_total_matches
+    applies_to: [invoice, par, ics]
+    severity: high
+    title: Document total equals the sum of its line items
+    category: Payment Arithmetic
+    params:
+      total: amounts.total
+    authority:
+      doc: IRR of RA 12009
+      section: "61.2.3"
+
+  - id: payment.delivery_receipt_fields
+    check: field_present
+    applies_to: [delivery_receipt]
+    severity: medium
+    title: Delivery Receipt identifies the delivery
+    category: Delivery Documentation
+    params:
+      fields: [supplier, dates.delivery, delivery_place]
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  - id: payment.delivery_receipt_acknowledged
+    check: signatory_present
+    applies_to: [delivery_receipt]
+    severity: high
+    title: Delivery Receipt is duly received and acknowledged
+    category: Signatures and Approvals
+    params:
+      roles: [Received]
+      require_signed: true
+      require_date: true
+    remediation: >
+      COA requires the delivery receipt to be "duly received". An
+      unacknowledged receipt is not proof of delivery.
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  - id: payment.iar_inspected_and_accepted
+    check: signatory_present
+    applies_to: [iar, inspection_report]
+    severity: high
+    title: Inspection and Acceptance Report is signed by inspector and acceptor
+    category: Signatures and Approvals
+    params:
+      roles: [Inspect, Accept]
+      require_signed: true
+    remediation: >
+      COA requires the IAR to be prepared by the agency property inspector
+      and signed by the Head of Agency or an authorised representative.
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  - id: payment.iar_date_sequence
+    check: date_order
+    applies_to: [iar, inspection_report]
+    severity: medium
+    title: Acceptance does not precede inspection
+    category: Payment Sequencing
+    params:
+      sequence: [dates.delivery, dates.inspection, dates.acceptance]
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  - id: payment.par_serial_numbers
+    check: item_field_present
+    applies_to: [par, ics, delivery_receipt]
+    severity: medium
+    title: Serial numbers are recorded for each item received
+    category: Property Accountability
+    params:
+      fields: [serial_numbers]
+    remediation: >
+      Without serial numbers the item on the PAR cannot be traced to the one
+      delivered, and the property cannot be physically verified later.
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  - id: payment.par_accountable_officer
+    check: field_present
+    applies_to: [par, ics]
+    severity: high
+    title: Property Acknowledgement Receipt names the accountable officer
+    category: Property Accountability
+    params:
+      fields: [recipient]
+    remediation: >
+      A PAR with no named recipient establishes no accountability for the
+      property.
+    authority:
+      doc: Government Accounting Manual, Volume I
+      query: property acknowledgement receipt accountable officer property plant equipment custody
+
+  - id: payment.warranty_period_stated
+    check: field_present
+    applies_to: [warranty_certificate]
+    severity: medium
+    title: Warranty certificate states its period
+    category: Warranty
+    params:
+      fields: [warranty_period]
+    remediation: >
+      COA requires a minimum of three months for expendable supplies and one
+      year for semi-/non-expendable supplies after acceptance.
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"

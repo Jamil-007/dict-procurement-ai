@@ -14,8 +14,6 @@ _REGISTRY: Dict[str, "DimensionSpec"] = {}
 
 # Fixed display order. A dimension not listed here sorts to the end.
 ORDER = [
-    "compliance",
-    "document_consistency",
     "document_quality",
     "procurement_market",
     "requirements_risk",

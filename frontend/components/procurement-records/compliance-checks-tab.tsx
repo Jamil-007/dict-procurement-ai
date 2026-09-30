@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 
 import { FindingCard } from "./finding-card";
+import { groupByDocument } from "@/lib/group-findings";
 import { ChecksProgress } from "./checks-progress";
 import { Modal, ModalFooter } from "@/components/shell/modal";
 import { btnGhost, btnPrimary } from "@/components/shell/page-header";
@@ -327,18 +328,28 @@ export function ComplianceChecksTab({
         </p>
       )}
 
-      <div className="space-y-3">
-        {visible.map((finding) => (
-          <FindingCard
-            key={finding.id}
-            finding={finding}
-            dimensionLabel={labelFor(finding.dimension)}
-            onChange={(updated) =>
-              setFindings((prev) =>
-                prev.map((f) => (f.id === updated.id ? updated : f))
-              )
-            }
-          />
+      <div className="space-y-6">
+        {groupByDocument(visible).map((group) => (
+          <div key={group.doc} className="space-y-3">
+            <h4 className="flex items-center gap-2 text-[13px] font-semibold text-navy">
+              {group.doc}
+              <span className="text-[11px] font-normal text-subtle">
+                {group.items.length}
+              </span>
+            </h4>
+            {group.items.map((finding) => (
+              <FindingCard
+                key={finding.id}
+                finding={finding}
+                dimensionLabel={labelFor(finding.dimension)}
+                onChange={(updated) =>
+                  setFindings((prev) =>
+                    prev.map((f) => (f.id === updated.id ? updated : f))
+                  )
+                }
+              />
+            ))}
+          </div>
         ))}
       </div>
 

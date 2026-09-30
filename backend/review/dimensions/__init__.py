@@ -6,8 +6,6 @@ dimension touches.
 """
 
 from review.dimensions import (  # noqa: F401
-    compliance,
-    document_consistency,
     document_quality,
     procurement_market,
     requirements_risk,

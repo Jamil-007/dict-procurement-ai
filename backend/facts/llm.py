@@ -1,93 +1,62 @@
 """Provider-neutral structured-output calls for the facts pipeline.
 
-Classification and extraction both need one thing from an LLM: a JSON
-response shaped by a schema. Gemini (via GOOGLE_API_KEY) is preferred when
-configured; Anthropic is the alternative.
+Classification and extraction both need one thing from an LLM: a JSON response
+shaped by a schema. This routes through the app's configured provider
+(utils.llm_factory.get_llm) so compliance fact-extraction uses the same model as
+the rest of the app (Anthropic by default) and carries no hardcoded/placeholder
+model ids.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Dict, Optional
 
-from config import settings
+from utils.llm_factory import get_llm
+
+_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)
 
 
-def _gemini_json(
-    prompt: str,
-    schema: Dict[str, Any],
-    model: Optional[str],
-    max_tokens: int,
-) -> Dict[str, Any]:
-    from google import genai
-    from google.genai import types
-
-    client = genai.Client(api_key=settings.GOOGLE_API_KEY)
-    # No max_output_tokens: Gemini 2.5 counts thinking tokens against the cap,
-    # which silently truncates large JSON responses.
-    response = client.models.generate_content(
-        model=model or settings.GEMINI_MODEL_NAME,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_json_schema=schema,
-            # Reading a field off a scanned form is transcription, not
-            # composition. Left at the default, two runs over the same packet
-            # disagreed about which fields were legible at all -- one found a
-            # recipient and a delivery date where the next found neither --
-            # and the consistency checkers turned that into eleven "could not
-            # be confirmed" rows that had been real comparisons a minute
-            # earlier. A checker whose answer changes when nothing changed is
-            # not one a committee can act on.
-            temperature=0.0,
-        ),
-    )
-    if not response.text:
-        raise RuntimeError("Gemini returned an empty response")
-    try:
-        return json.loads(response.text)
-    except json.JSONDecodeError as exc:
-        finish = getattr(response.candidates[0], "finish_reason", None) if response.candidates else None
-        # Keep JSONDecodeError type so callers can retry malformed responses.
-        raise json.JSONDecodeError(
-            f"{exc.msg} (finish_reason={finish})", exc.doc, exc.pos
-        ) from exc
-
-
-def _anthropic_json(
-    prompt: str,
-    schema: Dict[str, Any],
-    model: Optional[str],
-    max_tokens: int,
-) -> Dict[str, Any]:
-    import anthropic
-
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-    response = client.messages.create(
-        model=model or settings.ANTHROPIC_MODEL_NAME,
-        max_tokens=max_tokens,
-        messages=[{"role": "user", "content": prompt}],
-        output_config={"format": {"type": "json_schema", "schema": schema}},
-        # Same reason as the Gemini path above: extraction must be repeatable.
-        temperature=0.0,
-    )
-    body = "".join(
-        block.text for block in response.content if getattr(block, "type", "") == "text"
-    )
-    return json.loads(body)
+def _loads(text: str) -> Dict[str, Any]:
+    """Parse a JSON object out of a model reply, tolerating code fences and
+    surrounding prose."""
+    cleaned = _FENCE.sub("", text).strip()
+    start, end = cleaned.find("{"), cleaned.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        cleaned = cleaned[start : end + 1]
+    return json.loads(cleaned)
 
 
 def generate_json(
     prompt: str,
     schema: Dict[str, Any],
-    model: Optional[str] = None,
+    model: Optional[str] = None,  # accepted for signature compatibility; ignored
     max_tokens: int = 16000,
 ) -> Dict[str, Any]:
-    """Call the configured LLM and return schema-shaped JSON."""
-    if settings.GOOGLE_API_KEY:
-        return _gemini_json(prompt, schema, model, max_tokens)
-    if settings.ANTHROPIC_API_KEY:
-        return _anthropic_json(prompt, schema, model, max_tokens)
-    raise RuntimeError(
-        "No LLM credentials: set GOOGLE_API_KEY (Gemini) or ANTHROPIC_API_KEY in .env"
-    )
+    """Call the configured LLM and return schema-shaped JSON.
+
+    Prefers native structured output (tool/function calling); falls back to a
+    plain call with JSON extraction so a provider path without structured-output
+    support still returns a dict. Temperature 0: reading a field off a scanned
+    form is transcription, not composition, and the checkers need repeatable
+    extraction.
+    """
+    llm = get_llm(temperature=0)
+    try:
+        structured = llm.with_structured_output(schema)
+        result = structured.invoke(prompt)
+        return result if isinstance(result, dict) else dict(result)
+    except Exception:
+        response = llm.invoke(
+            prompt
+            + "\n\nReturn ONLY a single JSON object matching the schema. "
+            + "No prose, no code fences."
+        )
+        content = response.content if hasattr(response, "content") else str(response)
+        if isinstance(content, list):
+            content = "".join(
+                part.get("text", "") if isinstance(part, dict) else str(part)
+                for part in content
+            )
+        return _loads(content)

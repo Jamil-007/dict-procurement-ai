@@ -11,7 +11,9 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from rate_limit import review_rate_limit
 from pydantic import BaseModel
 
 from domain import Procurement
@@ -149,7 +151,11 @@ class RunReviewResponse(BaseModel):
     counts: dict
 
 
-@router.post("/procurements/{ref}/review", response_model=RunReviewResponse)
+@router.post(
+    "/procurements/{ref}/review",
+    response_model=RunReviewResponse,
+    dependencies=[Depends(review_rate_limit)],
+)
 async def run_procurement_review(
     ref: str,
     keys: Optional[List[str]] = Query(

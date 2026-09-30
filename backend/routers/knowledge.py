@@ -9,7 +9,9 @@ import logging
 import uuid
 from typing import List, Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
+
+from rate_limit import upload_rate_limit
 from pydantic import BaseModel
 
 from domain import KNOWLEDGE_CATEGORIES, KnowledgeEntry, today
@@ -60,7 +62,11 @@ class KnowledgeUploadResponse(BaseModel):
     """Explains a degraded or refused indexing outcome; empty on a clean win."""
 
 
-@router.post("/upload", response_model=KnowledgeUploadResponse)
+@router.post(
+    "/upload",
+    response_model=KnowledgeUploadResponse,
+    dependencies=[Depends(upload_rate_limit)],
+)
 async def upload_knowledge(
     file: UploadFile = File(...),
     title: str = Form(...),

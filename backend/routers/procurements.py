@@ -7,7 +7,9 @@ import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Response, UploadFile
+
+from rate_limit import upload_rate_limit
 from pydantic import BaseModel
 
 from domain import (
@@ -148,7 +150,11 @@ def _store_upload(
     )
 
 
-@router.post("/{ref}/documents", response_model=Procurement)
+@router.post(
+    "/{ref}/documents",
+    response_model=Procurement,
+    dependencies=[Depends(upload_rate_limit)],
+)
 async def upload_documents(
     ref: str,
     files: List[UploadFile] = File(...),

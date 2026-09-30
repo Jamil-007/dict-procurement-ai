@@ -106,6 +106,18 @@ class Settings(BaseSettings):
     # How many similarity-ranked candidates to scan when counting repeats.
     FEEDBACK_TRUST_SCAN: int = 200
 
+    # --- Rate limiting (public, unauthenticated API) -----------------------
+    # Per-client-IP sliding windows on the expensive endpoints, to cap the
+    # cost/DoS blast radius while the service runs --allow-unauthenticated.
+    # Counters are per-process: with several instances the effective cap is
+    # (limit x instances), but --session-affinity keeps a client on one
+    # instance. For a hard global cap, back the counters with a shared store.
+    RATELIMIT_ENABLED: bool = True
+    RATELIMIT_WINDOW_SECONDS: int = 600
+    RATELIMIT_REVIEW: int = 10    # AI reviews per window per IP (LLM + web search)
+    RATELIMIT_GENERATE: int = 20  # /analyze + form generation per window per IP
+    RATELIMIT_UPLOAD: int = 60    # document / knowledge / form uploads per window per IP
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore"
     )

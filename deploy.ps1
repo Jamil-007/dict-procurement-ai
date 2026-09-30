@@ -50,9 +50,13 @@ function Deploy-Backend {
   }
 
   Write-Host "`n=== Backend: build + deploy -> $BACKEND_SVC ===" -ForegroundColor Cyan
-  # Pinned to a single always-on instance on purpose: the legacy /analyze path
-  # keeps LangGraph state in an in-process MemorySaver. Uploads + the RAG index
-  # are durable in GCS, so raise max-instances only once that state moves too.
+  # Scales out to several instances so a long, CPU-heavy AI review (OCR + parallel
+  # LLM calls) on one instance can't monopolize the whole service and 429 every
+  # other request. The records / review / knowledge / forms flows are all
+  # Firestore/GCS-backed and multi-instance safe. The one exception is the legacy
+  # Procurement Analyst chat (graph.py MemorySaver, in-process state); --session-
+  # affinity keeps a given client on the same instance so its multi-turn threads
+  # survive. min-instances 1 keeps one warm for fast first response.
   gcloud run deploy $BACKEND_SVC `
     --source ./backend `
     --platform managed `
@@ -74,12 +78,13 @@ function Deploy-Backend {
     --set-env-vars "FIRESTORE_COLLECTION=feedback" `
     --set-env-vars "EMBEDDING_MODEL=text-embedding-004" `
     --set-secrets "TAVILY_API_KEY=TAVILY_API_KEY:latest,GAMMA_API_KEY=GAMMA_API_KEY:latest" `
-    --memory 2Gi `
+    --memory 8Gi `
     --cpu 2 `
-    --timeout 300 `
-    --max-instances 1 `
+    --timeout 900 `
+    --max-instances 5 `
     --min-instances 1 `
-    --concurrency 80
+    --concurrency 80 `
+    --session-affinity
   if ($LASTEXITCODE -ne 0) { throw "Backend deploy failed." }
   Write-Host "Backend deployed: $(Get-BackendUrl)" -ForegroundColor Green
 }

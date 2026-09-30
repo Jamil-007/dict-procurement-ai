@@ -10,10 +10,12 @@ import time
 import uuid
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator, List, Optional
-from fastapi import FastAPI, UploadFile, HTTPException, File, Form, Request
+from fastapi import FastAPI, UploadFile, HTTPException, File, Form, Request, Depends
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
+
+from rate_limit import generate_rate_limit, review_rate_limit, upload_rate_limit
 from models import (
     AnalyzeResponse,
     ReviewRequest,
@@ -200,7 +202,11 @@ async def health_check():
     }
 
 
-@app.post("/analyze", response_model=AnalyzeResponse)
+@app.post(
+    "/analyze",
+    response_model=AnalyzeResponse,
+    dependencies=[Depends(generate_rate_limit)],
+)
 async def analyze_document(files: List[UploadFile] = File(...)):
     """
     Upload PDF and initiate analysis.
@@ -391,7 +397,11 @@ async def stream_analysis(thread_id: str):
     return EventSourceResponse(event_generator())
 
 
-@app.post("/review", response_model=ReviewResponse)
+@app.post(
+    "/review",
+    response_model=ReviewResponse,
+    dependencies=[Depends(review_rate_limit)],
+)
 async def review_decision(request: ReviewRequest):
     """
     Human-in-the-loop decision: generate Gamma or chat only.
@@ -590,7 +600,7 @@ async def get_forms_catalog():
     return catalog()
 
 
-@app.post("/forms/upload")
+@app.post("/forms/upload", dependencies=[Depends(upload_rate_limit)])
 async def forms_upload(
     files: Optional[List[UploadFile]] = File(None),
     from_record: bool = Form(False),
@@ -687,7 +697,7 @@ async def extract_forms(request: FormExtractRequest):
     return forms_service.extract_all(request.thread_id, request.form_keys)
 
 
-@app.post("/forms/generate")
+@app.post("/forms/generate", dependencies=[Depends(generate_rate_limit)])
 async def generate_forms(request: FormGenerateRequest):
     """
     Generate form files.
@@ -786,7 +796,10 @@ async def detect_forms_for_ref(ref: str):
     return forms_service.detect_for_ref(ref)
 
 
-@app.post("/procurements/{ref}/forms/generate")
+@app.post(
+    "/procurements/{ref}/forms/generate",
+    dependencies=[Depends(generate_rate_limit)],
+)
 async def generate_forms_for_ref(ref: str, request: FormGenerateForRefRequest):
     """
     Generate form files from a procurement record's own documents.

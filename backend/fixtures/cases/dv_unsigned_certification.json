@@ -1,0 +1,140 @@
+{
+  "id": "dv_unsigned_certification",
+  "task": "T1",
+  "description": "The Chief Accountant's certification box carries a printed name but no signature.",
+  "expect_rules": [
+    "dv.required_signatories"
+  ],
+  "expect_discrepancies": [],
+  "forbid_rules": [],
+  "max_severity": null,
+  "documents": [
+    {
+      "doc_type": "disbursement_voucher",
+      "doc_type_confidence": 0.95,
+      "project_title": "Supply, Delivery and Installation of Government Emergency Communications System (GECS) Equipment",
+      "entity_name": "Department of Information and Communications Technology",
+      "extraction_confidence": 0.9,
+      "doc_number": "DV-2024-11-0412",
+      "dv_no": "DV-2024-11-0412",
+      "ors_no": "ORS-2024-101-0356",
+      "contract_no": "DICT-GECS-2024-001",
+      "po_no": "PO-2024-0089",
+      "payee": "Northbridge Telecom Solutions, Inc.",
+      "supplier": "Northbridge Telecom Solutions, Inc.",
+      "amounts": {
+        "gross": 7000000.0,
+        "tax": 375000.0,
+        "retention": 70000.0,
+        "net": 6555000.0,
+        "contract_amount": 7000000.0
+      },
+      "amount_in_words": "SIX MILLION FIVE HUNDRED FIFTY FIVE THOUSAND PESOS ONLY",
+      "items": [
+        {
+          "line_no": "1",
+          "description": "VHF Base Radio Transceiver, 50W, with power supply",
+          "qty": 25.0,
+          "unit": "unit",
+          "unit_price": 145000.0,
+          "amount": 3625000.0,
+          "serial_numbers": [
+            "NBT-VHF-24001",
+            "NBT-VHF-24002",
+            "NBT-VHF-24003"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "2",
+          "description": "Portable VHF Handheld Radio, IP67, with spare battery",
+          "qty": 60.0,
+          "unit": "unit",
+          "unit_price": 32500.0,
+          "amount": 1950000.0,
+          "serial_numbers": [
+            "NBT-HH-24101",
+            "NBT-HH-24102"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "3",
+          "description": "Repeater Station with Antenna System and Mast",
+          "qty": 5.0,
+          "unit": "set",
+          "unit_price": 285000.0,
+          "amount": 1425000.0,
+          "serial_numbers": [
+            "NBT-RPT-24201"
+          ],
+          "page": 2
+        }
+      ],
+      "attachments_referenced": [
+        "Purchase Request",
+        "Sales Invoice",
+        "Delivery Receipt",
+        "Inspection and Acceptance Report",
+        "Property Acknowledgement Receipt",
+        "Warranty Certificate",
+        "BIR Tax Receipt"
+      ],
+      "dates": {
+        "document": "November 20, 2024",
+        "delivery": "November 8, 2024",
+        "inspection": "November 12, 2024",
+        "acceptance": "November 14, 2024",
+        "payment": "December 4, 2024"
+      },
+      "signatories": [
+        {
+          "role": "Prepared by",
+          "name": "C. Reyes",
+          "position": "Accounting Staff",
+          "signed": true,
+          "date": "November 18, 2024",
+          "page": 1
+        },
+        {
+          "role": "Certified by",
+          "name": "R. Villanueva",
+          "position": "Chief Accountant",
+          "signed": false,
+          "date": "November 19, 2024",
+          "page": 1
+        },
+        {
+          "role": "Approved for Payment by",
+          "name": "M. Santiago",
+          "position": "Undersecretary",
+          "signed": true,
+          "date": "November 20, 2024",
+          "page": 1
+        },
+        {
+          "role": "Received Payment by",
+          "name": "J. Ocampo",
+          "position": "President and General Manager",
+          "signed": true,
+          "date": "December 4, 2024",
+          "page": 1
+        }
+      ],
+      "page_refs": {
+        "amounts.net": 1,
+        "amount_in_words": 1,
+        "payee": 1,
+        "dv_no": 1
+      },
+      "source": {
+        "file": "fixtures/13 Disbursement Voucher.pdf",
+        "filename": "13 Disbursement Voucher.pdf",
+        "total_pages": 1,
+        "pages_read": 1,
+        "skipped_pages": [],
+        "ingest_source": "fixture"
+      }
+    }
+  ]
+}

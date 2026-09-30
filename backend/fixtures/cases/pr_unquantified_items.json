@@ -1,0 +1,107 @@
+{
+  "id": "pr_unquantified_items",
+  "task": "T2",
+  "description": "Two requirement lines on the PR carry no quantity or unit, so bidders cannot price them consistently.",
+  "expect_rules": [
+    "ra12009.items_quantified"
+  ],
+  "expect_discrepancies": [],
+  "forbid_rules": [],
+  "max_severity": null,
+  "documents": [
+    {
+      "doc_type": "pr",
+      "doc_type_confidence": 0.95,
+      "project_title": "Supply, Delivery and Installation of Government Emergency Communications System (GECS) Equipment",
+      "entity_name": "Department of Information and Communications Technology",
+      "extraction_confidence": 0.9,
+      "doc_number": "PR-2024-0142",
+      "pr_no": "PR-2024-0142",
+      "end_user": "Emergency Communications Service, DICT",
+      "mode_of_procurement": "Competitive Bidding",
+      "amounts": {
+        "abc": 7200000.0,
+        "total": 7000000.0
+      },
+      "items": [
+        {
+          "line_no": "1",
+          "description": "VHF Base Radio Transceiver, 50W, with power supply",
+          "qty": null,
+          "unit": null,
+          "unit_price": 145000.0,
+          "amount": 3625000.0,
+          "serial_numbers": [
+            "NBT-VHF-24001",
+            "NBT-VHF-24002",
+            "NBT-VHF-24003"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "2",
+          "description": "Portable VHF Handheld Radio, IP67, with spare battery",
+          "qty": null,
+          "unit": null,
+          "unit_price": 32500.0,
+          "amount": 1950000.0,
+          "serial_numbers": [
+            "NBT-HH-24101",
+            "NBT-HH-24102"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "3",
+          "description": "Repeater Station with Antenna System and Mast",
+          "qty": 5.0,
+          "unit": "set",
+          "unit_price": 285000.0,
+          "amount": 1425000.0,
+          "serial_numbers": [
+            "NBT-RPT-24201"
+          ],
+          "page": 2
+        }
+      ],
+      "dates": {
+        "document": "June 12, 2024",
+        "pr": "June 12, 2024"
+      },
+      "signatories": [
+        {
+          "role": "Requested by",
+          "name": "A. Dimasalang",
+          "position": "Service Director",
+          "signed": true,
+          "date": "June 12, 2024",
+          "page": 1
+        },
+        {
+          "role": "Funds Certified Available by",
+          "name": "R. Villanueva",
+          "position": "Chief Accountant",
+          "signed": true,
+          "date": "June 14, 2024",
+          "page": 1
+        },
+        {
+          "role": "Approved by",
+          "name": "M. Santiago",
+          "position": "Undersecretary",
+          "signed": true,
+          "date": "June 17, 2024",
+          "page": 1
+        }
+      ],
+      "source": {
+        "file": "fixtures/01 Purchase Request.pdf",
+        "filename": "01 Purchase Request.pdf",
+        "total_pages": 1,
+        "pages_read": 1,
+        "skipped_pages": [],
+        "ingest_source": "fixture"
+      }
+    }
+  ]
+}

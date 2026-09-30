@@ -1,0 +1,71 @@
+{
+  "id": "contract_no_schedule_of_requirements",
+  "task": "T3",
+  "description": "The contract enumerates nothing, so there is no schedule of requirements to check any delivery against.",
+  "expect_rules": [
+    "complete.contract_items"
+  ],
+  "expect_discrepancies": [],
+  "forbid_rules": [],
+  "max_severity": null,
+  "documents": [
+    {
+      "doc_type": "contract",
+      "doc_type_confidence": 0.95,
+      "project_title": "Supply, Delivery and Installation of Government Emergency Communications System (GECS) Equipment",
+      "entity_name": "Department of Information and Communications Technology",
+      "extraction_confidence": 0.9,
+      "doc_number": "DICT-GECS-2024-001",
+      "contract_no": "DICT-GECS-2024-001",
+      "po_no": "PO-2024-0089",
+      "supplier": "Northbridge Telecom Solutions, Inc.",
+      "mode_of_procurement": "Competitive Bidding",
+      "amounts": {
+        "contract_amount": 7000000.0,
+        "total": 7000000.0
+      },
+      "items": [],
+      "delivery_period": "Ninety (90) calendar days from receipt of the Notice to Proceed",
+      "warranty_period": "One (1) year from the date of acceptance",
+      "delivery_place": "DICT Central Office Warehouse, C.P. Garcia Avenue, Diliman, Quezon City",
+      "personnel": [
+        "Engr. Ramon T. Ilagan (Project Manager)",
+        "Engr. Cielo M. Bautista (RF Systems Engineer)",
+        "Mr. Dante P. Rivera (Installation Supervisor)"
+      ],
+      "dates": {
+        "document": "September 10, 2024",
+        "contract_signed": "September 10, 2024",
+        "noa": "September 3, 2024",
+        "ntp": "September 16, 2024",
+        "delivery_due": "December 15, 2024"
+      },
+      "signatories": [
+        {
+          "role": "For the Procuring Entity",
+          "name": "M. Santiago",
+          "position": "Undersecretary",
+          "signed": true,
+          "date": "September 10, 2024",
+          "page": 1
+        },
+        {
+          "role": "For the Supplier",
+          "name": "J. Ocampo",
+          "position": "President and General Manager",
+          "signed": true,
+          "date": "September 10, 2024",
+          "page": 1
+        }
+      ],
+      "source": {
+        "file": "fixtures/06 Contract Agreement.pdf",
+        "filename": "06 Contract Agreement.pdf",
+        "total_pages": 12,
+        "pages_read": 12,
+        "skipped_pages": [],
+        "ingest_source": "fixture"
+      }
+    }
+  ]
+}

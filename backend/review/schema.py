@@ -256,10 +256,22 @@ class Comment(BaseModel):
     at: str
 
 
+#: Which analysis produced a finding. Two run against the same procurement and
+#: write to the same collection: the LLM dimensions behind the AI Review tab,
+#: and the deterministic rule and consistency checkers behind Compliance
+#: Checks. Re-running one must not discard the other's findings, so every
+#: write and every scoped read carries this.
+#:
+#: Defaulted, because findings stored before the checkers existed have no such
+#: field and all of them came from the review.
+Engine = Literal["ai_review", "checks"]
+
+
 class StoredFinding(ReviewFinding):
     """A finding as persisted, carrying what the BAC did with it."""
 
     procurement_ref: str
+    engine: Engine = "ai_review"
     decision: Optional[Decision] = None
     decided_by: Optional[str] = None
     decided_at: Optional[str] = None

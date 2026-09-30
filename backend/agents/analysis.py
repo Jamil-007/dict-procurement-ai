@@ -6,7 +6,7 @@ Each agent processes the state and returns updated state with findings.
 import json
 import time
 import uuid
-from typing import TypedDict, List, Dict, Any, Annotated
+from typing import Dict, Any
 from pathlib import Path
 from utils.llm_factory import get_llm
 from utils.pdf_parser import extract_text_from_pdf
@@ -23,43 +23,20 @@ from prompts import (
 )
 
 
-def merge_analysis_results(left: dict, right: dict) -> dict:
-    """Deep merge analysis results from parallel agents."""
-    if not isinstance(left, dict):
-        left = {}
-    if not isinstance(right, dict):
-        right = {}
-    # Deep merge for nested dictionaries
-    result = left.copy()
-    for key, value in right.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = {**result[key], **value}
-        else:
-            result[key] = value
-    return result
-
-
-def append_thinking_logs(left: list, right: list) -> list:
-    """Concatenate thinking logs from parallel agents."""
-    if not isinstance(left, list):
-        left = []
-    if not isinstance(right, list):
-        right = []
-    return left + right
-
-
-class AgentState(TypedDict, total=False):
-    """State structure for the LangGraph workflow."""
-
-    original_pdf_paths: List[str]
-    parsed_text: str
-    analysis_results: Annotated[dict, merge_analysis_results]
-    compiled_report: str
-    human_feedback: str
-    generate_gamma: bool
-    gamma_link: str
-    thread_id: str
-    thinking_logs: Annotated[list, append_thinking_logs]
+# The state and its reducers live in `state.py` rather than here, and are
+# re-exported for the modules that have always imported them from this one.
+#
+# There has to be exactly one definition. The six agents below are nodes in
+# two different graphs -- the advisory graph in `graph.py` and the checker
+# graph in `checks_graph.py` -- and LangGraph infers a node's input schema
+# from its type annotation. A second, separately-defined AgentState makes the
+# checker graph fail to build with "Channel 'analysis_results' already exists
+# with a different type", because the reducers compare by identity.
+from state import (  # noqa: F401
+    AgentState,
+    append_thinking_logs,
+    merge_analysis_results,
+)
 
 
 def create_thinking_log(

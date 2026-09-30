@@ -1,0 +1,89 @@
+{
+  "id": "dr_unacknowledged",
+  "task": "T1",
+  "description": "The delivery receipt has no 'Received by' signature -- there is no evidence the agency ever took the goods.",
+  "expect_rules": [
+    "payment.delivery_receipt_acknowledged"
+  ],
+  "expect_discrepancies": [],
+  "forbid_rules": [],
+  "max_severity": null,
+  "documents": [
+    {
+      "doc_type": "delivery_receipt",
+      "doc_type_confidence": 0.95,
+      "project_title": "Supply, Delivery and Installation of Government Emergency Communications System (GECS) Equipment",
+      "entity_name": "Department of Information and Communications Technology",
+      "extraction_confidence": 0.9,
+      "doc_number": "DR-11284",
+      "contract_no": "DICT-GECS-2024-001",
+      "po_no": "PO-2024-0089",
+      "supplier": "Northbridge Telecom Solutions, Inc.",
+      "recipient": "L. Bermudez",
+      "delivery_place": "DICT Central Office Wh., C.P. Garcia Ave., Diliman, QC",
+      "items": [
+        {
+          "line_no": "1",
+          "description": "VHF Base Radio Transceiver, 50W, with power supply",
+          "qty": 25.0,
+          "unit": "unit",
+          "unit_price": 145000.0,
+          "amount": 3625000.0,
+          "serial_numbers": [
+            "NBT-VHF-24001",
+            "NBT-VHF-24002",
+            "NBT-VHF-24003"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "2",
+          "description": "Portable VHF Handheld Radio, IP67, with spare battery",
+          "qty": 60.0,
+          "unit": "unit",
+          "unit_price": 32500.0,
+          "amount": 1950000.0,
+          "serial_numbers": [
+            "NBT-HH-24101",
+            "NBT-HH-24102"
+          ],
+          "page": 1
+        },
+        {
+          "line_no": "3",
+          "description": "Repeater Station with Antenna System and Mast",
+          "qty": 5.0,
+          "unit": "set",
+          "unit_price": 285000.0,
+          "amount": 1425000.0,
+          "serial_numbers": [
+            "NBT-RPT-24201"
+          ],
+          "page": 2
+        }
+      ],
+      "dates": {
+        "document": "November 8, 2024",
+        "delivery": "November 8, 2024"
+      },
+      "signatories": [
+        {
+          "role": "Delivered by",
+          "name": "R. Cruz",
+          "position": "Logistics Officer, Northbridge",
+          "signed": true,
+          "date": "November 8, 2024",
+          "page": 1
+        }
+      ],
+      "source": {
+        "file": "fixtures/09 Delivery Receipt.pdf",
+        "filename": "09 Delivery Receipt.pdf",
+        "total_pages": 1,
+        "pages_read": 1,
+        "skipped_pages": [],
+        "ingest_source": "fixture"
+      }
+    }
+  ]
+}

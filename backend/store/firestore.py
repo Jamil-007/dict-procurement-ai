@@ -28,7 +28,7 @@ from domain import (
     ProcurementPatch,
     today,
 )
-from review.schema import Comment, StoredFinding
+from review.schema import Comment, Engine, StoredFinding
 from store.base import Store
 from store.memory import load_knowledge_seed
 
@@ -176,19 +176,28 @@ class FirestoreStore(Store):
 
     # --- findings ---
 
-    def list_findings(self, ref: str) -> List[StoredFinding]:
+    def list_findings(
+        self, ref: str, engine: Optional[Engine] = None
+    ) -> List[StoredFinding]:
         docs = (
             self._col("findings").where(filter=FieldFilter("procurement_ref", "==", ref)).stream()
         )
         rows = [StoredFinding(**doc.to_dict()) for doc in docs]
+        if engine is not None:
+            # Filtered here rather than in the query: findings written before
+            # the field existed have no `engine` key at all, and a server-side
+            # equality filter would not return them for any value.
+            rows = [row for row in rows if row.engine == engine]
         return sorted(rows, key=lambda f: f.id)
 
     def replace_findings(
-        self, ref: str, findings: List[StoredFinding]
+        self, ref: str, findings: List[StoredFinding], engine: Engine = "ai_review"
     ) -> List[StoredFinding]:
         batch = self._db.batch()
         for doc in self._col("findings").where(filter=FieldFilter("procurement_ref", "==", ref)).stream():
-            batch.delete(doc.reference)
+            # Only this engine's previous run is cleared; see Store.replace_findings.
+            if (doc.to_dict().get("engine") or "ai_review") == engine:
+                batch.delete(doc.reference)
         for finding in findings:
             key = self._finding_key(ref, finding.id)
             batch.set(self._col("findings").document(key), finding.model_dump())

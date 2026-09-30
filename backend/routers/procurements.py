@@ -68,17 +68,23 @@ def _with_counts(procurement: Procurement) -> Procurement:
     what the client sees. Rejected findings are left out entirely — the
     committee has ruled them off the review, so they should not still be
     inflating the severity counts on the list page.
+
+    Tallied separately per engine: the AI Review and Compliance Checks tabs
+    each badge their own count, and one combined number would misreport both.
     """
     counts = empty_counts()
+    check_counts = empty_counts()
     decided = 0
     for finding in get_store().list_findings(procurement.ref):
         if finding.decision == "rejected":
             continue
-        if finding.severity in counts:
-            counts[finding.severity] += 1
+        bucket = check_counts if finding.engine == "checks" else counts
+        if finding.severity in bucket:
+            bucket[finding.severity] += 1
         if finding.decision:
             decided += 1
     procurement.finding_counts = counts
+    procurement.check_counts = check_counts
     procurement.decided_count = decided
     return procurement
 

@@ -31,11 +31,21 @@ export interface Procurement {
   updated: string;
   documents: ProcurementDocument[];
   review_status: ReviewStatus;
+  /**
+   * The Compliance Checks tab runs independently of the AI Review, so it
+   * tracks its own progress rather than sharing review_status.
+   */
+  check_status: ReviewStatus;
   report_notes: string;
   finalized_at: string | null;
   finalized_by: string | null;
-  /** Derived server-side on every read — the list page shows it per record. */
+  /**
+   * Derived server-side on every read — the list page shows it per record.
+   * Counted per engine, because each tab badges its own total and a combined
+   * number would be wrong on both.
+   */
   finding_counts: Record<Severity, number>;
+  check_counts: Record<Severity, number>;
   /** Findings the BAC has recorded an action against. Also derived server-side. */
   decided_count: number;
 }
@@ -180,6 +190,56 @@ export interface RunReviewResponse {
   counts: Record<Severity, number>;
 }
 
+// --- compliance checks ---
+//
+// The six assigned checkers (T1–T6). They produce the same Finding shape the
+// AI Review does — deliberately, so the BAC accepts, rejects and comments on
+// both with the same card — but they are deterministic rule and consistency
+// engines rather than LLM dimensions, and they are stored and listed apart.
+
+/** Served by GET /checks/checkers — read from the YAML, never hardcoded. */
+export interface CheckerInfo {
+  key: string;
+  /** "T1".."T6", the label the assignment sheet uses. */
+  task: string;
+  label: string;
+  blurb: string;
+  owner: string;
+  engine: "rule" | "consistency";
+  /** What this checker needs uploaded before it has anything to look at. */
+  doc_types: string[];
+}
+
+/**
+ * What one checker did on a run.
+ *
+ * `status` is the load-bearing field. A checker reporting zero findings is
+ * ambiguous — it reads the same whether it checked and found nothing wrong or
+ * never ran at all — so "skipped" carries a `reason` saying which.
+ */
+export interface CheckerOutcome {
+  key: string;
+  task: string;
+  label: string;
+  owner: string;
+  engine: "rule" | "consistency";
+  status: "ran" | "skipped";
+  findings: number;
+  failed: number;
+  passed: number;
+  not_verified: number;
+  reason: string;
+}
+
+export interface RunChecksResponse {
+  ref: string;
+  checkers: CheckerOutcome[];
+  findings: Finding[];
+  counts: Record<Severity, number>;
+  detected_types: string[];
+  log: Record<string, unknown>[];
+}
+
 export interface KnowledgeEntry {
   id: string;
   title: string;
@@ -226,7 +286,21 @@ export const DOC_TYPES = [
   // procurement is uploaded after the fact — but the dimensions cite them
   // when they are there, so they need to be nameable.
   "Notice of Award",
+  "Notice to Proceed",
   "Contract",
+  "Purchase Order",
+  // Delivery and acceptance — what T5 cross-checks against the contract.
+  "Delivery Receipt",
+  "Sales Invoice",
+  "Inspection and Acceptance Report",
+  "Property Acknowledgement Receipt",
+  "Inventory Custodian Slip",
+  "Warranty Certificate",
+  // Payment — what T1 checks and T4 compares back to the contract.
+  "Obligation Request and Status",
+  "Disbursement Voucher",
+  "Official Receipt",
+  "Certificate of Tax Withheld",
   "Other",
 ] as const;
 

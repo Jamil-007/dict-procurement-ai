@@ -35,9 +35,24 @@ from utils.storage import (
     generate_thread_id,
     file_exists,
     get_thread_upload_dir,
+    delete_thread_files,
+    is_supported_upload,
 )
 from utils.llm_factory import get_llm, get_llm_info
-from graph import graph, create_initial_state
+# The checker graph, not the original advisory one. Both are LangGraph and
+# both interrupt after report_compiler, so everything below -- /stream,
+# /review, /status, /chat -- works against either. The difference is what the
+# run produces: `checks_graph` ingests and classifies each file, extracts
+# canonical facts, and routes to the rule and consistency engines, so the
+# verdict carries `documents`, `summary`, `checkers_run` and per-task stats.
+# The Compliance Suite page reads exactly those fields, and got zeros from
+# graph.py because the advisory graph has no notion of a document type or a
+# checker. The six advisory agents are not lost: `checks_graph` keeps them as
+# the planning branch the router fires for planning documents, and their
+# commentary lands under `advisory` in the same verdict.
+from checks_graph import graph, create_initial_state
+from ingest.loaders import SUPPORTED_EXTENSIONS
+from persistence import delete_session, get_session, init_db, list_sessions, save_session
 from prompts import CHAT_PROMPT, RA_12009_DIRECTIVE
 from config import settings
 from agents.doc_generation import service as forms_service
@@ -46,7 +61,7 @@ from agents.doc_generation.registry import FORM_REGISTRY
 from agents.doc_generation.text_source import get_source_text
 from agents.feedback import service as feedback_service
 from agents.feedback.models import FeedbackItem
-from routers import knowledge, procurements, review_api
+from routers import checks, knowledge, procurements, review_api
 
 import re as _re
 import unicodedata as _unicodedata
@@ -122,13 +137,19 @@ app.add_middleware(
 logger = logging.getLogger(__name__)
 
 # Procurement records, Knowledge Hub and AI Review. The Procurement Analyst
-# endpoints below are unchanged and still run off graph.py.
+# endpoints below run the checker graph; see the import at the top.
 app.include_router(procurements.router)
 app.include_router(knowledge.router)
 app.include_router(review_api.router)
+app.include_router(checks.router)
 
 # Store for tracking background tasks
 analysis_tasks = {}
+
+
+@app.on_event("startup")
+async def _startup() -> None:
+    init_db()
 
 
 def _extract_text_from_chunk_content(content: Any) -> str:
@@ -218,21 +239,29 @@ async def analyze_document(files: List[UploadFile] = File(...)):
         thread_id and status for tracking analysis
     """
     if not files:
-        raise HTTPException(status_code=400, detail="At least one PDF file is required")
+        raise HTTPException(status_code=400, detail="At least one file is required")
 
-    if len(files) > 3:
-        raise HTTPException(status_code=400, detail="Maximum of 3 PDF files allowed")
+    # No small fixed cap: a payment packet is ten or more documents, and a
+    # cross-document consistency check is only meaningful when the whole
+    # packet is present. The budget is total files and total bytes instead,
+    # enforced in `save_uploaded_files`.
+    if len(files) > settings.MAX_UPLOAD_FILES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Maximum of {settings.MAX_UPLOAD_FILES} files per upload",
+        )
 
     for uploaded_file in files:
-        if not uploaded_file.filename or not uploaded_file.filename.lower().endswith(
-            ".pdf"
+        if not uploaded_file.filename or not is_supported_upload(
+            uploaded_file.filename
         ):
-            raise HTTPException(status_code=400, detail="Only PDF files are supported")
-
-        # Validate content type
-        content_type = uploaded_file.content_type or ""
-        if content_type and not content_type.startswith("application/pdf"):
-            raise HTTPException(status_code=400, detail="Invalid file content type")
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Unsupported file type. Supported: "
+                    + ", ".join(sorted(SUPPORTED_EXTENSIONS))
+                ),
+            )
 
     try:
         # Generate unique thread ID
@@ -281,6 +310,16 @@ async def run_graph_async(initial_state, config, thread_id):
                 if chunk:
                     # Update result state
                     for node_name, node_state in chunk.items():
+                        # The last thing a graph compiled with `interrupt_after`
+                        # emits is {"__interrupt__": (Interrupt(...),)} -- a
+                        # tuple, not a state update. Merging it raised "'tuple'
+                        # object is not a mapping" at the very end of every run,
+                        # after the compiler had already written the verdict, so
+                        # the stream reported a failure on a review that had in
+                        # fact succeeded. Anything that is not a state mapping
+                        # is a control signal and is not state.
+                        if not isinstance(node_state, dict):
+                            continue
                         result_state = {**result_state, **node_state}
 
                     # Store updated state so SSE can pick it up
@@ -300,6 +339,14 @@ async def run_graph_async(initial_state, config, thread_id):
         result = await asyncio.to_thread(stream_graph)
 
         analysis_tasks[thread_id] = {"status": "interrupted", "state": result}
+
+        # Archive the completed review. Done here rather than inside a graph
+        # node so that a storage failure cannot take down the analysis the
+        # user is waiting on.
+        try:
+            await asyncio.to_thread(save_session, thread_id, result)
+        except Exception as archive_error:
+            print(f"Archive error for {thread_id}: {archive_error}")
 
     except Exception as e:
         analysis_tasks[thread_id] = {
@@ -326,7 +373,12 @@ async def stream_analysis(thread_id: str):
     async def event_generator() -> AsyncGenerator[str, None]:
         """Generate SSE events for analysis progress."""
         last_log_index = 0
-        max_wait_time = 300  # 5 minutes timeout
+        # Every real DICT transaction document is a scanned image, so a first
+        # run renders each page and sends it to vision OCR: a four-document
+        # payment packet measured a little over seven minutes. Five minutes cut
+        # those runs off mid-OCR and reported a timeout on a review that was
+        # working. Re-runs hit the OCR cache and finish in seconds.
+        max_wait_time = settings.SSE_TIMEOUT_SECONDS
         start_time = asyncio.get_event_loop().time()
 
         while True:
@@ -553,6 +605,38 @@ async def stream_chat_about_document(chat_request: ChatRequest, http_request: Re
             }
 
     return EventSourceResponse(event_generator())
+
+
+@app.get("/sessions")
+async def get_sessions(limit: int = 50, offset: int = 0):
+    """List past reviews, most recent first.
+
+    Every analysis is kept. A compliance review that vanishes when the tab
+    closes cannot be referred back to when the finding is questioned.
+    """
+    limit = max(1, min(limit, 200))
+    return {"sessions": await asyncio.to_thread(list_sessions, limit, max(offset, 0))}
+
+
+@app.get("/sessions/{thread_id}")
+async def get_archived_session(thread_id: str):
+    """One archived review in full: verdict, documents and findings."""
+    session = await asyncio.to_thread(get_session, thread_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return session
+
+
+@app.delete("/sessions/{thread_id}")
+async def delete_archived_session(thread_id: str):
+    """Delete a review: its archive rows, its checkpoints and its files."""
+    removed = await asyncio.to_thread(delete_session, thread_id)
+    files_removed = await asyncio.to_thread(delete_thread_files, thread_id)
+    analysis_tasks.pop(thread_id, None)
+
+    if not removed and not files_removed:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"status": "deleted", "thread_id": thread_id}
 
 
 @app.get("/status/{thread_id}")

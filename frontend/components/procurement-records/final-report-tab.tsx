@@ -24,6 +24,7 @@ import {
 } from "@/components/shell/status-pill";
 import {
   finalizeProcurement,
+  listCheckFindings,
   listFindings,
   patchProcurement,
   runReview,
@@ -78,6 +79,7 @@ export function FinalReportTab({
   onGoToReview: () => void;
 }) {
   const [findings, setFindings] = useState<Finding[]>([]);
+  const [checkFindings, setCheckFindings] = useState<Finding[]>([]);
   const [notes, setNotes] = useState(procurement.report_notes);
   const [editing, setEditing] = useState(false);
   const [confirming, setConfirming] = useState<"finalize" | "regenerate" | null>(
@@ -88,13 +90,46 @@ export function FinalReportTab({
   // Rejected findings never reach the report. The committee ruled them out in
   // the review, so they are dropped on the way in rather than filtered at each
   // place the report counts or lists findings.
+  //
+  // Both engines, fetched separately because they are stored and re-run
+  // separately. The report is the committee's one record of the procurement,
+  // so a compliance check the BAC accepted belongs in it exactly as an AI
+  // Review finding does — a report that quietly listed only half of what was
+  // signed off would be the wrong document to file.
   useEffect(() => {
+    const live = (all: Finding[]) =>
+      all.filter((f) => f.decision !== "rejected");
+
     listFindings(procurement.ref)
-      .then((all) => setFindings(all.filter((f) => f.decision !== "rejected")))
+      .then((all) => setFindings(live(all)))
       .catch(() => setFindings([]));
+
+    // A record whose checks have never run 404s nothing — it returns [] — so
+    // this is safe to call unconditionally.
+    listCheckFindings(procurement.ref)
+      .then((all) => setCheckFindings(live(all)))
+      .catch(() => setCheckFindings([]));
   }, [procurement.ref]);
 
   const finalized = procurement.status === "finalized";
+
+  /**
+   * Requirements the checkers tested and found in order.
+   *
+   * Counted rather than listed. They are the audit trail of what was verified,
+   * which belongs in the report — but a packet produces dozens of them, and
+   * printing dozens of "no issue" cards between the issues that need a
+   * decision would bury the part the committee has to read.
+   */
+  const compliantCount = useMemo(
+    () => checkFindings.filter((f) => f.severity === "compliant").length,
+    [checkFindings]
+  );
+
+  const allFindings = useMemo(
+    () => [...findings, ...checkFindings.filter((f) => f.severity !== "compliant")],
+    [findings, checkFindings]
+  );
 
   // The draft shows every finding still in play (rejected are already dropped
   // above). The finalized report is the official record: it lists only the
@@ -104,11 +139,11 @@ export function FinalReportTab({
   const reportFindings = useMemo(
     () =>
       finalized
-        ? findings.filter(
+        ? allFindings.filter(
             (f) => f.decision === "accepted" || f.decision === "modified"
           )
-        : findings,
-    [finalized, findings]
+        : allFindings,
+    [finalized, allFindings]
   );
 
   const counts = useMemo(() => {
@@ -133,7 +168,7 @@ export function FinalReportTab({
     [reportFindings]
   );
 
-  const undecided = findings.filter((f) => !f.decision).length;
+  const undecided = allFindings.filter((f) => !f.decision).length;
 
   async function saveNotes() {
     setBusy(true);
@@ -188,14 +223,18 @@ export function FinalReportTab({
     window.print();
   }
 
-  if (procurement.review_status !== "done") {
+  // Either analysis is enough to have something to report. A packet uploaded
+  // for the compliance checks alone still produces findings the committee acts
+  // on, and gating the report on the AI Review would leave them nowhere to go.
+  if (procurement.review_status !== "done" && procurement.check_status !== "done") {
     return (
       <div className="rounded-xl border border-line bg-white px-6 py-16 text-center">
         <h2 className="text-[15px] font-semibold">
-          The report becomes available after the AI review
+          The report becomes available once an analysis has run
         </h2>
         <p className="mt-1 text-[13px] text-subtle">
-          Run the review to consolidate findings into a report.
+          Run the AI Review or the Compliance Checks to consolidate findings
+          into a report.
         </p>
         <button onClick={onGoToDocuments} className={`${btnPrimary} mt-5`}>
           Go to Documents
@@ -222,7 +261,8 @@ export function FinalReportTab({
               </span>
             </div>
             <p className="mt-0.5 text-[12.5px] text-subtle">
-              {findings.length - undecided} of {findings.length} findings reviewed
+              {allFindings.length - undecided} of {allFindings.length} findings
+              reviewed
               {undecided ? ` · ${undecided} pending` : ""}
             </p>
           </div>
@@ -369,10 +409,24 @@ export function FinalReportTab({
               <strong className="font-bold">
                 {spelled(dimensionCount)}
               </strong>{" "}
-              review dimension{dimensionCount === 1 ? "" : "s"}, raising{" "}
+              {/* "areas" rather than "dimensions": this now counts AI Review
+                  dimensions and compliance checkers together. */}
+              area{dimensionCount === 1 ? "" : "s"} of review, raising{" "}
               <strong className="font-bold">{spelled(reportFindings.length)}</strong>{" "}
               finding{reportFindings.length === 1 ? "" : "s"}
               {finalized ? " confirmed by the BAC" : " for the BAC to verify"}.
+              {compliantCount > 0 && (
+                <>
+                  {" "}
+                  A further{" "}
+                  <strong className="font-bold">{spelled(compliantCount)}</strong>{" "}
+                  requirement{compliantCount === 1 ? " was" : "s were"} tested by
+                  the compliance checks and found in order; {compliantCount === 1
+                    ? "it is"
+                    : "they are"}{" "}
+                  recorded on the Compliance Checks tab rather than listed below.
+                </>
+              )}{" "}
               Each finding is a point for the committee to confirm, not a
               determination.
             </p>

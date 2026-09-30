@@ -7,7 +7,7 @@ langchain-google-genai>=2.0.0
 langchain-anthropic>=0.3.0
 langchain-community>=0.3.0
 pymupdf>=1.25.1
-pytesseract>=0.3.10
+pytesseract>=0.3.13
 pillow>=10.4.0
 tavily-python>=0.5.0
 requests>=2.32.0
@@ -24,3 +24,11 @@ pytest==8.3.3
 google-cloud-firestore>=2.19.0
 google-cloud-storage>=2.18.0
 numpy>=2.0
+# Rulepacks and consistency profiles are YAML data, not code
+pyyaml>=6.0.2
+# Deterministic field diffing for the consistency engine
+rapidfuzz>=3.10.0
+# Lexical retrieval over the legal corpus, so citations are retrieved not generated
+rank-bm25>=0.2.2
+# Durable LangGraph checkpoints so sessions survive a backend restart
+langgraph-checkpoint-sqlite>=2.0.0

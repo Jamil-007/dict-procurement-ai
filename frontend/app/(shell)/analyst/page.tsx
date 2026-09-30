@@ -14,7 +14,11 @@ import { motion } from 'framer-motion';
 import { Message } from '@/types/procurement';
 import { AlertTriangle } from 'lucide-react';
 
-const MAX_FILES = 3;
+// Matches MAX_UPLOAD_FILES on the backend. The old cap of 3 made the
+// cross-document checks impossible to use: a payment packet is ten or more
+// documents, and comparing a contract against a voucher needs both present
+// in the same upload.
+const MAX_FILES = 50;
 
 export default function ProcurementPage() {
   const {
@@ -228,8 +232,8 @@ export default function ProcurementPage() {
                     </div>
                     <h3 className="text-2xl font-bold text-black">Document limit reached</h3>
                     <p className="text-gray-600">
-                      This version can only process up to 3 documents. More document support will
-                      follow in the next update.
+                      Up to {MAX_FILES} documents can be reviewed in one upload. The extra
+                      files were not added — remove some and try again.
                     </p>
                     <div className="w-full pt-2">
                       <Button
@@ -336,8 +340,8 @@ export default function ProcurementPage() {
               </div>
               <h3 className="text-2xl font-bold text-black">Document limit reached</h3>
               <p className="text-gray-600">
-                This version can only process up to 3 documents. More document support will follow
-                in the next update.
+                Up to {MAX_FILES} documents can be reviewed in one upload. The extra files
+                were not added — remove some and try again.
               </p>
               <div className="w-full pt-2">
                 <Button

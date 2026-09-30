@@ -78,7 +78,26 @@ DOMAIN_TO_ALLOWED: dict[str, str] = {
     "Minutes of BAC Meeting": "Other",
     "Post-Qualification Report": "Other",
     "Notice of Award": "Other",
+    "Notice to Proceed": "Other",
     "Contract": "Contract",
+    # Post-award records, added for the Compliance Checks tab. Every one of
+    # them maps to "Other": the forms here are bidding annexes filled from the
+    # TOR, the market study and the ABC breakdown, and nothing produced after
+    # award is a source for any of them. A Sales Invoice carries line-item
+    # prices but they are the awarded prices, not the estimate a Price
+    # Schedule is built from, so mapping it to "Cost Breakdown" would
+    # recommend a form off the wrong figures.
+    "Purchase Order": "Other",
+    "Delivery Receipt": "Other",
+    "Sales Invoice": "Other",
+    "Inspection and Acceptance Report": "Other",
+    "Property Acknowledgement Receipt": "Other",
+    "Inventory Custodian Slip": "Other",
+    "Warranty Certificate": "Other",
+    "Obligation Request and Status": "Other",
+    "Disbursement Voucher": "Other",
+    "Official Receipt": "Other",
+    "Certificate of Tax Withheld": "Other",
     "Other": "Other",
 }
 

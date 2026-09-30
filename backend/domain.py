@@ -16,9 +16,16 @@ from review.schema import empty_counts
 ProcurementStatus = Literal["ongoing", "finalized"]
 ReviewStatus = Literal["none", "processing", "done"]
 
-# Pre-award documents, in process order. Post-award records (contracts,
-# payment documents) are deliberately absent — this system reviews a
-# procurement before award.
+# Documents in process order, pre-award first.
+#
+# Post-award records used to be deliberately absent, on the grounds that this
+# system reviews a procurement before award. The Compliance Checks tab changed
+# that: T1 checks a disbursement voucher, T4 compares a contract against the
+# payment packet, and T5 cross-checks delivery against acceptance. None of
+# those can run against documents the record has no name for.
+#
+# The AI Review dimensions are unaffected — they select the pre-award types
+# they always did and simply ignore the rest.
 #
 # Kept in step with frontend/types/records.ts DOC_TYPES. The classifier in
 # utils/doc_classifier.py picks from this list, so adding a type here is
@@ -50,7 +57,21 @@ DOC_TYPES = [
     # procurement is uploaded after the fact — but the dimensions cite them
     # when they are there, so they need to be nameable.
     "Notice of Award",
+    "Notice to Proceed",
     "Contract",
+    "Purchase Order",
+    # Delivery and acceptance — what T5 cross-checks against the contract.
+    "Delivery Receipt",
+    "Sales Invoice",
+    "Inspection and Acceptance Report",
+    "Property Acknowledgement Receipt",
+    "Inventory Custodian Slip",
+    "Warranty Certificate",
+    # Payment — what T1 checks and T4 compares back to the contract.
+    "Obligation Request and Status",
+    "Disbursement Voucher",
+    "Official Receipt",
+    "Certificate of Tax Withheld",
     "Other",
 ]
 
@@ -82,13 +103,21 @@ class Procurement(BaseModel):
     updated: str = Field(default_factory=today)
     documents: List[ProcurementDocument] = Field(default_factory=list)
     review_status: ReviewStatus = "none"
+    #: The Compliance Checks tab runs independently of the AI Review, so it
+    #: tracks its own progress rather than sharing review_status.
+    check_status: ReviewStatus = "none"
     report_notes: str = ""
     finalized_at: Optional[str] = None
     finalized_by: Optional[str] = None
     # Filled in by the API so the list page can summarise a record without
     # fetching every finding. Not persisted — derived from the findings store.
+    #
+    # Counted per engine, because the two tabs each badge their own total and
+    # a combined number would be wrong on both.
     finding_counts: Dict[str, int] = Field(default_factory=empty_counts)
-    # How many findings the BAC has recorded an action against. Also derived.
+    check_counts: Dict[str, int] = Field(default_factory=empty_counts)
+    # How many findings the BAC has recorded an action against, across both.
+    # Also derived.
     decided_count: int = 0
 
 

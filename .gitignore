@@ -43,3 +43,23 @@ Reference/
 # specs/briefs all stay on disk and out of the repo. Ignore everything under
 # docs/ so a new note is excluded by default rather than having to be remembered.
 docs/*
+.docs/
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Backend runtime state: uploaded documents and the OCR cache. Reproducible,
+# and some of it is real government procurement material.
+backend/uploads/
+backend/cache/
+
+# The sessions/findings/checkpoints database (settings.DB_PATH defaults to
+# backend/data/procurement.db). Scoped to the database files rather than the
+# whole of backend/data/, which also holds the committed knowledge index.
+*.db
+*.db-shm
+*.db-wal

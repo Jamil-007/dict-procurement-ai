@@ -1,0 +1,182 @@
+id: planning_alignment
+task: T6
+name: Planning Document Alignment Checker
+owner: Jen L.
+description: >
+  Detects inconsistencies between the Market Study, Terms of Reference,
+  Detailed Cost Breakdown and Bidding Documents: specifications, quantities,
+  timelines, eligibility requirements and deliverables. These documents are
+  written at different times by different people and then published as one
+  solicitation, which is exactly when they stop agreeing.
+
+  The Terms of Reference is the reference document -- it states what the
+  end-user actually requires, and everything downstream should be a faithful
+  restatement of it. A divergence found here is cheap; the same divergence
+  found after award is a failure of bid evaluation or a contract that cannot
+  be enforced.
+
+left: [tor]
+right: [dcb, bidding_docs, rfq, pr, ppmp, app, sbb]
+
+defaults:
+  severity: medium
+  category: Planning Alignment
+
+compare:
+
+  # -- what is being bought ----------------------------------------------
+
+  - field: items
+    match: item_coverage
+    severity: high
+    title: Every requirement in the TOR appears in the solicitation
+    category: Technical Specifications
+    remediation: >
+      A requirement in the TOR that is absent from the bidding documents was
+      never put out to bid, and the winning bidder is under no obligation to
+      supply it.
+    authority:
+      doc: IRR of RA 12009
+      query: schedule of requirements technical specifications shall be included in the bidding documents
+
+  - field: items[].description
+    match: text_equivalent
+    severity: high
+    title: Specifications are stated identically across the planning documents
+    category: Technical Specifications
+    params:
+      threshold: 0.82
+    remediation: >
+      Where the TOR and the bidding documents describe different articles,
+      bidders price the published version and the end-user expects the TOR
+      version. One of the two will not be delivered.
+    authority:
+      doc: IRR of RA 12009
+      query: technical specifications shall be based on relevant characteristics performance requirements
+
+  - field: items[].qty
+    match: numeric_tolerance
+    severity: high
+    title: Quantities are stated identically across the planning documents
+    category: Technical Specifications
+    remediation: >
+      A quantity that differs between the TOR and the cost breakdown means
+      the ABC was computed for a different requirement from the one being
+      procured.
+    authority:
+      doc: IRR of RA 12009
+      query: quantity schedule of requirements approved budget for the contract computation
+
+  - field: items[].unit_price
+    match: numeric_tolerance
+    severity: medium
+    title: Unit costs are consistent between the cost breakdown and the solicitation
+    category: Budget
+    authority:
+      doc: IRR of RA 12009
+      section: "61.2.3"
+
+  # -- the budget ---------------------------------------------------------
+
+  - field: amounts.abc
+    match: numeric_tolerance
+    severity: high
+    title: The ABC is stated identically across the planning documents
+    category: Budget
+    remediation: >
+      The ABC published in the bidding documents is the ceiling bids are
+      evaluated against. If it differs from the approved cost breakdown, the
+      ceiling being enforced is not the one that was approved.
+    authority:
+      doc: IRR of RA 12009
+      query: approved budget for the contract shall be the ceiling for the bid prices
+
+  - field: amounts.total
+    match: numeric_tolerance
+    severity: medium
+    title: Total estimated cost is consistent across the planning documents
+    category: Budget
+    authority:
+      doc: IRR of RA 12009
+      section: "61.2.3"
+
+  # -- timelines ----------------------------------------------------------
+
+  - field: delivery_period
+    match: text_equivalent
+    severity: high
+    title: The delivery period is stated identically across the planning documents
+    category: Contract Timeline
+    remediation: >
+      Bidders price against the period in the bidding documents; the contract
+      will be enforced against the period in the TOR. Where the two differ,
+      either the bids are mispriced or the liquidated damages are
+      unenforceable.
+    authority:
+      doc: IRR of RA 12009
+      query: delivery period contract time stated in the bidding documents schedule of requirements
+
+  - field: warranty_period
+    match: text_equivalent
+    severity: medium
+    title: The warranty requirement is stated identically across the planning documents
+    category: Contract Terms
+    authority:
+      doc: COA Circular No. 2023-004
+      section: "9.3.1"
+
+  # -- scope and eligibility ---------------------------------------------
+
+  - field: deliverables
+    match: list_covers
+    severity: high
+    title: Every TOR deliverable is carried into the solicitation
+    category: Scope of Work
+    params:
+      threshold: 0.75
+    remediation: >
+      Deliverables dropped between the TOR and the bidding documents -- most
+      often training, documentation and commissioning -- were not procured
+      and will not be delivered, whatever the end-user was expecting.
+    authority:
+      doc: IRR of RA 12009
+      query: terms of reference scope of work deliverables outputs shall form part of the bidding documents
+
+  - field: milestones
+    match: list_covers
+    severity: medium
+    title: Milestones in the TOR are reflected in the solicitation
+    category: Contract Timeline
+    params:
+      threshold: 0.75
+    authority:
+      doc: IRR of RA 12009
+      query: schedule of deliveries milestones completion contract implementation schedule
+
+  - field: eligibility_requirements
+    match: list_covers
+    severity: medium
+    title: Eligibility requirements are consistent across the solicitation documents
+    category: Eligibility
+    params:
+      threshold: 0.80
+    remediation: >
+      A requirement published in one document and not another gives bidders
+      inconsistent notice of what they must submit, and any disqualification
+      based on it is contestable.
+    authority:
+      doc: IRR of RA 12009
+      query: eligibility requirements legal technical financial documents submitted by prospective bidders
+
+  - field: mode_of_procurement
+    match: normalized_exact
+    severity: high
+    title: One mode of procurement is stated throughout
+    category: Procurement Modality
+    remediation: >
+      Two documents in the same solicitation naming different modes means the
+      procedure actually followed is undetermined, and the justification on
+      file supports only one of them.
+    authority:
+      doc: IRR of RA 12009
+      section: "26.1"
